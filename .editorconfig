@@ -1,0 +1,34 @@
+# 编辑器无关的格式约定。保证任何编辑器打开都不会把文件改乱。
+# 规则说明见 docs/coding-standards.md §9。
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+# 源码：4 空格
+[*.{cpp,h}]
+indent_size = 4
+
+[CMakeLists.txt]
+indent_size = 4
+
+[*.cmake]
+indent_size = 4
+
+# 数据与文档：2 空格
+[*.{json,yml,yaml,md}]
+indent_size = 2
+
+[*.ps1]
+indent_size = 4
+
+[*.svg]
+indent_size = 2
+
+# 补丁与样例文件不做空白处理
+[*.{patch,diff}]
+trim_trailing_whitespace = false

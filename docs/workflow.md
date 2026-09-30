@@ -24,7 +24,8 @@ Qt 安装相关的已知坑（历史踩过的，不要再试）：
 ## 2. 源码树里什么进版本控制
 
 进版本控制：`CMakeLists.txt`、`CMakePresets.json`、`docs/`、`scripts/`、
-`sdk/`、`app/`、`plugins/`。
+`sdk/`、`app/`、`plugins/`，以及三份格式约定 `.clang-format`、`.editorconfig`、
+`.gitattributes`。
 
 **不进版本控制**（已在 `.gitignore` 中声明）：`build/`（完全可再生成）、
 IDE 目录、CMake 缓存。
@@ -50,6 +51,18 @@ cmake --build build --config Release --target deploy
 ```
 
 输出布局：`build/bin/<Config>/ToolBox.exe` + `build/bin/<Config>/tools/*.dll`。
+
+### 3.1 代码风格检查
+
+`.clang-format` 是按现有代码风格倒推配置的（Allman 大括号、4 空格缩进、指针符号靠
+变量名、100 列、不重排中文注释），目标是锁住现状而非改造代码。
+
+本机**尚未安装 clang-format**，所以这份配置是照代码读出来的、未经实跑校验。装好之后
+先做一次空跑，确认不会引起大规模重排，再考虑纳入 CI：
+
+```powershell
+clang-format --dry-run --Werror (Get-ChildItem app,plugins,sdk -Recurse -Include *.cpp,*.h)
+```
 
 ## 4. 新增一个工具插件
 

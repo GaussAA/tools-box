@@ -110,7 +110,8 @@
 - 新增 Qt 模块依赖时，必须同时在顶层 `CMakeLists.txt` 的 `find_package` 中声明
   （例如 `Network`）。
 - MSVC 下必须保留 `/utf-8`（源码含中文字面量），不允许以「本地代码页能用」为由绕过。
-- 源文件统一 UTF-8 无 BOM、换行符统一 LF。
+- 源文件统一 UTF-8 无 BOM、换行符统一 LF。由 `.editorconfig` 与 `.gitattributes`
+  共同保证，不依赖个人编辑器设置。
 
 ## 10. CMake 约定
 
@@ -137,8 +138,9 @@
 
 | 规则 | 靠什么保证 | 现状 |
 | --- | --- | --- |
-| 缩进、换行、行宽、大括号位置 | `.clang-format`（待补，见偏差 9.9） | 手工 |
-| 字符集、换行符、末尾空行 | `.editorconfig`（待补） | 手工 |
+| 缩进、行宽、大括号位置、符号对齐 | `.clang-format` | 已配置，**尚未用 clang-format 实跑校验**（本机未安装，见偏差 9.9） |
+| 字符集、缩进风格、末尾空行 | `.editorconfig` | 已配置 |
+| 换行符统一 LF | `.gitattributes`（`* text=auto eol=lf`） | 已配置（本机 `core.autocrlf=true`，必须靠它兜底） |
 | 显式 `tr()` / `QStringLiteral()` | 评审 + grep | 已达标 |
 | 新式信号槽语法 | grep 排除 `SIGNAL(` / `SLOT(` | 已达标 |
 | 父子对象树与所有权 | 评审 + clang-tidy（可选） | 已达标 |

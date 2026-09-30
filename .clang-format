@@ -1,0 +1,59 @@
+# 工具箱代码格式配置。规则对应 docs/coding-standards.md 的命名与格式章节。
+#
+# 本文件是按现有代码的实际风格倒推出来的（Allman 大括号、4 空格缩进、
+# 指针/引用符号靠变量名、行宽 100），目的是「锁住现状」而不是改造代码。
+# 目标：应用后不产生大规模重排。
+#
+# 注意：本机当前未安装 clang-format，因此尚未实跑校验 —— 见
+# docs/architecture.md 偏差台账 9.9。
+
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: c++17
+
+# ── 缩进与行宽 ────────────────────────────────────────────
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+
+# 访问修饰符顶格，成员相对缩进 4
+AccessModifierOffset: -4
+
+# ── 大括号 ────────────────────────────────────────────────
+# 现有代码一律是 Allman：{ 独占一行
+BreakBeforeBraces: Allman
+# 现有代码的条件分支都带大括号、且不写成一行
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+# 头文件里有 { return m_entries; } 这种单行访问器
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortLambdasOnASingleLine: None
+
+# ── 符号位置 ──────────────────────────────────────────────
+# 现有代码写作 QWidget *parent / const QString &text
+PointerAlignment: Right
+ReferenceAlignment: Pointer
+DerivePointerAlignment: false
+
+# ── 类与函数 ──────────────────────────────────────────────
+# 构造初始化列表：逗号在行首（": QMainWindow(parent)" 换行后 ", m_x(...)"）
+BreakConstructorInitializers: BeforeComma
+# namespace 内部不缩进；收尾注释保留（} // namespace）
+NamespaceIndentation: None
+FixNamespaceComments: true
+# 空行最多保留 1 行
+MaxEmptyLinesToKeep: 1
+# 预处理指令顶格
+IndentPPDirectives: None
+
+# ── 注释 ──────────────────────────────────────────────────
+# 注释是中文且已经手工排过版，绝对不要让 clang-format 重排
+ReflowComments: false
+
+# ── include 顺序 ──────────────────────────────────────────
+# 必须保持 Preserve：插件 .cpp 末尾的 #include "Xxx.moc" 依赖它在最后一行，
+# 一旦被合并进上面的分组并重排，moc 的包含顺序就会出错导致编译失败。
+IncludeBlocks: Preserve
+SortIncludes: CaseSensitive

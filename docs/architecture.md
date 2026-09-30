@@ -156,7 +156,7 @@ tools-box/
 | 9.6 | 部署使用 `--no-translations`，Qt 自带对话框按钮为英文 | [app/CMakeLists.txt](../app/CMakeLists.txt) | 早期为避免拷贝多余文件 | 需修正 | 发布前开启并附带 `qt_zh_CN.qm` |
 | 9.7 | 插件 `CMakeLists.txt` 样板重复 | `plugins/*/CMakeLists.txt` | 复制目录即建新插件的模板 | 接受 | 出现第 5 个插件时抽取 `toolbox_add_plugin()` |
 | 9.8 | 排序比较器中反复调用 `plugin->meta()` | [ToolRegistry.cpp](../app/ToolRegistry.cpp) | — | 数量少，可接受 | 改为排序前取一次，并显式写明「`meta()` 必须无副作用」的契约 |
-| 9.9 | 无格式与静态检查配置 | 根目录 | — | 需补 | 补 `.clang-format` / `.editorconfig`（P2） |
+| 9.9 | 格式配置已补但未实跑校验；静态检查（clang-tidy / CI）仍缺 | 根目录 | 本机未安装 clang-format，格式只能按现有代码倒推 | 格式规则先落地 | 装好 clang-format 后跑一次 `--dry-run`，确认无大规模重排再纳入 CI |
 | 9.10 | 无 `install()` / CPack 打包规则，交付靠手工拷贝 `bin/` | 全项目 | 交付频次低 | 接受 | 发布流程成形后再补 |
 
 ## 10. 目标架构与迁移计划

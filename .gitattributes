@@ -1,0 +1,18 @@
+# 换行符策略：入库与检出一律 LF。
+#
+# 本机 core.autocrlf=true，若不显式声明，检出时会把源码、脚本、文档
+# 全部转成 CRLF，与 docs/coding-standards.md §9「换行符统一 LF」冲突，
+# 并让每次提交都混进整文件级的换行改动。此文件是那条规则的执行手段。
+
+* text=auto eol=lf
+
+# 二进制文件不做任何换行转换（构建产物本就不入库，此处只防误加）
+*.exe   binary
+*.dll   binary
+*.lib   binary
+*.pdb   binary
+*.zip   binary
+*.7z    binary
+*.png   binary
+*.jpg   binary
+*.ico   binary
