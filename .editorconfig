@@ -1,5 +1,5 @@
 # 编辑器无关的格式约定。保证任何编辑器打开都不会把文件改乱。
-# 规则说明见 docs/coding-standards.md §9。
+# 规则说明与检查手段见 docs/workflow.md §3.1（对应检查脚本 scripts/verify/verify_whitespace.ps1）。
 root = true
 
 [*]

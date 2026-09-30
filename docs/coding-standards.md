@@ -54,7 +54,7 @@
   裸指针只允许表达「不拥有」。
 - `QNetworkReply` 一律用 `deleteLater()` 释放；不得在 `finished` 处理中 `delete`。
 - 插件相关：`QPluginLoader` 由 `ToolRegistry` 持有，卸载顺序见
-  [architecture.md §4.3](./architecture.md#43-生命周期约束)。
+  [architecture.md §4.4](./architecture.md#44-生命周期约束)。
 - 硬规则：不允许出现「`new` 之后既不设 parent、也不显式释放、也没有智能指针接管」
   的对象；不允许返回指向容器内部元素的指针并让调用方长期持有
   （容器扩容/清空即悬空）。
