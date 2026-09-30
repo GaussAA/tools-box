@@ -2,6 +2,7 @@
 
 #include "ToolBoxPlugin.h"
 #include "ToolRegistry.h"
+#include "core/ToolCatalog.h"
 
 #include <QAction>
 #include <QApplication>
@@ -79,16 +80,6 @@ QIcon fallbackToolIcon(const QString &name)
                      name.isEmpty() ? QStringLiteral("?") : name.left(1).toUpper());
 
     return QIcon(pixmap);
-}
-
-/// 剔除 ids 里已经加载不到的工具（插件被删掉或改了 id 的情况）。
-void pruneMissingIds(QStringList &ids, const QSet<QString> &aliveIds)
-{
-    for (int i = ids.size() - 1; i >= 0; --i) {
-        if (!aliveIds.contains(ids.at(i))) {
-            ids.removeAt(i);
-        }
-    }
 }
 
 } // namespace
@@ -221,8 +212,8 @@ void MainWindow::reloadTools()
     for (const ToolEntry &tool : m_tools) {
         aliveIds.insert(tool.id);
     }
-    pruneMissingIds(m_favorites, aliveIds);
-    pruneMissingIds(m_recent, aliveIds);
+    toolbox::pruneMissingIds(m_favorites, aliveIds);
+    toolbox::pruneMissingIds(m_recent, aliveIds);
     QSettings().setValue(kFavoritesKey, m_favorites);
     QSettings().setValue(kRecentKey, m_recent);
 
@@ -351,55 +342,32 @@ int MainWindow::applyFilter(const QString &needle)
     const bool wasApplying = m_applyingFilter;
     m_applyingFilter = true;
 
-    // 同一工具在多处分区出现，命中数按工具去重。
-    QSet<QString> matchedIds;
-
-    // 第一遍：判定每个可选中的项（首页 + 工具项）是否命中。
+    // 先把导航现状抄成一份纯数据，过滤规则本身交给 toolbox::filterNavRows，
+    // 这样规则能脱离 QListWidget 单测。
+    QList<toolbox::NavRow> rows;
+    rows.reserve(m_nav->count());
     for (int row = 0; row < m_nav->count(); ++row) {
-        QListWidgetItem *item = m_nav->item(row);
-        if (!item->data(kPageIndexRole).isValid()) {
-            continue; // 分组标题留到第二遍统一处理
-        }
-
-        const QString haystack = item->data(kSearchTextRole).toString();
-        const bool hit = needle.isEmpty() || haystack.contains(needle, Qt::CaseInsensitive);
-        item->setHidden(!hit);
-
-        // 首页没有工具 id，不计入工具数。
-        const QString toolId = item->data(kToolIdRole).toString();
-        if (hit && !toolId.isEmpty()) {
-            matchedIds.insert(toolId);
-        }
+        const QListWidgetItem *item = m_nav->item(row);
+        toolbox::NavRow entry;
+        // 分组标题行没有页面下标；首页和工具项都有。
+        entry.isHeader = !item->data(kPageIndexRole).isValid();
+        entry.searchText = item->data(kSearchTextRole).toString();
+        entry.toolId = item->data(kToolIdRole).toString();
+        rows.append(entry);
     }
 
-    // 第二遍：分组标题只在它下面还有可见工具时才显示，否则就是一行空标题。
-    for (int row = 0; row < m_nav->count(); ++row) {
-        QListWidgetItem *header = m_nav->item(row);
-        if (header->data(kPageIndexRole).isValid()) {
-            continue;
-        }
-
-        bool hasVisibleChild = false;
-        for (int next = row + 1; next < m_nav->count(); ++next) {
-            QListWidgetItem *candidate = m_nav->item(next);
-            if (!candidate->data(kPageIndexRole).isValid()) {
-                break; // 遇到下一个分组标题，本组结束
-            }
-            if (!candidate->isHidden()) {
-                hasVisibleChild = true;
-                break;
-            }
-        }
-        header->setHidden(!hasVisibleChild);
+    const toolbox::NavFilterResult filtered = toolbox::filterNavRows(rows, needle);
+    for (int row = 0; row < rows.size(); ++row) {
+        m_nav->item(row)->setHidden(!filtered.visible.at(row));
     }
 
     // 搜索时直接把当前行让给第一个命中项，省掉一次点击。
     if (!needle.isEmpty()) {
-        QListWidgetItem *current = m_nav->currentItem();
+        const QListWidgetItem *current = m_nav->currentItem();
         if (!current || current->isHidden()) {
-            for (int row = 0; row < m_nav->count(); ++row) {
-                QListWidgetItem *item = m_nav->item(row);
-                if (!item->isHidden() && item->data(kPageIndexRole).isValid()) {
+            for (int row = 0; row < rows.size(); ++row) {
+                // 标题行不可选中，所以只认有页面下标的行。
+                if (!rows.at(row).isHeader && filtered.visible.at(row)) {
                     m_nav->setCurrentRow(row);
                     break;
                 }
@@ -408,7 +376,7 @@ int MainWindow::applyFilter(const QString &needle)
     }
 
     m_applyingFilter = wasApplying;
-    return matchedIds.size();
+    return filtered.matchedToolIds.size();
 }
 
 void MainWindow::onSearchTextChanged(const QString &text)
@@ -455,15 +423,9 @@ void MainWindow::onNavRowChanged(int row)
 
 void MainWindow::noteRecent(const QString &toolId)
 {
-    // 已经在最前面就不用动，免得每次切换都白重建一次导航。
-    if (!m_recent.isEmpty() && m_recent.first() == toolId) {
+    // 顺序没变就不用动，免得每次切换都白重建一次导航。
+    if (!toolbox::promoteRecent(m_recent, toolId, kRecentLimit)) {
         return;
-    }
-
-    m_recent.removeAll(toolId);
-    m_recent.prepend(toolId);
-    while (m_recent.size() > kRecentLimit) {
-        m_recent.removeLast();
     }
     QSettings().setValue(kRecentKey, m_recent);
 
