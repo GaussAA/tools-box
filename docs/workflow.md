@@ -15,6 +15,7 @@
 | CMake | ≥ 3.21 | 顶层 `CMakeLists.txt` |
 | 生成器 | Ninja Multi-Config，构建目录固定 `build/` | `CMakePresets.json` |
 | 源码编码 | UTF-8（无 BOM），换行 LF | 源码含中文，必须 `/utf-8` |
+| 格式化 | clang-format 22.1.3，随 Visual Studio 提供，**不必单独安装**；配置见根目录 `.clang-format` | 只作风格参考，不强制，见 §3.1 |
 
 Qt 安装相关的已知坑（历史踩过的，不要再试）：
 - **不要**用清华镜像、华为云 `repo.huaweicloud.com/qt`、阿里云镜像安装 Qt：
@@ -57,15 +58,41 @@ cmake --build build --config Release --target deploy
 
 ### 3.1 代码风格检查
 
-`.clang-format` 是按现有代码风格倒推配置的（Allman 大括号、4 空格缩进、指针符号靠
-变量名、100 列、不重排中文注释），目标是锁住现状而非改造代码。
+风格规则分两层，**一层能强制、一层只描述**，不要混为一谈。
 
-本机**尚未安装 clang-format**，所以这份配置是照代码读出来的、未经实跑校验。装好之后
-先做一次空跑，确认不会引起大规模重排，再考虑纳入 CI：
+**能强制的一层**：`.editorconfig` 里与编辑器无关的那几条 —— UTF-8、LF、文件末尾
+恰好一个换行、不留行尾空白、源码不用制表符。检查手段是
 
 ```powershell
-clang-format --dry-run --Werror (Get-ChildItem app,plugins,sdk -Recurse -Include *.cpp,*.h)
+powershell -ExecutionPolicy Bypass -File scripts\verify\verify_whitespace.ps1
 ```
+
+它扫全部纳入版本控制的文本文件，有违规就打印文件名与规则并返回非零退出码。
+
+**只描述、不强制的一层**：`.clang-format`（大括号位置、100 列、指针符号、缩进、
+注释不重排）。它的用途是统一人写代码时的判断，不是拿去批量重排。
+
+本机 clang-format 来自 Visual Studio，路径
+`C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\Llvm\x64\bin\clang-format.exe`，
+空跑命令：
+
+```powershell
+$cf = "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\Llvm\x64\bin\clang-format.exe"
+& $cf --dry-run --Werror (git ls-files "*.cpp" "*.h")
+```
+
+**实跑结论（P2）：不要让这份配置变成强制检查。** 实测它会让 14 个文件、约 330 行
+发生改动，原因有二：
+
+1. clang-format 没有「保留手工换行」的选项，也按字符数而不是中文双宽算列宽，
+   于是现有代码里手工折断的长调用、手工对齐的 lambda 实参都会被重排；
+2. 它只有一个全局 `AfterEnum` 开关，无法同时表达「短枚举写成一行、长枚举大括号
+   另起一行」—— 而现有代码两种都在用。
+
+所以：**保持描述性，不执行全仓格式化**。将来若要强制，必须先单独提一个「只做格式
+归一化」的提交，并把该提交的 hash 登记进 `.git-blame-ignore-revs`，再把上面的
+`--dry-run --Werror` 接进 CI。取舍记在
+[architecture.md §9](./architecture.md#9-偏差台账) 的偏差 9.9。
 
 ## 4. 新增一个工具插件
 
@@ -123,7 +150,7 @@ ctest --test-dir build -C Debug --output-on-failure
 ## 6. 版本与提交
 
 - **主程序版本号只有一个来源**：顶层 `CMakeLists.txt` 的 `project(... VERSION ...)`，
-  通过编译定义传给 `main.cpp`，不在源码里重复硬编码（见偏差 9.5）。
+  通过编译定义传给 `main.cpp`，不在源码里重复硬编码（原偏差 9.5，P2 已消除）。
 - 插件各自维护 `ToolMeta::version`，独立演进，与主程序版本无关。
 - 提交信息用中文，写明「为什么改」而不是「改了哪个文件」；一个提交只做一件事。
 - 遵循既有习惯：**功能积累后一次性发版，不逐次改版本号发版**。
@@ -145,6 +172,7 @@ ctest --test-dir build -C Debug --output-on-failure
 
 | 脚本 | 覆盖范围 |
 | --- | --- |
+| `verify_whitespace.ps1` | 空白与编码：全仓 LF、末尾换行、无行尾空白、源码无制表符（§3.1，可纳入 CI） |
 | `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译 |
 | `verify_recent.ps1` | 收藏 / 最近使用 / 配置持久化 / 搜索 |
 | `verify_videodl.ps1` | 视频下载插件的界面与状态 |
@@ -161,16 +189,17 @@ ctest --test-dir build -C Debug --output-on-failure
 
 ## 9. 发布
 
-1. 按 §6 确认版本号单一来源；
-2. `cmake --build --preset release` + `deploy` 目标；
-3. 确认 `build/bin/Release/translations/` 下有 `qt_zh_CN.qm`（deploy 目标的
+1. 跑 `scripts\verify\verify_whitespace.ps1`，空白与编码违规不许进版本；
+2. 按 §6 确认版本号单一来源；
+3. `cmake --build --preset release` + `deploy` 目标；
+4. 确认 `build/bin/Release/translations/` 下有 `qt_zh_CN.qm`（deploy 目标的
    `--translations zh_CN` 负责，`main.cpp` 负责装载）—— 缺了它中文界面里的
    Qt 自带对话框按钮会是英文；
-4. 确认 `build/bin/Release/` 下包含：`ToolBox.exe`、`tools/*.dll`、
+5. 确认 `build/bin/Release/` 下包含：`ToolBox.exe`、`tools/*.dll`、
    `tools/bin/`（外部内核，若已下载）、Qt 运行时与平台插件；
-5. **过一遍 [偏差台账](./architecture.md#9-偏差台账)**，逐条确认「接受」的理由仍然成立，
+6. **过一遍 [偏差台账](./architecture.md#9-偏差台账)**，逐条确认「接受」的理由仍然成立，
    能关掉的条目关掉并更新文档；
-6. 整目录分发，接收方无需安装 Qt 或 Python。
+7. 整目录分发，接收方无需安装 Qt 或 Python。
 
 ## 10. 文档维护规则（防漂移条款）
 

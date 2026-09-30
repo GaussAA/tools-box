@@ -138,8 +138,8 @@
 
 | 规则 | 靠什么保证 | 现状 |
 | --- | --- | --- |
-| 缩进、行宽、大括号位置、符号对齐 | `.clang-format` | 已配置，**尚未用 clang-format 实跑校验**（本机未安装，见偏差 9.9） |
-| 字符集、缩进风格、末尾空行 | `.editorconfig` | 已配置 |
+| 缩进、行宽、大括号位置、符号对齐 | `.clang-format` | 已配置但**不强制**：实跑会让 14 个文件 / 约 330 行重排，见 workflow §3.1 与偏差 9.9 |
+| 字符集、缩进风格、末尾空行、行尾空白 | `.editorconfig` + `scripts/verify/verify_whitespace.ps1` | 已配置且有脚本检查（可纳入 CI） |
 | 换行符统一 LF | `.gitattributes`（`* text=auto eol=lf`） | 已配置（本机 `core.autocrlf=true`，必须靠它兜底） |
 | 显式 `tr()` / `QStringLiteral()` | 评审 + grep | 已达标 |
 | 新式信号槽语法 | grep 排除 `SIGNAL(` / `SLOT(` | 已达标 |
