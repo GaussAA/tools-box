@@ -145,7 +145,7 @@
 | 新式信号槽语法 | grep 排除 `SIGNAL(` / `SLOT(` | 已达标 |
 | 父子对象树与所有权 | 评审 + clang-tidy（可选） | 已达标 |
 | `m_` / `k` 前缀、命名一致 | `.clang-format` 的命名规则段 + 评审 | 已达标 |
-| 纯逻辑可单测 | 评审（对照 §architecture 3 的判定特征） | 未达标，见偏差 9.3 |
+| 纯逻辑可单测 | 评审（对照 §architecture 3 的判定特征）+ `ctest` | 已达标：`app/core`、`plugins/videodl/core` 均有 Qt Test 用例，见 workflow §5 |
 | 编译警告不引入新告警 | 编译器警告等级 + 评审 | 手工 |
 | C++ 标准不超标 | 编译器约束（`CMAKE_CXX_STANDARD`） | 已达标 |
 

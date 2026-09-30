@@ -24,8 +24,8 @@ Qt 安装相关的已知坑（历史踩过的，不要再试）：
 ## 2. 源码树里什么进版本控制
 
 进版本控制：`CMakeLists.txt`、`CMakePresets.json`、`docs/`、`scripts/`、
-`sdk/`、`app/`、`plugins/`，以及三份格式约定 `.clang-format`、`.editorconfig`、
-`.gitattributes`。
+`sdk/`、`app/`、`plugins/`、`tests/`，以及三份格式约定 `.clang-format`、
+`.editorconfig`、`.gitattributes`。
 
 **不进版本控制**（已在 `.gitignore` 中声明）：`build/`（完全可再生成）、
 IDE 目录、CMake 缓存。
@@ -45,6 +45,9 @@ cmake --build --preset release
 
 # 运行
 .\build\bin\Debug\ToolBox.exe
+
+# 跑单元测试（见 §5）
+ctest --test-dir build -C Debug --output-on-failure
 
 # 部署 Qt 运行时（把 Qt 的 DLL 收进输出目录，便于整目录分发）
 cmake --build build --config Release --target deploy
@@ -85,16 +88,37 @@ clang-format --dry-run --Werror (Get-ChildItem app,plugins,sdk -Recurse -Include
 
 ## 5. 测试规范
 
-- **纯逻辑必须有自动化测试**：导航过滤、收藏/最近使用去重与清理、cookie 规范化、
-  地址提取、外部输出解析、直链解析等。
-- 测试框架用 Qt Test，位置 `tests/`，用 `enable_testing()` + `add_subdirectory(tests)`
-  接入，通过 `ctest --test-dir build -C Debug --output-on-failure` 运行。
-- 测试用例只依赖被测的纯逻辑，**不允许**依赖 `QApplication` 或真实网络/进程；
-  外部交互用固定样本文件代替。
-- 界面与真实下载链路的验证用 `scripts/verify/` 下的 PowerShell 脚本，
+判断底线：**凡是放在 `*/core/` 下的代码，都必须有对应的 Qt Test 用例**。界面上点不
+出来的逻辑，正是单元测试该覆盖的部分。
+
+```powershell
+cmake --build --preset debug
+ctest --test-dir build -C Debug --output-on-failure
+```
+
+当前用例与覆盖对象：
+
+| 测试 | 被测模块 |
+| --- | --- |
+| `tst_toolcatalog` | [app/core/ToolCatalog.*](../app/core/ToolCatalog.h)：导航过滤、失效 id 清理、最近使用去重与限长 |
+| `tst_outputparsing` | [videodl/core/OutputParsing.*](../plugins/videodl/core/OutputParsing.h)：输出解码、剥色、地址提取、进度/阶段/产物解析 |
+| `tst_douyinsupport` | [videodl/core/DouyinSupport.*](../plugins/videodl/core/DouyinSupport.h)：站点判定、画质档位、DOM 字段提取 |
+| `tst_cookiefile` | [videodl/core/CookieFile.*](../plugins/videodl/core/CookieFile.h)：cookies 规范化与各失败分支 |
+| `tst_enginelocator` | [videodl/core/EngineLocator.*](../plugins/videodl/core/EngineLocator.h)：内核定位顺序 |
+
+新增用例：在 `tests/` 下加一个 `tst_<模块名>.cpp`，用
+`toolbox_add_test(tst_<模块名> <被测静态库>)` 注册，并同步本表。
+
+约定：
+
+- 只用 `QTEST_APPLESS_MAIN`（`QCoreApplication` 级），**不允许**依赖 `QApplication`。
+  一旦发现非要后者不可，说明逻辑还挂在控件上，应先把逻辑挪进 `core/`。
+- **不允许**依赖真实网络与真实子进程；需要文件系统时用 `QTemporaryDir`，不留残留。
+- 测试可执行文件落在 `build/tests/<Config>/`，不混进要分发的 `bin/<Config>/`；
+  测试进程的 `PATH` 由 `tests/CMakeLists.txt` 前置 Qt 的 `bin` 目录，
+  因此没跑过 `deploy` 的干净构建也能直接启动。
+- 界面与真实下载链路用 `scripts/verify/` 下的脚本验证（清单见 §8），
   它们属于**手工回归**，不替代单元测试。
-- 判断标准：一个新功能如果在界面上点不出来就测不到，说明 §architecture 3 的
-  分层没做对，应先改结构再补功能。
 
 ## 6. 版本与提交
 
@@ -131,7 +155,8 @@ clang-format --dry-run --Werror (Get-ChildItem app,plugins,sdk -Recurse -Include
 | `verify_videodl_status.ps1` | 状态栏与进度反馈 |
 | `verify_videodl_logread.ps1` | 日志解析与输出读取 |
 
-脚本产生的临时数据放在 `scripts/verify/fixtures/`，不放 `build/`。
+`fixtures/` 只放固定样本（各类分享文案、地址样例）。脚本运行时的截图与下载产物落在
+`build/shots/`、`build/` 下的临时目录 —— 那是可再生成的东西，不进版本控制，跑完随手清掉。
 
 ## 9. 发布
 
