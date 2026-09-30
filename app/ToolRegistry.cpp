@@ -56,23 +56,28 @@ int ToolRegistry::rescan(const QString &dir)
         }
 
         m_loaders.append(loader);
-        m_entries.append(Entry{plugin, file.absoluteFilePath()});
+
+        Entry entry;
+        entry.plugin = plugin;
+        entry.filePath = file.absoluteFilePath();
+        // meta() 在这里取一次就缓存住：它是跨 DLL 的虚调用，而排序比较器会被
+        // 调用 O(n log n) 次，每次重取既浪费又危险。
+        entry.meta = plugin->meta();
+        m_entries.append(entry);
     }
 
     // 按「分类 → 名称」排序，让同一类工具在导航里连续出现。
     // 未声明分类的工具统一排在最后。
     std::sort(m_entries.begin(), m_entries.end(), [](const Entry &lhs, const Entry &rhs) {
-        const toolbox::ToolMeta a = lhs.plugin->meta();
-        const toolbox::ToolMeta b = rhs.plugin->meta();
-        const bool aUncategorized = a.category.isEmpty();
-        const bool bUncategorized = b.category.isEmpty();
+        const bool aUncategorized = lhs.meta.category.isEmpty();
+        const bool bUncategorized = rhs.meta.category.isEmpty();
         if (aUncategorized != bUncategorized) {
             return !aUncategorized;
         }
-        if (a.category != b.category) {
-            return a.category < b.category;
+        if (lhs.meta.category != rhs.meta.category) {
+            return lhs.meta.category < rhs.meta.category;
         }
-        return a.name.localeAwareCompare(b.name) < 0;
+        return lhs.meta.name.localeAwareCompare(rhs.meta.name) < 0;
     });
 
     return static_cast<int>(m_entries.size());

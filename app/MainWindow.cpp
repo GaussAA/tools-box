@@ -183,7 +183,9 @@ void MainWindow::reloadTools()
     const int toolCount = m_registry->rescan();
 
     for (const ToolRegistry::Entry &entry : m_registry->entries()) {
-        const toolbox::ToolMeta meta = entry.plugin->meta();
+        // meta() 在装载时已经取过一次并缓存在 Entry 里，这里直接读，
+        // 不再跨 DLL 调虚函数（见 ToolRegistry::Entry）。
+        const toolbox::ToolMeta &meta = entry.meta;
         const QString category = meta.category.isEmpty() ? tr("其他") : meta.category;
 
         QWidget *page = entry.plugin->createPage(m_stack);

@@ -1,15 +1,13 @@
 #pragma once
 
+#include "ToolBoxPlugin.h"
+
 #include <QList>
 #include <QObject>
 #include <QString>
 #include <QStringList>
 
 class QPluginLoader;
-
-namespace toolbox {
-class IToolPlugin;
-}
 
 /// 插件仓库：扫描工具目录，装载所有实现了 toolbox::IToolPlugin 的 DLL。
 ///
@@ -24,6 +22,9 @@ public:
     struct Entry
     {
         toolbox::IToolPlugin *plugin = nullptr;
+        /// 装载时取一次的 meta()。缓存下来是为了不在排序比较器里反复跨 DLL
+        /// 调用虚函数（见偏差 9.8），也正因为如此 meta() 必须无副作用且稳定。
+        toolbox::ToolMeta meta;
         QString filePath;
     };
 

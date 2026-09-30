@@ -96,7 +96,16 @@ tools-box/
   3. 更新本节与「偏差台账」。
 - `ToolMeta::version` 是插件自己的版本号，与主程序版本无关，各插件独立演进。
 
-### 4.3 生命周期约束
+### 4.3 meta() 的调用约定
+
+- **`meta()` 必须无副作用，且同一次装载期间返回值保持稳定。** 主程序在装载时调用
+  一次，把结果缓存在 `ToolRegistry::Entry::meta` 里，随后的排序、导航、状态提示都读
+  这份缓存（见偏差 9.8）。
+- 推论：需要随外部状态改变返回值（例如按当前语言改写 `name`）**不允许**靠重新调用
+  `meta()` 实现，必须换 id 走一次完整的重新装载。
+- 缓存的原因是 `meta()` 是跨 DLL 的虚调用，而排序比较器会被调用 O(n log n) 次。
+
+### 4.4 生命周期约束
 
 - `createPage()` 每次调用返回**新实例**，所有权立即归外壳；外壳负责销毁。
 - 页面若要持久化，实现 `IToolPage` 并声明 `Q_INTERFACES`；不实现也不会出问题。
@@ -160,10 +169,10 @@ tools-box/
 | 9.2 | 单个页面类曾承担界面、进程、网络、解压、解析、平台适配 | [videodl/VideoDlPlugin.cpp](../plugins/videodl/VideoDlPlugin.cpp) | 抖音适配与内核下载为后期追加 | **已收敛（P1）**：解析规则抽到 `plugins/videodl/core/` 并编成 `videodl_core`，页面只留界面、进程与网络 | 剩余的 `DownloadService`、`DouyinResolver` 拆分暂缓，理由见 §10 D2 |
 | 9.3 | ~~无自动化测试，纯逻辑靠手工脚本验证~~ | 全项目 | 一直以手工验证推进 | **已消除（P1）**：`tests/` 下 5 个 Qt Test 目标，`ctest` 全绿 | 新增 `*/core/` 模块必须同步补用例（workflow §5） |
 | 9.4 | ~~验证脚本混在可再生成的 `build/` 目录内~~ | `build/*.ps1` | 顺手放置 | **已消除（P0）**：脚本迁至 `scripts/verify/`，固定样本在 `scripts/verify/fixtures/` | 脚本运行时的截图/下载产物仍落在 `build/` —— 那些是可再生成物，属于正确位置 |
-| 9.5 | 版本号硬编码两处 | [CMakeLists.txt](../CMakeLists.txt)、[main.cpp](../app/main.cpp) | — | 接受但需消除 | 由 CMake 生成编译定义，单一来源 |
-| 9.6 | 部署使用 `--no-translations`，Qt 自带对话框按钮为英文 | [app/CMakeLists.txt](../app/CMakeLists.txt) | 早期为避免拷贝多余文件 | 需修正 | 发布前开启并附带 `qt_zh_CN.qm` |
+| 9.5 | ~~版本号硬编码两处~~ | [CMakeLists.txt](../CMakeLists.txt)、[main.cpp](../app/main.cpp) | — | **已消除（P2）**：版本号只留顶层 `project(... VERSION ...)`，由 `app/CMakeLists.txt` 的 `TOOLBOX_VERSION` 编译定义传给 `main.cpp` | 无 |
+| 9.6 | ~~部署使用 `--no-translations`，Qt 自带对话框按钮为英文~~ | [app/CMakeLists.txt](../app/CMakeLists.txt)、[main.cpp](../app/main.cpp) | 早期为避免拷贝多余文件 | **已消除（P2）**：deploy 改为 `--translations zh_CN`，并在 `main.cpp` 里安装 `QTranslator`（只拷文件不装翻译器无效） | 无 |
 | 9.7 | 插件 `CMakeLists.txt` 样板重复 | `plugins/*/CMakeLists.txt` | 复制目录即建新插件的模板 | 接受 | 出现第 5 个插件时抽取 `toolbox_add_plugin()` |
-| 9.8 | 排序比较器中反复调用 `plugin->meta()` | [ToolRegistry.cpp](../app/ToolRegistry.cpp) | — | 数量少，可接受 | 改为排序前取一次，并显式写明「`meta()` 必须无副作用」的契约 |
+| 9.8 | ~~排序比较器中反复调用 `plugin->meta()`~~ | [ToolRegistry.cpp](../app/ToolRegistry.cpp) | — | **已消除（P2）**：装载时取一次存进 `Entry::meta`，比较器只读缓存；`meta()` 的无副作用契约见 §4.3 | 无 |
 | 9.9 | 格式配置已补但未实跑校验；静态检查（clang-tidy / CI）仍缺 | 根目录 | 本机未安装 clang-format，格式只能按现有代码倒推 | 格式规则先落地 | 装好 clang-format 后跑一次 `--dry-run`，确认无大规模重排再纳入 CI |
 | 9.10 | 无 `install()` / CPack 打包规则，交付靠手工拷贝 `bin/` | 全项目 | 交付频次低 | 接受 | 发布流程成形后再补 |
 

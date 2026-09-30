@@ -145,6 +145,7 @@ ctest --test-dir build -C Debug --output-on-failure
 
 | 脚本 | 覆盖范围 |
 | --- | --- |
+| `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译 |
 | `verify_recent.ps1` | 收藏 / 最近使用 / 配置持久化 / 搜索 |
 | `verify_videodl.ps1` | 视频下载插件的界面与状态 |
 | `verify_videodl2.ps1` | 视频下载插件的界面与状态（补充场景） |
@@ -162,8 +163,9 @@ ctest --test-dir build -C Debug --output-on-failure
 
 1. 按 §6 确认版本号单一来源；
 2. `cmake --build --preset release` + `deploy` 目标；
-3. 修正偏差 9.6：部署时开启翻译（去掉 `--no-translations`）并附带 `qt_zh_CN.qm`，
-   否则中文界面里的 Qt 自带对话框按钮会是英文；
+3. 确认 `build/bin/Release/translations/` 下有 `qt_zh_CN.qm`（deploy 目标的
+   `--translations zh_CN` 负责，`main.cpp` 负责装载）—— 缺了它中文界面里的
+   Qt 自带对话框按钮会是英文；
 4. 确认 `build/bin/Release/` 下包含：`ToolBox.exe`、`tools/*.dll`、
    `tools/bin/`（外部内核，若已下载）、Qt 运行时与平台插件；
 5. **过一遍 [偏差台账](./architecture.md#9-偏差台账)**，逐条确认「接受」的理由仍然成立，

@@ -21,6 +21,10 @@ set_target_properties(ToolBox PROPERTIES WIN32_EXECUTABLE TRUE)
 
 target_link_libraries(ToolBox PRIVATE ToolBox::Sdk ToolBoxCore)
 
+# 版本号只有一个来源：顶层 CMakeLists.txt 的 project(... VERSION ...)。
+# 这里把它传成编译定义，main.cpp 直接引用，避免源码里再硬编码一份（见偏差 9.5）。
+target_compile_definitions(ToolBox PRIVATE TOOLBOX_VERSION="${PROJECT_VERSION}")
+
 # 可选目标：cmake --build <dir> --target deploy 把 Qt 运行时 DLL 收进输出目录，
 # 之后整个 bin/<Config>/ 目录可以直接拷给别人运行。
 find_program(WINDEPLOYQT_EXE
@@ -30,7 +34,7 @@ find_program(WINDEPLOYQT_EXE
 if(WINDEPLOYQT_EXE)
     add_custom_target(deploy
         COMMAND "${WINDEPLOYQT_EXE}"
-                --no-translations
+                --translations zh_CN
                 --no-system-d3d-compiler
                 --dir "$<TARGET_FILE_DIR:ToolBox>"
                 "$<TARGET_FILE:ToolBox>"
