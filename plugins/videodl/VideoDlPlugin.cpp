@@ -1,5 +1,10 @@
 #include "VideoDlPlugin.h"
 
+#include "core/CookieFile.h"
+#include "core/DouyinSupport.h"
+#include "core/EngineLocator.h"
+#include "core/OutputParsing.h"
+
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QDesktopServices>
@@ -21,7 +26,6 @@
 #include <QProcessEnvironment>
 #include <QProgressBar>
 #include <QPushButton>
-#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
@@ -39,58 +43,14 @@ const QString kFfmpegDownloadUrl = QStringLiteral(
 /// 内核下载最多发起几次传输（失败会带着断点续传重试）。
 constexpr int kMaxFetchAttempts = 5;
 
-/// 下载内核的落地目录：<exe 所在目录>/tools/bin。
-/// 和插件 DLL 的 tools/ 同处一层，整个 bin/<Config>/ 拷给别人时内核也跟着走。
+/// 适配器：内核目录的根取当前程序目录。
+///
+/// 真正的规则在 core/EngineLocator.h（这样才测得了文件布局，见
+/// docs/architecture.md §3）。这里只是把 QCoreApplication 接上去，
+/// 免得下面几十个调用点都要写一遍 applicationDirPath()。
 QString engineDir()
 {
-    return QCoreApplication::applicationDirPath() + QStringLiteral("/tools/bin");
-}
-
-/// 按「手动指定 → 随程序目录 → PATH」的顺序定位一个可执行文件。
-/// 返回空串表示没找到；调用方据此提示用户或降级。
-QString resolveExecutable(const QString &manual, const QString &fileName)
-{
-    if (!manual.isEmpty() && QFileInfo::exists(manual)) {
-        return QFileInfo(manual).absoluteFilePath();
-    }
-
-    const QString bundled = engineDir() + QLatin1Char('/') + fileName;
-    if (QFileInfo::exists(bundled)) {
-        return bundled;
-    }
-
-    // PATH 里可能带扩展名也可能不带，两种写法都试一遍。
-    const QString stem = QFileInfo(fileName).completeBaseName();
-    for (const QString &name : {stem, fileName}) {
-        const QString found = QStandardPaths::findExecutable(name);
-        if (!found.isEmpty()) {
-            return found;
-        }
-    }
-    return QString();
-}
-
-/// 程序输出可能是 UTF-8，也可能是本地代码页（Windows 控制台默认）。
-/// 先用 UTF-8 解，出现替换字符就退回本地编码，避免中文标题变乱码。
-QString decodeOutput(const QByteArray &bytes)
-{
-    const QString utf8 = QString::fromUtf8(bytes);
-    if (!utf8.contains(QChar::ReplacementCharacter)) {
-        return utf8;
-    }
-    return QString::fromLocal8Bit(bytes);
-}
-
-/// yt-dlp 有时会输出终端配色转义序列，日志里显示出来很脏，直接剥掉。
-QString stripAnsi(const QString &text)
-{
-    static const QRegularExpression re(QStringLiteral("\x1b\\[[0-9;]*[A-Za-z]"));
-    return QString(text).remove(re);
-}
-
-bool isDouyinUrl(const QString &url)
-{
-    return url.contains(QStringLiteral("douyin.com"), Qt::CaseInsensitive);
+    return videodl::engineDir(QCoreApplication::applicationDirPath());
 }
 
 /// 找一个能用来做无头渲染的浏览器。
@@ -122,102 +82,6 @@ QString findHeadlessBrowser()
         }
     }
     return QString();
-}
-
-/// 画质下拉框 → 抖音 ratio 参数的映射。抖音只认这几档；
-/// 「仅音频」也得先取到视频流再由 ffmpeg 抽音轨，所以同样按最高档拿。
-QString douyinRatio(int quality)
-{
-    switch (quality) {
-    case 2:
-        return QStringLiteral("720p");
-    case 3:
-        return QStringLiteral("540p");
-    default:
-        return QStringLiteral("1080p");
-    }
-}
-
-/// cookies 文件的规范化副本路径。
-QString normalizedCookiesPath()
-{
-    return QDir::tempPath() + QStringLiteral("/toolbox-cookies.txt");
-}
-
-/// 把浏览器导出的 cookies.txt 收拾干净，写到临时文件。
-///
-/// 浏览器扩展导出 Netscape 格式时经常犯两个错，而 yt-dlp（走 Python 的
-/// cookiejar）对这两处很严格，一不合规就拒收整个文件，报一句
-/// 「invalid Netscape format cookies file」，让人摸不着头脑：
-///   1. 域名以「.」开头（表示对子域也生效），includeSubDomains 列却写成
-///      FALSE —— cookiejar 里有断言要求两者一致，直接抛 AssertionError。
-///   2. 少量畸形行，cookie 名字是空的。
-/// 这里统一修掉：补齐第 2 列、丢掉坏行、写一份干净的临时文件。
-/// 原文件本身没问题时也照走一遍，免得行为时好时坏。
-/// 返回空串表示读取或写入失败；修正/丢弃的行数通过出参带回，好写进日志。
-QString normalizeCookies(const QString &source, int *fixedRows, int *droppedRows)
-{
-    QFile in(source);
-    if (!in.open(QIODevice::ReadOnly)) {
-        return QString();
-    }
-    const QStringList lines = QString::fromUtf8(in.readAll()).split(QLatin1Char('\n'));
-    in.close();
-
-    const QString target = normalizedCookiesPath();
-    QFile out(target);
-    if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        return QString();
-    }
-
-    QString text = QStringLiteral("# Netscape HTTP Cookie File\n");
-    int fixed = 0;
-    int dropped = 0;
-    for (QString line : lines) {
-        line.remove(QLatin1Char('\r'));
-        const QString trimmed = line.trimmed();
-        if (trimmed.isEmpty()) {
-            continue;
-        }
-
-        // 原文件的注释一概不要，头部标记由我们统一给；但 #HttpOnly_ 不是
-        // 注释，它是 HttpOnly cookie 的标记，必须原样带回去。
-        const bool httpOnly = trimmed.startsWith(QStringLiteral("#HttpOnly_"));
-        if (trimmed.startsWith(QLatin1Char('#')) && !httpOnly) {
-            continue;
-        }
-
-        const QString body = httpOnly ? trimmed.mid(10) : trimmed;
-        QStringList fields = body.split(QLatin1Char('\t'));
-        if (fields.size() < 7 || fields.at(5).trimmed().isEmpty()) {
-            ++dropped;
-            continue;
-        }
-
-        const QString want = fields.at(0).startsWith(QLatin1Char('.'))
-                                 ? QStringLiteral("TRUE")
-                                 : QStringLiteral("FALSE");
-        if (fields.at(1) != want) {
-            fields[1] = want;
-            ++fixed;
-        }
-
-        if (httpOnly) {
-            text += QStringLiteral("#HttpOnly_");
-        }
-        text += fields.join(QLatin1Char('\t')) + QLatin1Char('\n');
-    }
-
-    out.write(text.toUtf8());
-    out.close();
-
-    if (fixedRows) {
-        *fixedRows = fixed;
-    }
-    if (droppedRows) {
-        *droppedRows = dropped;
-    }
-    return target;
 }
 
 } // namespace
@@ -383,7 +247,7 @@ VideoDlPage::~VideoDlPage()
         }
     }
     QDir(QDir::tempPath() + QStringLiteral("/toolbox-douyin-render")).removeRecursively();
-    QFile::remove(normalizedCookiesPath());
+    QFile::remove(videodl::normalizedCookiesPath());
 }
 
 void VideoDlPage::buildUi()
@@ -535,12 +399,12 @@ QString VideoDlPage::fetchLabel(FetchKind kind) const
 
 QString VideoDlPage::resolvedYtDlp() const
 {
-    return resolveExecutable(m_ytDlpManual, QStringLiteral("yt-dlp.exe"));
+    return videodl::resolveExecutable(m_ytDlpManual, QStringLiteral("yt-dlp.exe"), engineDir());
 }
 
 QString VideoDlPage::resolvedFfmpeg() const
 {
-    return resolveExecutable(m_ffmpegManual, QStringLiteral("ffmpeg.exe"));
+    return videodl::resolveExecutable(m_ffmpegManual, QStringLiteral("ffmpeg.exe"), engineDir());
 }
 
 void VideoDlPage::refreshEngineStatus()
@@ -815,7 +679,7 @@ void VideoDlPage::extractFfmpeg(const QString &zipPath)
     auto *ps = new QProcess(this);
     connect(ps, &QProcess::finished, this,
             [this, ps, tmpDir, zipPath](int exitCode, QProcess::ExitStatus) {
-                const QString err = decodeOutput(ps->readAllStandardError()).trimmed();
+                const QString err = videodl::decodeOutput(ps->readAllStandardError()).trimmed();
                 ps->deleteLater();
 
                 QString result;
@@ -940,14 +804,9 @@ void VideoDlPage::startDownload()
     }
 
     // 从 App 里点「复制链接」拿到的常常是一整段分享文案：表情、话题标签、
-    // 口令和说明文字全都混在一起，真正的地址只是其中一小段。
-    // 这里先把 http(s) 地址抠出来，用户直接整段粘贴也能用。
-    // 字符集按 RFC 3986 的合法字符来，中文和反引号之类不在此列，
-    // 于是「…/mevuYgCRF1g/ 复制此链接」这种情况会在中文处自然截断。
-    static const QRegularExpression urlRe(QStringLiteral(
-        R"(https?://[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+)"));
-    const QRegularExpressionMatch urlMatch = urlRe.match(rawInput);
-    const QString url = urlMatch.hasMatch() ? urlMatch.captured(0) : rawInput;
+    // 口令和说明文字全都混在一起，真正的地址只是其中一小段。抠地址的规则
+    // 在 core/OutputParsing.h，用户直接整段粘贴也能用。
+    const QString url = videodl::extractUrl(rawInput);
 
     const QString ytDlp = resolvedYtDlp();
     if (ytDlp.isEmpty()) {
@@ -1019,10 +878,11 @@ void VideoDlPage::launchDownload(const QString &target, const QString &titleHint
     const QString cookies = m_cookies->text().trimmed();
     if (!cookies.isEmpty() && QFileInfo::exists(cookies)) {
         // 导出扩展产出的文件常常不合规，直接喂给 yt-dlp 会被整份拒收，
-        // 先收拾一份干净的副本出来（详见 normalizeCookies 的注释）。
+        // 先收拾一份干净的副本出来（详见 core/CookieFile.h 的注释）。
         int fixedRows = 0;
         int droppedRows = 0;
-        const QString normalized = normalizeCookies(cookies, &fixedRows, &droppedRows);
+        const QString normalized = videodl::normalizeCookies(
+            cookies, videodl::normalizedCookiesPath(), &fixedRows, &droppedRows);
         if (normalized.isEmpty()) {
             appendLog(tr("cookies 文件读不出来，本次下载不使用它：%1")
                           .arg(QDir::toNativeSeparators(cookies)));
@@ -1102,7 +962,7 @@ void VideoDlPage::launchDownload(const QString &target, const QString &titleHint
 bool VideoDlPage::beginDouyinDownload(const QString &url, const QString &dir, int quality,
                                       bool audioOnly)
 {
-    if (!isDouyinUrl(url)) {
+    if (!videodl::isDouyinUrl(url)) {
         return false;
     }
 
@@ -1208,16 +1068,8 @@ void VideoDlPage::onRenderFinished(int exitCode, QProcess::ExitStatus status)
     }
 
     const QString dom = QString::fromUtf8(m_renderOut);
-    static const QRegularExpression idRe(QStringLiteral(R"(video_id=([A-Za-z0-9]{16,}))"));
-    static const QRegularExpression titleRe(QStringLiteral(R"(<title>([^<]*)</title>)"));
-    const QString videoId = idRe.match(dom).captured(1);
-
-    QString title = titleRe.match(dom).captured(1).trimmed();
-    // 页面标题形如「#纯欲松弛感 #今日份心动穿搭 - 抖音」，把后缀去掉。
-    const QString suffix = QStringLiteral(" - 抖音");
-    if (title.endsWith(suffix)) {
-        title.chop(suffix.size());
-    }
+    const QString videoId = videodl::parseDouyinVideoId(dom);
+    const QString title = videodl::parseDouyinTitle(dom);
 
     if (videoId.isEmpty()) {
         giveUp(tr("页面渲染完了，但里面没有 video_id —— 多半是抖音又改版了。"),
@@ -1232,7 +1084,7 @@ void VideoDlPage::onRenderFinished(int exitCode, QProcess::ExitStatus status)
 
     const QString playUrl = QStringLiteral(
         "https://www.douyin.com/aweme/v1/play/?video_id=%1&ratio=%2&line=0")
-        .arg(videoId, douyinRatio(m_renderQuality));
+        .arg(videoId, videodl::douyinRatio(m_renderQuality));
     appendLog(tr("播放地址接口：%1").arg(playUrl));
 
     launchDownload(playUrl, title, m_renderDir, m_renderQuality, m_renderAudioOnly, true);
@@ -1267,7 +1119,7 @@ void VideoDlPage::onProcessOutput()
         if (raw.endsWith('\r')) {
             raw.chop(1);
         }
-        handleOutputLine(stripAnsi(decodeOutput(raw)));
+        handleOutputLine(videodl::stripAnsi(videodl::decodeOutput(raw)));
     }
 }
 
@@ -1278,48 +1130,43 @@ void VideoDlPage::handleOutputLine(const QString &line)
     }
     appendLog(line);
 
-    static const QRegularExpression progressRe(
-        QStringLiteral(R"(\[download\]\s+(\d+(?:\.\d+)?)%)"));
-    const QRegularExpressionMatch progressMatch = progressRe.match(line);
-    if (progressMatch.hasMatch()) {
-        const double percent = progressMatch.captured(1).toDouble();
+    // 解析规则都在 videodl_core 里（见 core/OutputParsing.h），这里只负责把
+    // 解析结果翻译成界面上的进度条与状态文案 —— 文案要 tr()，属于 View。
+    const videodl::ProgressInfo progress = videodl::parseProgress(line);
+    if (progress.matched) {
         m_progress->setRange(0, 100);
-        m_progress->setValue(static_cast<int>(percent));
+        m_progress->setValue(progress.percent);
 
-        // 同一行里还带着速度和预计剩余时间，把它们摘出来一起显示，
-        // 免得用户只能盯着一个百分比猜还要等多久。
-        static const QRegularExpression speedRe(QStringLiteral(R"(\bat\s+(\S+/s))"));
-        static const QRegularExpression etaRe(QStringLiteral(R"(\bETA\s+(\S+))"));
-        const QRegularExpressionMatch speedMatch = speedRe.match(line);
-        const QRegularExpressionMatch etaMatch = etaRe.match(line);
-
-        const QString speed = speedMatch.hasMatch() ? speedMatch.captured(1) : QString();
-        const QString eta = etaMatch.hasMatch() ? etaMatch.captured(1) : QString();
-        const QString hint = eta.isEmpty() ? speed : tr("%1，剩余 %2").arg(speed, eta);
-
+        const QString hint = progress.eta.isEmpty()
+            ? progress.speed
+            : tr("%1，剩余 %2").arg(progress.speed, progress.eta);
         setStatus(hint.isEmpty()
-                      ? tr("正在下载… %1%").arg(percent, 0, 'f', 0)
-                      : tr("正在下载… %1%（%2）").arg(percent, 0, 'f', 0).arg(hint));
-    } else if (line.contains(QStringLiteral("[download] Destination:"))) {
-        setStatus(tr("正在下载…"));
-    } else if (line.contains(QStringLiteral("[Merger]"))) {
-        // 合并音视频分轨要花十几秒到几分钟，这期间没有任何百分比可报，
-        // 不切不确定态的话进度条会一直停在 100%，看着像卡死。
-        m_progress->setRange(0, 0);
-        setStatus(tr("正在合并音视频…"));
-    } else if (line.contains(QStringLiteral("[ExtractAudio]"))
-               || line.contains(QStringLiteral("[ffmpeg]"))) {
-        m_progress->setRange(0, 0);
-        setStatus(tr("正在提取音频…"));
+                      ? tr("正在下载… %1%").arg(progress.percent)
+                      : tr("正在下载… %1%（%2）").arg(progress.percent).arg(hint));
+    } else {
+        switch (videodl::classifyStage(line)) {
+        case videodl::OutputStage::DownloadStarting:
+            setStatus(tr("正在下载…"));
+            break;
+        case videodl::OutputStage::Merging:
+            // 合并音视频分轨要花十几秒到几分钟，这期间没有任何百分比可报，
+            // 不切不确定态的话进度条会一直停在 100%，看着像卡死。
+            m_progress->setRange(0, 0);
+            setStatus(tr("正在合并音视频…"));
+            break;
+        case videodl::OutputStage::ExtractingAudio:
+            m_progress->setRange(0, 0);
+            setStatus(tr("正在提取音频…"));
+            break;
+        case videodl::OutputStage::None:
+            break;
+        }
     }
 
     // 记下最终产物：普通下载给 Destination，合并/转码后给的是另一条。
-    static const QRegularExpression destRe(QStringLiteral(
-        R"RE(^(?:\[download\]|\[ExtractAudio\])\s+Destination:\s+(.+)$|^\[Merger\]\s+Merging formats into\s+"(.+)"$)RE"));
-    const QRegularExpressionMatch destMatch = destRe.match(line);
-    if (destMatch.hasMatch()) {
-        m_lastOutput = destMatch.captured(1).isEmpty() ? destMatch.captured(2)
-                                                       : destMatch.captured(1);
+    const QString destination = videodl::parseDestination(line);
+    if (!destination.isEmpty()) {
+        m_lastOutput = destination;
     }
 }
 
@@ -1327,11 +1174,11 @@ void VideoDlPage::onProcessFinished(int exitCode, QProcess::ExitStatus status)
 {
     // 规范化出来的那份 cookies 副本里有登录凭据，任务一结束就删掉，
     // 别让它在临时目录里躺着。
-    QFile::remove(normalizedCookiesPath());
+    QFile::remove(videodl::normalizedCookiesPath());
 
     // 收尾：把缓冲区里最后没带换行的一行也处理掉。
     if (!m_pending.isEmpty()) {
-        handleOutputLine(stripAnsi(decodeOutput(m_pending)));
+        handleOutputLine(videodl::stripAnsi(videodl::decodeOutput(m_pending)));
         m_pending.clear();
     }
 
