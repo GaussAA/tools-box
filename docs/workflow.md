@@ -222,6 +222,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | --- | --- |
 | `verify_whitespace.ps1` | 空白与编码：全仓 LF、末尾换行、无行尾空白、源码无制表符（§3.1，可纳入 CI） |
 | `verify_conventions.ps1` | 可机械判定的编码规范：旧式 `SIGNAL()/SLOT()`、`QString("字面量")`、跨层 include、裸字符串 QSettings 键（可纳入 CI） |
+| `verify_docs.ps1` | 文档一致性：相对链接目标存在、`#锚点` 能落到标题、无孤立文档（§10 第 5 条，可纳入 CI） |
 | `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译 |
 | `verify_recent.ps1` | 收藏 / 最近使用 / 配置持久化 / 搜索 |
 | `verify_videodl.ps1` | 视频下载插件的界面与状态 |
@@ -238,8 +239,9 @@ ctest --test-dir build -C Debug --output-on-failure
 
 ## 9. 发布
 
-1. 跑两个不依赖界面的检查：`scripts\verify\verify_whitespace.ps1`、
-   `scripts\verify\verify_conventions.ps1`，都返回 0 才继续；命名检查
+1. 跑三个不依赖界面的检查：`scripts\verify\verify_whitespace.ps1`、
+   `scripts\verify\verify_conventions.ps1`、`scripts\verify\verify_docs.ps1`，
+   都返回 0 才继续；命名检查
    （[§3.2](#32-命名检查clang-tidy目前手动跑)）要单独配置并构建一个目录，不强制拦在
    发版路径上，但改动过命名相关的代码后应当跑一次；
 2. 按 §6 确认版本号单一来源；
@@ -272,7 +274,11 @@ ctest --test-dir build -C Debug --output-on-failure
 4. **每次发版前做一次审计**：过一遍偏差台账，并按
    [coding-standards.md §12](./coding-standards.md#12-检查手段映射表)
    核对各条规则的保证手段是否仍然成立（工具是否配置、是否在 CI 里跑）。
-5. 文档只描述**结构、契约、规则**，不抄写代码细节，不列举会在代码里变化的清单
+5. **文档之间的引用由脚本兜底**。章节会重编号、文件会挪位置，参考链接烂掉时没人会
+   发现。`scripts/verify/verify_docs.ps1`（§8）机械检查三件事：相对链接的目标文件是否
+   存在、`#锚点` 是否真能落到某个标题上、有没有哪份文档谁都不引用。新加文档时记得从
+   至少一处链过去，否则脚本会判它「孤立」。
+6. 文档只描述**结构、契约、规则**，不抄写代码细节，不列举会在代码里变化的清单
    （工具数量、行数等），避免文档随代码频繁失效。
 
 ## 相关文档
