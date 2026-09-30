@@ -17,6 +17,7 @@
 | 源码编码 | UTF-8（无 BOM），换行 LF | 源码含中文，必须 `/utf-8` |
 | 警告等级 | `/W4 /permissive- /WX`，**警告即错误**，Debug / Release 均须 0 告警 | 顶层 `CMakeLists.txt`；规则见 coding-standards §9 |
 | 格式化 | clang-format 22.1.3，随 Visual Studio 提供，**不必单独安装**；配置见根目录 `.clang-format` | 只作风格参考，不强制，见 §3.1 |
+| 静态检查 | clang-tidy 22.1.3，同样随 Visual Studio 提供；配置见根目录 `.clang-tidy` | 目前手动跑，不接入构建，见 §3.2 |
 
 Qt 安装相关的已知坑（历史踩过的，不要再试）：
 - **不要**用清华镜像、华为云 `repo.huaweicloud.com/qt`、阿里云镜像安装 Qt：
@@ -26,8 +27,8 @@ Qt 安装相关的已知坑（历史踩过的，不要再试）：
 ## 2. 源码树里什么进版本控制
 
 进版本控制：`CMakeLists.txt`、`CMakePresets.json`、`docs/`、`scripts/`、
-`sdk/`、`app/`、`plugins/`、`tests/`，以及三份格式约定 `.clang-format`、
-`.editorconfig`、`.gitattributes`。
+`sdk/`、`app/`、`plugins/`、`tests/`，以及四份工具配置 `.clang-format`、
+`.clang-tidy`、`.editorconfig`、`.gitattributes`。
 
 **不进版本控制**（已在 `.gitignore` 中声明）：`build/`（完全可再生成）、
 IDE 目录、CMake 缓存。
@@ -94,6 +95,52 @@ $cf = "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\Llvm\x64\b
 归一化」的提交，并把该提交的 hash 登记进 `.git-blame-ignore-revs`，再把上面的
 `--dry-run --Werror` 接进 CI。取舍记在
 [architecture.md §9](./architecture.md#9-偏差台账) 的偏差 9.9。
+
+### 3.2 命名检查（clang-tidy，目前手动跑）
+
+[clang-format 管不了命名](#31-代码风格检查)，命名规则（[coding-standards.md §1](./coding-standards.md#1-命名)）
+靠根目录 `.clang-tidy` + clang-tidy 的 `readability-identifier-naming` 检查。clang-tidy
+同样随 Visual Studio 提供，**不必单独安装**：
+
+```
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\Llvm\x64\bin\clang-tidy.exe
+```
+
+**它需要一份 `compile_commands.json`**，而本工程用的 Ninja Multi-Config 生成器默认
+不生成。所以单独配置一个只含 Debug 的目录，并**先构建一次**：
+
+```powershell
+cmake -S . -B build/tidy -G "Ninja Multi-Config" `
+      -DCMAKE_PREFIX_PATH="D:/Qt/6.10.3/msvc2022_64" `
+      -DCMAKE_CONFIGURATION_TYPES=Debug `
+      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/tidy --config Debug
+
+$ct = "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\Llvm\x64\bin\clang-tidy.exe"
+& $ct -p build/tidy (git ls-files "*.cpp")
+```
+
+两个必须照做的细节，否则结果不可信：
+
+1. **只配 Debug**。同时存在 Debug/Release 两套条目时，clang-tidy 只会挑其中一条，
+   而另一套的 AUTOMOC 目录是空的，会出现假的 `'Xxx.moc' file not found`。
+2. **必须先构建一次**。`#include "Xxx.moc"` 指向的是构建期由 AUTOMOC 生成的文件，
+   没构建过这些文件就不存在。缺少它们的那 7 个文件（2 个插件入口 + 5 个测试）会被
+   跳过分析。
+
+`.clang-tidy` 只开白名单，刻意**不含** `cppcoreguidelines-owning-memory`：它要求 `new`
+出来的裸指针必须赋给 `gsl::owner<>`，与本项目（及 Qt 整体惯例）用父子对象树表达所有权
+的写法正面冲突，全仓实跑 61 条命中**全是误报**。所有权一条继续靠评审。
+
+**结论（P3）**：命名规则**当前全仓 0 命中** —— 16 个 `.cpp` 加上 `HeaderFilterRegex`
+覆盖的头文件，没有任何一处违反 §1。这条结论做过反向验证：手工把
+`ToolCatalog.cpp` 里的一个局部变量改成 `HasVisibleChild_XX`，检查立刻报出
+`invalid case style for local variable`。
+
+**目前不接入构建、也不写成 `scripts/verify/` 脚本**：它要先配置再完整构建一个独立
+目录（分钟级），与 §8 里那些「秒级、只读、不构建」的验证脚本定位不同；而 CI 尚不可
+接入（仓库没有远端）。引入 CI 后，这里应成为 CI 的一步，届时再评估把它和
+[§3.1](#31-代码风格检查) 的两条一起接进去。
 
 ## 4. 新增一个工具插件
 
@@ -192,7 +239,9 @@ ctest --test-dir build -C Debug --output-on-failure
 ## 9. 发布
 
 1. 跑两个不依赖界面的检查：`scripts\verify\verify_whitespace.ps1`、
-   `scripts\verify\verify_conventions.ps1`，都返回 0 才继续；
+   `scripts\verify\verify_conventions.ps1`，都返回 0 才继续；命名检查
+   （[§3.2](#32-命名检查clang-tidy目前手动跑)）要单独配置并构建一个目录，不强制拦在
+   发版路径上，但改动过命名相关的代码后应当跑一次；
 2. 按 §6 确认版本号单一来源；
 3. `cmake --build --preset release` + `deploy` 目标；
 4. 确认 `build/bin/Release/translations/` 下有 `qt_zh_CN.qm`（deploy 目标的
