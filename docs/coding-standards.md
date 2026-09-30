@@ -110,6 +110,9 @@
 - 新增 Qt 模块依赖时，必须同时在顶层 `CMakeLists.txt` 的 `find_package` 中声明
   （例如 `Network`）。
 - MSVC 下必须保留 `/utf-8`（源码含中文字面量），不允许以「本地代码页能用」为由绕过。
+- MSVC 下必须保留 `/W4 /permissive- /WX`：**警告即错误**，「先合进去、以后再清告警」
+  在这套配置下不可能发生。新增代码带出告警时，要么改掉，要么就地写明为什么必须
+  抑制（`#pragma warning(push/pop)` + 注释），不允许整体降警告等级。
 - 源文件统一 UTF-8 无 BOM、换行符统一 LF。由 `.editorconfig` 与 `.gitattributes`
   共同保证，不依赖个人编辑器设置。
 
@@ -146,7 +149,7 @@
 | 父子对象树与所有权 | 评审 + clang-tidy（可选） | 已达标 |
 | `m_` / `k` 前缀、命名一致 | `.clang-format` 的命名规则段 + 评审 | 已达标 |
 | 纯逻辑可单测 | 评审（对照 §architecture 3 的判定特征）+ `ctest` | 已达标：`app/core`、`plugins/videodl/core` 均有 Qt Test 用例，见 workflow §5 |
-| 编译警告不引入新告警 | 编译器警告等级 + 评审 | 手工 |
+| 编译警告不引入新告警 | MSVC `/W4 /permissive- /WX`（警告即错误） | 已达标：Debug 与 Release 全量重建 0 告警 |
 | C++ 标准不超标 | 编译器约束（`CMAKE_CXX_STANDARD`） | 已达标 |
 
 ## 相关文档

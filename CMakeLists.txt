@@ -17,6 +17,10 @@ enable_testing()
 if(MSVC)
     # 源码里有中文字符串字面量，不加 /utf-8 会被当成 GBK 读成乱码。
     add_compile_options(/utf-8)
+    # 警告等级。MSVC 默认只有 /W1，基本等于不查；这里提到 /W4 并开启标准一致性模式，
+    # 目的是让「不引入新告警」这条规则由编译器兜底，而不是靠评审自觉
+    # （见 docs/coding-standards.md §12）。警告一律当错误处理，否则会被忽略。
+    add_compile_options(/W4 /permissive- /WX)
 endif()
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)

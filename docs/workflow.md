@@ -15,6 +15,7 @@
 | CMake | ≥ 3.21 | 顶层 `CMakeLists.txt` |
 | 生成器 | Ninja Multi-Config，构建目录固定 `build/` | `CMakePresets.json` |
 | 源码编码 | UTF-8（无 BOM），换行 LF | 源码含中文，必须 `/utf-8` |
+| 警告等级 | `/W4 /permissive- /WX`，**警告即错误**，Debug / Release 均须 0 告警 | 顶层 `CMakeLists.txt`；规则见 coding-standards §9 |
 | 格式化 | clang-format 22.1.3，随 Visual Studio 提供，**不必单独安装**；配置见根目录 `.clang-format` | 只作风格参考，不强制，见 §3.1 |
 
 Qt 安装相关的已知坑（历史踩过的，不要再试）：
