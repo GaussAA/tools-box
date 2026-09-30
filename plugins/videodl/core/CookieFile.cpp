@@ -13,6 +13,15 @@ QString normalizedCookiesPath()
 QString normalizeCookies(const QString &source, const QString &target, int *fixedRows,
                          int *droppedRows)
 {
+    // 先把出参清零：不管后面从哪个分支返回，调用方拿到的都是确定值，
+    // 不必依赖自己先初始化。
+    if (fixedRows) {
+        *fixedRows = 0;
+    }
+    if (droppedRows) {
+        *droppedRows = 0;
+    }
+
     QFile in(source);
     if (!in.open(QIODevice::ReadOnly)) {
         return QString();
