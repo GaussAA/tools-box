@@ -221,7 +221,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | 脚本 | 覆盖范围 |
 | --- | --- |
 | `verify_whitespace.ps1` | 空白与编码：全仓 LF、末尾换行、无行尾空白、源码无制表符（§3.1，可纳入 CI） |
-| `verify_conventions.ps1` | 可机械判定的编码规范：旧式 `SIGNAL()/SLOT()`、`QString("字面量")`、跨层 include、裸字符串 QSettings 键（可纳入 CI） |
+| `verify_conventions.ps1` | 可机械判定的编码规范：旧式 `SIGNAL()/SLOT()`、`QString("字面量")`、跨层 include、裸字符串 QSettings 键、头文件缺 `#pragma once`、`#include "Xxx.moc"` 之后还有代码（可纳入 CI） |
 | `verify_docs.ps1` | 文档一致性：相对链接目标存在、`#锚点` 能落到标题、无孤立文档（§10 第 5 条，可纳入 CI） |
 | `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译 |
 | `verify_recent.ps1` | 收藏 / 最近使用 / 配置持久化 / 搜索 |

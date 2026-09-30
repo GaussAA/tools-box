@@ -10,6 +10,10 @@
 #      reach into plugins/, sdk/ must not reach into either
 #   4. no bare string QSettings keys in app/ or plugins/; keys must go through
 #      ToolSettings or a named constant so the ui/* vs plugin/<id>/* split holds
+#   5. every header carries #pragma once in its first lines, so no header depends
+#      on "whoever included what first"
+#   6. an "#include "Xxx.moc"" for an inline Q_OBJECT class is the last thing in
+#      the file; anything after it is compiled before the generated code exists
 #
 # NOTE: keep every literal at the PowerShell level ASCII. PowerShell 5.1 parses a
 # BOM-less .ps1 as ANSI, so Chinese in comments/strings corrupts the token stream.
@@ -92,12 +96,42 @@ Check ($crossHits.Count -eq 0) ("no cross-layer includes - " + ($crossSummary -j
 $bareKeys = Hits 'QSettings\(\)\s*\.\s*(value|setValue|remove)\s*\(\s*"' $null
 Check ($bareKeys.Count -eq 0) ("QSettings keys go through ToolSettings/named constants ({0} hit(s))" -f $bareKeys.Count)
 
+# ---------- 5. headers carry #pragma once ----------
+$noPragma = @()
+foreach ($rel in (@(& git -C $repo ls-files "*.h" "*.hpp"))) {
+  $path = Join-Path $repo $rel
+  if (-not (Test-Path $path -PathType Leaf)) { continue }
+  $head = (Get-Content -LiteralPath $path -TotalCount 3 -Encoding UTF8) -join "`n"
+  if ($head -notmatch '#pragma once') { $noPragma += $rel }
+}
+Check ($noPragma.Count -eq 0) ("headers carry #pragma once ({0} miss)" -f $noPragma.Count)
+
+# ---------- 6. moc include is the last line ----------
+$lateMoc = @()
+foreach ($item in $scan) {
+  $lines = @(Get-Content -LiteralPath $item.Path -Encoding UTF8)
+  $last = -1
+  for ($i = 0; $i -lt $lines.Count; $i++) {
+    if ($lines[$i] -match '^\s*#include\s+"[^"]+\.moc"') { $last = $i }
+  }
+  if ($last -lt 0) { continue }
+  for ($i = $last + 1; $i -lt $lines.Count; $i++) {
+    if ($lines[$i].Trim() -ne "") {
+      $lateMoc += ("{0}:{1}: {2}" -f $item.Rel, ($i + 1), $lines[$i].Trim())
+      break
+    }
+  }
+}
+Check ($lateMoc.Count -eq 0) ("moc include is the last line ({0} file(s) with code after it)" -f $lateMoc.Count)
+
 # ---------- report ----------
 foreach ($group in @(
     @{ Label = "legacy SIGNAL()/SLOT()";        Items = $legacy },
     @{ Label = "QString(" + [char]34 + "literal" + [char]34 + ")"; Items = $badStrings },
     @{ Label = "cross-layer include";           Items = $crossHits },
-    @{ Label = "bare QSettings key";            Items = $bareKeys })) {
+    @{ Label = "bare QSettings key";            Items = $bareKeys },
+    @{ Label = "header without #pragma once";   Items = $noPragma },
+    @{ Label = "code after the moc include";    Items = $lateMoc })) {
   if ($group.Items.Count -gt 0) {
     Write-Output ("-- " + $group.Label)
     $group.Items | Select-Object -First 20 | ForEach-Object { Write-Output ("   " + $_) }

@@ -106,7 +106,8 @@
 ## 9. C++ 与 Qt 语言约束
 
 - C++ 标准为 17（`qt_standard_project_setup()` 的默认值）。不允许使用更高标准的特性。
-- 只用 Qt 6 API，不引入 Qt 5 兼容分支；不使用已标记弃用的 API。
+- 只用 Qt 6 API，不引入 Qt 5 兼容分支；不使用已标记弃用的 API。后者不需要评审盯着：
+  触碰弃用 API 会产生 `C4996`，在 `/WX` 下直接变成编译错误（实测确认）。
 - 新增 Qt 模块依赖时，必须同时在顶层 `CMakeLists.txt` 的 `find_package` 中声明
   （例如 `Network`）。
 - MSVC 下必须保留 `/utf-8`（源码含中文字面量），不允许以「本地代码页能用」为由绕过。
@@ -148,10 +149,13 @@
 | 显式 `tr()` / `QStringLiteral()` | `verify_conventions.ps1` 查 `QString("字面量")` 这类构造；`tr()` 覆盖的是否完备靠评审 | 已达标 |
 | 新式信号槽语法 | `verify_conventions.ps1` 排除 `SIGNAL(` / `SLOT(` | 已达标 |
 | QSettings 键命名空间（`ui/*` 与 `plugin/<id>/*`） | `verify_conventions.ps1` 查裸字符串键；正常路径由 `ToolSettings` 封装 | 已达标 |
+| 头文件 `#pragma once` | `verify_conventions.ps1` 查每个 `.h` 的前三行 | 已达标 |
+| `#include "Xxx.moc"` 必须在文件末尾 | `verify_conventions.ps1` 查该 include 之后是否还有代码 | 已达标 |
 | 父子对象树与所有权 | 评审。clang-tidy 的 `cppcoreguidelines-owning-memory` 已评估并**排除**（与 Qt 父子对象树惯用法冲突，全仓 61 条全是误报），见 workflow §3.2 | 已达标 |
 | `m_` / `k` 前缀、命名一致 | clang-tidy 的 `readability-identifier-naming`，配置见根目录 `.clang-tidy`（手动跑，见 workflow §3.2） | 已达标：全仓 0 命中 |
 | 纯逻辑可单测 | 评审（对照 §architecture 3 的判定特征）+ `ctest` | 已达标：`app/core`、`plugins/videodl/core` 均有 Qt Test 用例，见 workflow §5 |
 | 编译警告不引入新告警 | MSVC `/W4 /permissive- /WX`（警告即错误） | 已达标：Debug 与 Release 全量重建 0 告警 |
+| 不使用已标记弃用的 API | 同一个 `/WX`：弃用告警是 `C4996`，在 `/WX` 下直接编译失败（实测确认） | 已达标 |
 | C++ 标准不超标 | 编译器约束（`CMAKE_CXX_STANDARD`） | 已达标 |
 
 保证手段按可靠性排序：**编译器 > 脚本 > 评审**。同一条规则如果评估后能用更靠前的
