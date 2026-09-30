@@ -144,13 +144,21 @@
 | 缩进、行宽、大括号位置、符号对齐 | `.clang-format` | 已配置但**不强制**：实跑会让 14 个文件 / 约 330 行重排，见 workflow §3.1 与偏差 9.9 |
 | 字符集、缩进风格、末尾空行、行尾空白 | `.editorconfig` + `scripts/verify/verify_whitespace.ps1` | 已配置且有脚本检查（可纳入 CI） |
 | 换行符统一 LF | `.gitattributes`（`* text=auto eol=lf`） | 已配置（本机 `core.autocrlf=true`，必须靠它兜底） |
-| 显式 `tr()` / `QStringLiteral()` | 评审 + grep | 已达标 |
-| 新式信号槽语法 | grep 排除 `SIGNAL(` / `SLOT(` | 已达标 |
-| 父子对象树与所有权 | 评审 + clang-tidy（可选） | 已达标 |
-| `m_` / `k` 前缀、命名一致 | `.clang-format` 的命名规则段 + 评审 | 已达标 |
+| 层间依赖方向（`plugins` / `app` / `sdk`） | `scripts/verify/verify_conventions.ps1` 查跨层 include；`core/` 静态库只链接 `Qt6::Core`，误用界面类会直接编译失败 | 已达标 |
+| 显式 `tr()` / `QStringLiteral()` | `verify_conventions.ps1` 查 `QString("字面量")` 这类构造；`tr()` 覆盖的是否完备靠评审 | 已达标 |
+| 新式信号槽语法 | `verify_conventions.ps1` 排除 `SIGNAL(` / `SLOT(` | 已达标 |
+| QSettings 键命名空间（`ui/*` 与 `plugin/<id>/*`） | `verify_conventions.ps1` 查裸字符串键；正常路径由 `ToolSettings` 封装 | 已达标 |
+| 父子对象树与所有权 | 评审（clang-tidy 的 `cppcoreguidelines-owning-memory` 可辅助，尚未接入） | 已达标 |
+| `m_` / `k` 前缀、命名一致 | 评审（`.clang-format` 不管命名；机械化要靠 clang-tidy 的 `readability-identifier-naming`，见偏差 9.9） | 已达标 |
 | 纯逻辑可单测 | 评审（对照 §architecture 3 的判定特征）+ `ctest` | 已达标：`app/core`、`plugins/videodl/core` 均有 Qt Test 用例，见 workflow §5 |
 | 编译警告不引入新告警 | MSVC `/W4 /permissive- /WX`（警告即错误） | 已达标：Debug 与 Release 全量重建 0 告警 |
 | C++ 标准不超标 | 编译器约束（`CMAKE_CXX_STANDARD`） | 已达标 |
+
+保证手段按可靠性排序：**编译器 > 脚本 > 评审**。同一条规则如果评估后能用更靠前的
+手段保证，就应该下移 —— 本轮把「不引入新告警」「空白与编码」「跨层 include / 旧式
+信号槽 / 字符串字面量 / QSettings 键」分别下移到了编译器和
+`scripts/verify/` 的两个脚本。剩下仍靠评审的三条（`tr()` 完备性、对象所有权、
+命名前后缀）都需要语义分析，等 clang-tidy 接入后再评估。
 
 ## 相关文档
 

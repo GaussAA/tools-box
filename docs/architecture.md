@@ -173,7 +173,7 @@ tools-box/
 | 9.6 | ~~部署使用 `--no-translations`，Qt 自带对话框按钮为英文~~ | [app/CMakeLists.txt](../app/CMakeLists.txt)、[main.cpp](../app/main.cpp) | 早期为避免拷贝多余文件 | **已消除（P2）**：deploy 改为 `--translations zh_CN`，并在 `main.cpp` 里安装 `QTranslator`（只拷文件不装翻译器无效） | 无 |
 | 9.7 | 插件 `CMakeLists.txt` 样板重复 | `plugins/*/CMakeLists.txt` | 复制目录即建新插件的模板 | 接受 | 出现第 5 个插件时抽取 `toolbox_add_plugin()` |
 | 9.8 | ~~排序比较器中反复调用 `plugin->meta()`~~ | [ToolRegistry.cpp](../app/ToolRegistry.cpp) | — | **已消除（P2）**：装载时取一次存进 `Entry::meta`，比较器只读缓存；`meta()` 的无副作用契约见 §4.3 | 无 |
-| 9.9 | `.clang-format` 只能当风格参考、不能当强制检查；静态检查（clang-tidy / CI）仍缺 | 根目录、`scripts/verify/verify_whitespace.ps1` | clang-format 没有「保留手工换行」的选项，又按字符数而非中文双宽算列宽，对现有代码手工折断的长调用、手工对齐的 lambda 实参一律重排；且只有一个全局 `AfterEnum` 开关，无法同时表达「短枚举一行、长枚举大括号另起一行」 | 格式分两层：`.editorconfig` 那几条（LF、末尾换行、行尾空白、制表符）交给 `verify_whitespace.ps1` 强制；clang-format 层保持描述性，不执行全仓格式化（理由与实测数据见 [workflow.md §3.1](./workflow.md#31-代码风格检查)） | 引入 CI 后先接 `verify_whitespace.ps1`；格式若要强制，必须先提一个「只做格式归一化」的独立提交并登记进 `.git-blame-ignore-revs`；clang-tidy 待 CI 就绪后再评估 |
+| 9.9 | `.clang-format` 只能当风格参考、不能当强制检查；静态检查（clang-tidy / CI）仍缺 | 根目录、`scripts/verify/verify_whitespace.ps1` | clang-format 没有「保留手工换行」的选项，又按字符数而非中文双宽算列宽，对现有代码手工折断的长调用、手工对齐的 lambda 实参一律重排；且只有一个全局 `AfterEnum` 开关，无法同时表达「短枚举一行、长枚举大括号另起一行」 | 格式分两层：`.editorconfig` 那几条（LF、末尾换行、行尾空白、制表符）交给 `verify_whitespace.ps1` 强制；clang-format 层保持描述性，不执行全仓格式化（理由与实测数据见 [workflow.md §3.1](./workflow.md#31-代码风格检查)） | 引入 CI 后先接 `verify_whitespace.ps1` 与 `verify_conventions.ps1`；格式若要强制，必须先提一个「只做格式归一化」的独立提交并登记进 `.git-blame-ignore-revs`；clang-tidy 待 CI 就绪后再评估，届时应承接 `readability-identifier-naming`（命名前后缀）与 `cppcoreguidelines-owning-memory`（所有权）这两条目前只能靠评审的规则 |
 | 9.10 | 无 `install()` / CPack 打包规则，交付靠手工拷贝 `bin/` | 全项目 | 交付频次低 | 接受 | 发布流程成形后再补 |
 
 ## 10. 目标架构与迁移计划
@@ -196,7 +196,10 @@ app/
 ```
 
 验收标准：
-1. `core/` 下的文件不 include 任何 `QtWidgets` 头文件（可用 grep 检查）；
+1. `core/` 下的文件不 include 任何 `QtWidgets` 头文件。**这一条不需要 grep 兜底**：
+   `ToolBoxCore` / `videodl_core` 都是静态库且只链接 `Qt6::Core`，包含界面类头文件会
+   直接编译失败；反向依赖（`plugins` ↔ `app` 互相 include）另由
+   `scripts/verify/verify_conventions.ps1` 检查；
 2. 搜索过滤、收藏/最近使用的增删与去重有 Qt Test 用例；
 3. 手工验证脚本 `scripts/verify/verify_recent.ps1` 全通过。
 

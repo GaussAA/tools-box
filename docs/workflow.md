@@ -174,6 +174,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | 脚本 | 覆盖范围 |
 | --- | --- |
 | `verify_whitespace.ps1` | 空白与编码：全仓 LF、末尾换行、无行尾空白、源码无制表符（§3.1，可纳入 CI） |
+| `verify_conventions.ps1` | 可机械判定的编码规范：旧式 `SIGNAL()/SLOT()`、`QString("字面量")`、跨层 include、裸字符串 QSettings 键（可纳入 CI） |
 | `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译 |
 | `verify_recent.ps1` | 收藏 / 最近使用 / 配置持久化 / 搜索 |
 | `verify_videodl.ps1` | 视频下载插件的界面与状态 |
@@ -190,7 +191,8 @@ ctest --test-dir build -C Debug --output-on-failure
 
 ## 9. 发布
 
-1. 跑 `scripts\verify\verify_whitespace.ps1`，空白与编码违规不许进版本；
+1. 跑两个不依赖界面的检查：`scripts\verify\verify_whitespace.ps1`、
+   `scripts\verify\verify_conventions.ps1`，都返回 0 才继续；
 2. 按 §6 确认版本号单一来源；
 3. `cmake --build --preset release` + `deploy` 目标；
 4. 确认 `build/bin/Release/translations/` 下有 `qt_zh_CN.qm`（deploy 目标的
