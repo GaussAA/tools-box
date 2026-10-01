@@ -1,5 +1,6 @@
 #include "VideoDlPlugin.h"
 
+#include "EngineFetcher.h"
 #include "core/CookieFile.h"
 #include "core/DouyinSupport.h"
 #include "core/EngineLocator.h"
@@ -9,7 +10,6 @@
 #include <QCoreApplication>
 #include <QDesktopServices>
 #include <QDir>
-#include <QDirIterator>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -18,9 +18,6 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QPlainTextEdit>
 #include <QProcess>
 #include <QProcessEnvironment>
@@ -33,15 +30,14 @@
 
 namespace {
 
+// 内核的下载源。「下什么、下到哪」是调用方的策略，所以留在页面这一侧，
+// EngineFetcher 只管「怎么下」。
 const QString kYtDlpDownloadUrl =
     QStringLiteral("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe");
 // 用 GitHub 上的构建，而不是 gyan.dev：gyan.dev 在国内多数网络下几乎拉不动
 // （实测 10 分钟只下来 8MB 且随后彻底停住），GitHub 这边能跑到 3MB/s。
 const QString kFfmpegDownloadUrl = QStringLiteral(
     "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip");
-
-/// 内核下载最多发起几次传输（失败会带着断点续传重试）。
-constexpr int kMaxFetchAttempts = 5;
 
 /// 适配器：内核目录的根取当前程序目录。
 ///
@@ -103,16 +99,11 @@ public:
     void saveState(const toolbox::ToolSettings &settings) override;
 
 private:
-    /// 正在进行的「内核下载」任务。用枚举而不是多个 bool，
-    /// 是因为同一时刻只允许一个内核下载任务。
-    enum class FetchKind { None, YtDlp, Ffmpeg };
-
     void buildUi();
     void appendLog(const QString &line);
     void setStatus(const QString &text);
-
-    /// 内核下载任务的显示名，用于状态提示与日志。
-    QString fetchLabel(FetchKind kind) const;
+    /// 进度条：percent 为负时切到不确定态（没有百分比可报的阶段）。
+    void setProgress(int percent);
 
     void refreshEngineStatus();
     void updateBusyState();
@@ -124,13 +115,8 @@ private:
     void pickCookies();
     void fetchYtDlp();
     void fetchFfmpeg();
-    void startFetch(FetchKind kind, const QString &url, const QString &targetPath);
-    void beginFetchTransfer();
-    void scheduleFetchRetry();
-    void finishFetch(bool ok);
-    void onFetchProgress(qint64 received, qint64 total);
-    void onFetchFinished(QNetworkReply *reply);
-    void extractFfmpeg(const QString &zipPath);
+    /// 内核下载结束（失败或成功都走这里；取消由按钮那边自己收尾）。
+    void onFetcherFinished(bool ok, EngineFetcher::Kind kind, const QString &targetPath);
 
     void startDownload();
     void cancelDownload();
@@ -170,7 +156,7 @@ private:
     QPlainTextEdit *m_log = nullptr;
 
     QProcess *m_process = nullptr;
-    QNetworkAccessManager *m_net = nullptr;
+    EngineFetcher *m_fetcher = nullptr; ///< 内核下载（yt-dlp / ffmpeg），见 EngineFetcher.h
 
     // 抖音解析用的无头浏览器（只在抖音地址上才会启动）
     QProcess *m_render = nullptr;
@@ -183,16 +169,6 @@ private:
     bool m_renderCancelled = false;
     int m_renderGeneration = 0; ///< 轮次编号，用来让过期的超时定时器失效
 
-    // 下载内核的任务状态
-    FetchKind m_fetchKind = FetchKind::None;
-    QNetworkReply *m_fetchReply = nullptr;
-    QFile *m_fetchFile = nullptr;
-    QString m_fetchUrl;
-    QString m_fetchPartPath;
-    QString m_fetchTargetPath;
-    int m_fetchAttempt = 0;   ///< 已发起的传输次数，到 kMaxFetchAttempts 就放弃
-    qint64 m_fetchOffset = 0; ///< 本次续传的起始偏移（即已落盘的字节数）
-
     // 手工指定的路径（留空则回退到随程序目录与 PATH）
     QString m_ytDlpManual;
     QString m_ffmpegManual;
@@ -204,10 +180,17 @@ private:
 VideoDlPage::VideoDlPage(QWidget *parent)
     : QWidget(parent)
     , m_process(new QProcess(this))
-    , m_net(new QNetworkAccessManager(this))
+    , m_fetcher(new EngineFetcher(this))
     , m_render(new QProcess(this))
 {
     buildUi();
+
+    // 内核下载只通过信号回话：日志、进度、阶段、结束。页面不再持有
+    // QNetworkAccessManager / 下载用的 QFile（见 docs/architecture.md 计划 D2）。
+    connect(m_fetcher, &EngineFetcher::logLine, this, &VideoDlPage::appendLog);
+    connect(m_fetcher, &EngineFetcher::progress, this, &VideoDlPage::setProgress);
+    connect(m_fetcher, &EngineFetcher::status, this, &VideoDlPage::setStatus);
+    connect(m_fetcher, &EngineFetcher::finished, this, &VideoDlPage::onFetcherFinished);
 
     m_process->setProcessChannelMode(QProcess::MergedChannels);
     connect(m_process, &QProcess::readyReadStandardOutput, this, &VideoDlPage::onProcessOutput);
@@ -396,11 +379,6 @@ void VideoDlPage::setStatus(const QString &text)
     m_status->setText(text);
 }
 
-QString VideoDlPage::fetchLabel(FetchKind kind) const
-{
-    return kind == FetchKind::Ffmpeg ? tr("ffmpeg") : tr("yt-dlp");
-}
-
 QString VideoDlPage::resolvedYtDlp() const
 {
     return videodl::resolveExecutable(m_ytDlpManual, QStringLiteral("yt-dlp.exe"), engineDir());
@@ -430,11 +408,13 @@ void VideoDlPage::updateBusyState()
 {
     const bool videoRunning = m_process->state() != QProcess::NotRunning;
     const bool rendering = m_render->state() != QProcess::NotRunning;
-    const bool fetching = m_fetchKind != FetchKind::None;
+    const bool fetching = m_fetcher->isBusy();
     const bool busy = videoRunning || rendering || fetching;
 
     m_download->setEnabled(!busy && !resolvedYtDlp().isEmpty());
-    m_cancel->setEnabled(videoRunning || rendering);
+    // 内核下载同样要能取消：ffmpeg 那个包有 190MB，中途想停却没有入口、
+    // 只能关窗口，太粗暴（取消与失败还会在日志里混成一团）。
+    m_cancel->setEnabled(videoRunning || rendering || fetching);
 
     m_fetchYtDlp->setEnabled(!busy);
     m_fetchFfmpeg->setEnabled(!busy);
@@ -453,305 +433,37 @@ void VideoDlPage::fetchYtDlp()
         setStatus(tr("无法创建内核目录：%1").arg(QDir::toNativeSeparators(engineDir())));
         return;
     }
-    startFetch(FetchKind::YtDlp, kYtDlpDownloadUrl, engineDir() + QStringLiteral("/yt-dlp.exe"));
+    m_fetcher->start(EngineFetcher::Kind::YtDlp, kYtDlpDownloadUrl,
+                     engineDir() + QStringLiteral("/yt-dlp.exe"));
+    updateBusyState();
 }
 
 void VideoDlPage::fetchFfmpeg()
 {
     // ffmpeg 官方只发 zip，先落到临时目录，解压后再把 ffmpeg.exe 挑出来。
     const QString zipPath = QDir::tempPath() + QStringLiteral("/toolbox-ffmpeg.zip");
-    startFetch(FetchKind::Ffmpeg, kFfmpegDownloadUrl, zipPath);
-}
-
-void VideoDlPage::startFetch(FetchKind kind, const QString &url, const QString &targetPath)
-{
-    if (m_fetchKind != FetchKind::None) {
-        return;
-    }
-
-    m_fetchKind = kind;
-    m_fetchUrl = url;
-    m_fetchTargetPath = targetPath;
-    m_fetchPartPath = targetPath + QStringLiteral(".part");
-    m_fetchAttempt = 0;
-    m_fetchOffset = 0;
-
-    QFile::remove(m_fetchPartPath);
-
-    appendLog(tr("开始下载 %1 …").arg(fetchLabel(kind)));
-    m_progress->setRange(0, 100);
-    m_progress->setValue(0);
-    setStatus(tr("正在下载 %1 …").arg(fetchLabel(kind)));
+    m_fetcher->start(EngineFetcher::Kind::Ffmpeg, kFfmpegDownloadUrl, zipPath);
     updateBusyState();
-
-    beginFetchTransfer();
 }
 
-/// 发起（或重新发起）一次下载传输。
-///
-/// 这里刻意支持断点续传：ffmpeg 那个包有 190MB 左右，而连 GitHub 的线路
-/// 时不时会中途断掉。没有续传的话每次失败都得从 0 重来，基本下不完。
-void VideoDlPage::beginFetchTransfer()
+void VideoDlPage::setProgress(int percent)
 {
-    ++m_fetchAttempt;
-
-    if (m_fetchFile) {
-        m_fetchFile->close();
-        delete m_fetchFile;
-        m_fetchFile = nullptr;
-    }
-
-    // 上次已经落盘的部分继续用，从它的末尾往后接着要。
-    qint64 offset = 0;
-    const QFileInfo partInfo(m_fetchPartPath);
-    if (partInfo.exists() && partInfo.size() > 0) {
-        offset = partInfo.size();
-    }
-    m_fetchOffset = offset;
-
-    m_fetchFile = new QFile(m_fetchPartPath, this);
-    const QIODevice::OpenMode mode =
-        offset > 0 ? (QIODevice::WriteOnly | QIODevice::Append) : QIODevice::WriteOnly;
-    if (!m_fetchFile->open(mode)) {
-        appendLog(tr("无法写入临时文件：%1").arg(QDir::toNativeSeparators(m_fetchPartPath)));
-        delete m_fetchFile;
-        m_fetchFile = nullptr;
-        m_fetchKind = FetchKind::None;
-        refreshEngineStatus();
+    if (percent < 0) {
+        // 不确定态：解析地址、解压这类阶段没有百分比可报。
+        m_progress->setRange(0, 0);
         return;
     }
-
-    QNetworkRequest request{QUrl(m_fetchUrl)};
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                         QNetworkRequest::NoLessSafeRedirectPolicy);
-    // GitHub 的 release 资源会跳到 release-assets.githubusercontent.com，
-    // Qt 默认走 HTTP/2 连那个主机时容易一个字节都收不到，退回 HTTP/1.1 更稳。
-    request.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
-    // 没有超时的话，连接被中间设备挂住时会永远卡在某个百分比上不报错。
-    // 30 秒收不到任何数据就判定失败，交给重试逻辑处理。
-    request.setTransferTimeout(30000);
-    if (offset > 0) {
-        request.setRawHeader("Range",
-                             "bytes=" + QByteArray::number(offset) + QByteArrayLiteral("-"));
-    }
-
-    QNetworkReply *reply = m_net->get(request);
-    m_fetchReply = reply;
-
-    connect(reply, &QNetworkReply::downloadProgress, this, &VideoDlPage::onFetchProgress);
-    connect(reply, &QNetworkReply::readyRead, this, [this, reply] {
-        if (m_fetchFile) {
-            m_fetchFile->write(reply->readAll());
-        }
-    });
-    connect(reply, &QNetworkReply::finished, this, [this, reply] { onFetchFinished(reply); });
-}
-
-void VideoDlPage::scheduleFetchRetry()
-{
-    m_fetchReply = nullptr;
-    if (m_fetchFile) {
-        m_fetchFile->close();
-        delete m_fetchFile;
-        m_fetchFile = nullptr;
-    }
-    // 稍等一下再重连，避免立刻又撞上同一个坏连接。
-    setStatus(tr("%1 下载中断，正在重试（第 %2 次）…")
-                  .arg(fetchLabel(m_fetchKind))
-                  .arg(m_fetchAttempt + 1));
-    QTimer::singleShot(1500, this, [this] { beginFetchTransfer(); });
-}
-
-void VideoDlPage::onFetchProgress(qint64 received, qint64 total)
-{
-    if (total <= 0) {
-        return;
-    }
-    // 续传时 received/total 只统计本次请求的范围，得把已落盘的部分加回去。
-    const qint64 done = m_fetchOffset + received;
-    const qint64 all = m_fetchOffset + total;
-    const int percent = static_cast<int>(done * 100 / all);
+    m_progress->setRange(0, 100);
     m_progress->setValue(percent);
-
-    const auto mb = [](qint64 bytes) {
-        return QString::number(static_cast<double>(bytes) / (1024.0 * 1024.0), 'f', 1);
-    };
-    setStatus(tr("正在下载 %1 … %2%（%3 / %4 MB）")
-                  .arg(fetchLabel(m_fetchKind))
-                  .arg(percent)
-                  .arg(mb(done), mb(all)));
 }
 
-void VideoDlPage::onFetchFinished(QNetworkReply *reply)
+void VideoDlPage::onFetcherFinished(bool ok, EngineFetcher::Kind kind, const QString &targetPath)
 {
-    if (m_fetchFile) {
-        m_fetchFile->close();
-        delete m_fetchFile;
-        m_fetchFile = nullptr;
-    }
-    if (reply) {
-        reply->deleteLater();
-    }
-    m_fetchReply = nullptr;
-
-    const int statusCode =
-        reply ? reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() : 0;
-    const QNetworkReply::NetworkError error =
-        reply ? reply->error() : QNetworkReply::UnknownNetworkError;
-    const QString errorText = reply ? reply->errorString() : tr("网络请求已取消");
-
-    // 带了 Range 却收到 200：服务器不支持续传，之前那半截文件对不上了，只能重来。
-    if (error == QNetworkReply::NoError && m_fetchOffset > 0 && statusCode == 200) {
-        appendLog(tr("服务器未支持断点续传，重新下载整个文件。"));
-        QFile::remove(m_fetchPartPath);
-        m_fetchOffset = 0;
-        scheduleFetchRetry();
-        return;
-    }
-
-    if (!reply || error != QNetworkReply::NoError) {
-        if (m_fetchAttempt < kMaxFetchAttempts) {
-            appendLog(tr("第 %1 次下载中断（%2），重试中…").arg(m_fetchAttempt).arg(errorText));
-            scheduleFetchRetry();
-            return;
-        }
-        appendLog(tr("下载失败（已尝试 %1 次）：%2").arg(m_fetchAttempt).arg(errorText));
-        finishFetch(false);
-        return;
-    }
-
-    finishFetch(true);
-}
-
-/// 收尾：把 .part 落到最终文件名；ffmpeg 还要再把 zip 解出来。
-void VideoDlPage::finishFetch(bool ok)
-{
-    const FetchKind kind = m_fetchKind;
-    const QString partPath = m_fetchPartPath;
-    const QString targetPath = m_fetchTargetPath;
-
-    const auto stopBusy = [this] {
-        m_fetchKind = FetchKind::None;
-        m_progress->setRange(0, 100);
-        m_progress->setValue(0);
-        refreshEngineStatus();
-    };
-
-    if (!ok) {
-        QFile::remove(partPath);
-        setStatus(tr("%1 下载失败。").arg(fetchLabel(kind)));
-        stopBusy();
-        return;
-    }
-
-    QFile::remove(targetPath);
-    if (!QFile::rename(partPath, targetPath)) {
-        appendLog(tr("保存失败：%1").arg(QDir::toNativeSeparators(targetPath)));
-        QFile::remove(partPath);
-        setStatus(tr("%1 保存失败。").arg(fetchLabel(kind)));
-        stopBusy();
-        return;
-    }
-
-    if (kind == FetchKind::YtDlp) {
-        appendLog(tr("yt-dlp 已就绪：%1").arg(QDir::toNativeSeparators(targetPath)));
-        stopBusy();
-        setStatus(tr("yt-dlp 已就绪。"));
-        return;
-    }
-
-    // ffmpeg 的 zip 已经改名好了（Expand-Archive 只认 .zip 后缀，
-    // 拿 .part 去解压会直接报「不是支持的存档文件格式」），交给解压收尾。
-    m_progress->setRange(0, 0); // 解压阶段没有百分比，切到不确定态
-    setStatus(tr("正在解压 ffmpeg …"));
-    extractFfmpeg(targetPath);
-}
-
-void VideoDlPage::extractFfmpeg(const QString &zipPath)
-{
-    const QString tmpDir = QDir::tempPath() + QStringLiteral("/toolbox-ffmpeg-extract");
-    QDir(tmpDir).removeRecursively();
-    QDir().mkpath(tmpDir);
-
-    appendLog(tr("正在解压 ffmpeg …"));
-
-    auto *ps = new QProcess(this);
-    connect(
-        ps, &QProcess::finished, this,
-        [this, ps, tmpDir, zipPath](int exitCode, QProcess::ExitStatus) {
-            const QString err = videodl::decodeOutput(ps->readAllStandardError()).trimmed();
-            ps->deleteLater();
-
-            QString result;
-            if (exitCode != 0) {
-                appendLog(tr("解压失败：%1").arg(err.isEmpty() ? tr("未知错误") : err));
-                result = tr("ffmpeg 安装失败：解压出错。");
-            } else {
-                // 压缩包里有多个同名文件（bin/ 与 doc/），优先挑 bin/ 下的那个。
-                QDirIterator it(tmpDir, QStringList{QStringLiteral("ffmpeg.exe")}, QDir::Files,
-                                QDirIterator::Subdirectories);
-                QString found;
-                QString fallback;
-                while (it.hasNext()) {
-                    const QString path = it.next();
-                    if (QFileInfo(path).dir().dirName().compare(QStringLiteral("bin"),
-                                                                Qt::CaseInsensitive)
-                        == 0) {
-                        found = path;
-                        break;
-                    }
-                    if (fallback.isEmpty()) {
-                        fallback = path;
-                    }
-                }
-                if (found.isEmpty()) {
-                    found = fallback;
-                }
-
-                if (found.isEmpty()) {
-                    appendLog(tr("解压后没找到 ffmpeg.exe。"));
-                    result = tr("ffmpeg 安装失败：压缩包里没有 ffmpeg.exe。");
-                } else {
-                    const QString target = engineDir() + QStringLiteral("/ffmpeg.exe");
-                    QFile::remove(target);
-                    if (QFile::copy(found, target)) {
-                        appendLog(tr("ffmpeg 已就绪：%1").arg(QDir::toNativeSeparators(target)));
-                        result = tr("ffmpeg 已就绪。");
-                    } else {
-                        appendLog(tr("复制 ffmpeg 失败：%1").arg(QDir::toNativeSeparators(target)));
-                        result = tr("ffmpeg 安装失败：无法写入目标目录。");
-                    }
-                }
-            }
-
-            QDir(tmpDir).removeRecursively();
-            QFile::remove(zipPath);
-
-            m_fetchKind = FetchKind::None;
-            m_progress->setRange(0, 100);
-            m_progress->setValue(0);
-            setStatus(result);
-            refreshEngineStatus();
-        });
-    connect(ps, &QProcess::errorOccurred, this,
-            [this, ps, tmpDir, zipPath](QProcess::ProcessError) {
-                appendLog(tr("无法调用 PowerShell 解压，请手动指定 ffmpeg 路径。"));
-                ps->deleteLater();
-                QDir(tmpDir).removeRecursively();
-                QFile::remove(zipPath);
-                m_fetchKind = FetchKind::None;
-                m_progress->setRange(0, 100);
-                m_progress->setValue(0);
-                setStatus(tr("ffmpeg 安装失败：无法解压。"));
-                refreshEngineStatus();
-            });
-
-    // 用系统自带的 Expand-Archive，省得为解压一个 zip 引入第三方库。
-    ps->start(QStringLiteral("powershell.exe"),
-              {QStringLiteral("-NoProfile"), QStringLiteral("-NonInteractive"),
-               QStringLiteral("-Command"),
-               QStringLiteral("Expand-Archive -LiteralPath '%1' -DestinationPath '%2' -Force")
-                   .arg(QDir::toNativeSeparators(zipPath), QDir::toNativeSeparators(tmpDir))});
+    Q_UNUSED(ok)
+    Q_UNUSED(kind)
+    Q_UNUSED(targetPath)
+    // 日志与状态文案由 EngineFetcher 自己发出；这里只需按新的内核状态刷新按钮。
+    refreshEngineStatus();
 }
 
 void VideoDlPage::pickYtDlp()
@@ -939,7 +651,9 @@ void VideoDlPage::launchDownload(const QString &target, const QString &titleHint
     // 等第一行 [download] xx% 出来再切回确定态。
     m_progress->setRange(0, 0);
     setStatus(tr("正在解析视频信息…"));
-    appendLog(tr("执行：%1 %2").arg(QDir::toNativeSeparators(ytDlp), args.join(QLatin1Char(' '))));
+    // 命令行里带着 cookies 副本的路径与完整视频地址，原样打进日志等于把「凭据在哪」
+    // 写给每一个看得到这段日志的人（截图、问题反馈里贴的往往就是这一行）。
+    appendLog(tr("执行：%1").arg(videodl::redactCommand(QDir::toNativeSeparators(ytDlp), args)));
 
     if (ffmpeg.isEmpty()) {
         appendLog(tr("提示：未检测到 ffmpeg，已降级为单文件下载，清晰度可能受限。"));
@@ -1099,6 +813,15 @@ void VideoDlPage::onRenderFinished(int exitCode, QProcess::ExitStatus status)
 
 void VideoDlPage::cancelDownload()
 {
+    if (m_fetcher->isBusy()) {
+        // 取消不是失败：EngineFetcher 那边不会重试，也不会报「下载失败」。
+        appendLog(tr("已取消内核下载。"));
+        setStatus(tr("已取消内核下载。"));
+        m_fetcher->cancel();
+        updateBusyState();
+        return;
+    }
+
     // 抖音那条路在渲染阶段就点取消：浏览器进程也要一起收掉。
     if (m_render->state() != QProcess::NotRunning) {
         appendLog(tr("正在取消…"));

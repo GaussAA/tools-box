@@ -19,7 +19,9 @@ target_include_directories(videodl_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 # Qt6::Network —— 用来在首次使用时把 yt-dlp / ffmpeg 下载到 tools/bin。
 add_library(videodl_tool MODULE
     VideoDlPlugin.cpp
-    VideoDlPlugin.h)
+    VideoDlPlugin.h
+    EngineFetcher.cpp
+    EngineFetcher.h)
 
 target_link_libraries(videodl_tool PRIVATE ToolBox::Sdk videodl_core Qt6::Network)
 
