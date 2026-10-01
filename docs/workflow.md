@@ -181,6 +181,25 @@ Set-ItemProperty -Path "HKCU:\Software\ToolBox\ToolBox\ui" -Name language -Value
 Remove-ItemProperty -Path "HKCU:\Software\ToolBox\ToolBox\ui" -Name language
 ```
 
+**Qt 自带控件的翻译（消息框按钮、文件对话框）有三个坑，2026-10-02 实测确认：**
+
+1. **必须跑过 `deploy`**。`qtbase_<locale>.qm` 由 deploy 的 `--translations` 拷到
+   `<exe 目录>/translations/`。没拷过时程序会回退到 `QLibraryInfo::path(TranslationsPath)`，
+   而那**指向 Qt 的编译期前缀** —— 本机 Qt 装在非标准路径 `C:\Qt6.12\`，而编译期前缀是
+   `C:/Qt/6.12.0/...`（该目录不存在），于是回退也落空，翻译静默失效。
+2. **文件名前缀是 `qtbase`，不是 `qt`**。Qt 6 把词条移到了 `qtbase_zh_CN.qm`，
+   `qt_zh_CN.qm` 退化成一个 **99 字节的空壳**（实测：147222 字节 vs 99 字节）。
+   按 `qt` 加载会「成功」装上一个什么都不翻译的 translator —— 加载本身不报错，
+   只有 `verify_shell.ps1` 那条「对话框按钮是否被本地化」的断言能逮住它。
+3. **`ui/language` 要写带地区的值**（`zh_CN`，不是 `zh`）。Qt 的翻译按地区命名，
+   没有 `qtbase_zh.qm`；只写语言会一个文件都找不到。`LanguageChoice` 已兜住这一条
+   （缺地区时补默认地区），但配置本身仍建议写全。
+
+**另外**：`LANG` / `LC_ALL` 环境变量会**盖过系统语言**让 Qt 程序变英文 —— 实测在
+`LANG=en_US.UTF-8` 的会话里，系统语言明明是 zh-CN，程序却整个起成英文。所以
+`verify_shell.ps1` 现在**自己**设 `ui/language`（并在一跑完复原），不再把这件事
+留给调用方。
+
 验证：`verify_shell.ps1` 有 `-Lang en|zh`，两组断言分别对应两种语言的界面
 （含 Qt 自带对话框按钮的文案）：
 
@@ -210,6 +229,18 @@ powershell -ExecutionPolicy Bypass -File scripts\verify\verify_shell.ps1 -Lang e
    （`verify_conventions.ps1` 第 7 条：UI 目录下不允许出现含中文的
    `QStringLiteral`），因为在这之前 base64 插件的界面文案全是 `QStringLiteral`，
    而文档当时写着「已全量做到」。
+
+**想让程序能双击起来看界面，先跑一次 deploy。** 输出目录里只有 `ToolBox.exe`，
+Qt 的运行时会使得上才怪 —— `Qt6*.dll` 与 `platforms/qwindows.dll` 都缺，双击的结果是
+进程立刻退出（或弹一个「缺少 DLL」的框），**看不到任何界面**：
+
+```powershell
+cmake --build build --config Release --target deploy
+```
+
+`deploy` 是**可选目标**，不在默认构建里。**特别注意 `scripts/build_verify.ps1`：它第一步
+就清空整棵 `build` 树**（连之前 deploy 好的 Qt 运行时一起删），而它自己从不跑 deploy ——
+所以跑过一次全量验证之后，「程序双击没反应」几乎必然出现。脚本末尾现在会打印一行提醒。
 
 ## 4. 新增一个工具插件
 

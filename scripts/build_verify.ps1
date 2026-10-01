@@ -65,4 +65,17 @@ emit "=== ctest Release ==="
 $rel = $LASTEXITCODE
 
 Pop-Location
+
+# Qt 运行时不会自己回到输出目录：它是 deploy 目标（windeployqt）拷进去的，而 deploy
+# 不在默认构建里。少了 Qt6*.dll 与 platforms/，双击 exe 只会立刻退出 ——「程序没反应、
+# 界面不出现」最常见的原因就是这个。本脚本开头会清空整棵 build 树（连之前 deploy 好的
+# 运行时一起删），所以这里必须说一句，否则下一个想手工点界面的人会一头雾水。
+$binDir = "$src\build\bin\Release"
+if (-not (Test-Path "$binDir\Qt6Core.dll")) {
+  $note = "NOTE: $binDir has no Qt runtime -- before running the app by hand, do:" + `
+          "`n      cmake --build $src\build --config Release --target deploy"
+  emit $note
+  Write-Output $note   # 也上控制台：只写进 bv.log 的话，跑的人根本不会去看
+}
+
 emit "=== DONE (ctest Debug=$dbg Release=$rel) ==="

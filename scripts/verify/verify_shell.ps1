@@ -109,6 +109,36 @@ New-Item -ItemType Directory -Force -Path $shots | Out-Null
 if (-not (Test-Path $exe)) { Write-Output "FAIL: exe not found at $exe"; exit 1 }
 Write-Output "exe       = $exe"
 
+# ---------- the script owns the UI language ----------
+# This used to be the caller's job ("the caller is responsible for..." in the param
+# block). In practice that meant: run it, get a pile of FAILs about text that does not
+# match, and have to work out that the app simply came up in the other language.
+#
+# It is worse than a missing step, because on Windows the language is not only read from
+# ui/language: a LANG / LC_ALL environment variable in the launching shell flips a Qt app
+# to English even when the system language is Chinese. Measured here: with
+# LANG=en_US.UTF-8 in the environment and ui/language unset, this app came up fully
+# English (nav "Home | Developer tools | JSON Formatter | ...") while
+# GetUserDefaultUILanguage() reported zh-CN. So "just follow the system" is not a stable
+# premise for a test -- the check forces what it needs and restores it afterwards.
+$langKey = "HKCU:\Software\ToolBox\ToolBox\ui"
+$langExisted = $false
+$langPrevious = $null
+if (Test-Path $langKey) {
+  $currentLang = Get-ItemProperty -Path $langKey -Name language -ErrorAction SilentlyContinue
+  if ($null -ne $currentLang) { $langExisted = $true; $langPrevious = $currentLang.language }
+} else {
+  New-Item -Path $langKey -Force | Out-Null
+}
+# Write a full locale, not just the language code: Qt's own translations are named by
+# region (qtbase_zh_CN.qm -- there is no qtbase_zh.qm), so a bare "zh" makes the app
+# install a translator that translates nothing and the standard dialog buttons stay
+# English. The app now defends against that too (see app/core/LanguageChoice.cpp), but
+# a test should exercise the realistic configuration rather than rely on the guard.
+$registryLang = if ($Lang -eq "en") { "en_US" } else { "zh_CN" }
+Set-ItemProperty -Path $langKey -Name language -Value $registryLang
+Write-Output ("ui/language = '{0}' (forced for this run)" -f $registryLang)
+
 # The expected app version is read from its single source of truth, the top-level
 # project(... VERSION ...), rather than spelled out here. A literal would be a second
 # copy to bump on every release - the duplication ledger 9.5 set out to remove - and
@@ -278,6 +308,14 @@ if ($help) {
 if ($hwnd -ne [IntPtr]::Zero) { [void][W]::PostMessage($hwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) }
 Start-Sleep -Seconds 1
 Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
+
+# Put ui/language back the way we found it: this run's choice must not become the
+# user's next startup language.
+if ($langExisted) {
+  Set-ItemProperty -Path $langKey -Name language -Value $langPrevious
+} else {
+  Remove-ItemProperty -Path $langKey -Name language -ErrorAction SilentlyContinue
+}
 
 if ($failed.Count -gt 0) {
   Write-Output ("DONE(FAILED {0}): {1}" -f $failed.Count, ($failed -join "; "))
