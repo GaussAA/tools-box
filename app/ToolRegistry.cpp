@@ -2,6 +2,7 @@
 
 #include "ToolBoxPlugin.h"
 #include "core/Logger.h"
+#include "core/PluginScanPolicy.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -41,6 +42,10 @@ int ToolRegistry::rescan(const QString &dir)
                               QStringLiteral("*.dylib")};
     const QFileInfoList files = pluginDir.entryInfoList(filters, QDir::Files, QDir::Name);
 
+    // 本轮已经决定装载的工具 id。同 id 的两个 DLL 会让导航、收藏与最近使用
+    // 一起指错目标，而页面下标不会因此报错 —— 属于「静默出错」，必须在装载前挑出。
+    QStringList decidedIds;
+
     for (const QFileInfo &file : files) {
         auto *loader = new QPluginLoader(file.absoluteFilePath());
 
@@ -58,6 +63,43 @@ int ToolRegistry::rescan(const QString &dir)
             delete loader;
             continue;
         }
+
+        // id 格式与构建环境指纹。两条都在 load() 之前判：判不过的 DLL 根本不会被
+        // 加载进本进程，也就不存在「加载成功然后在宿主里崩」这条路径。
+        // 指纹比对才是真正的 ABI 门禁 —— IID 相同但工具链不同的 DLL 只能靠它挡。
+        const toolbox::PluginScanResult scan = toolbox::evaluatePluginFields(
+            toolbox::pluginMetaObject(metaData), toolbox::defaultHostAbi());
+
+        if (scan.verdict == toolbox::PluginVerdict::RejectId) {
+            const QString badId = tr("%1：工具 id「%2」不合法（应为「分类.工具名」，已跳过加载）。")
+                                      .arg(file.fileName(), scan.id);
+            m_errors << badId;
+            toolbox::Logger::error(badId);
+            delete loader;
+            continue;
+        }
+
+        if (scan.verdict == toolbox::PluginVerdict::RejectAbi) {
+            const QString abiMismatch =
+                tr("%1：构建环境与本程序不一致（插件 %2，本程序 %3），已跳过加载。")
+                    .arg(file.fileName(), scan.actualAbi.isEmpty() ? tr("未提供") : scan.actualAbi,
+                         scan.expectedAbi);
+            m_errors << abiMismatch;
+            toolbox::Logger::error(abiMismatch);
+            delete loader;
+            continue;
+        }
+
+        if (decidedIds.contains(scan.id)) {
+            const QString duplicated =
+                tr("%1：工具 id「%2」与本目录中已加载的插件重复，已跳过加载。")
+                    .arg(file.fileName(), scan.id);
+            m_errors << duplicated;
+            toolbox::Logger::error(duplicated);
+            delete loader;
+            continue;
+        }
+        decidedIds.append(scan.id);
 
         if (!loader->load()) {
             const QString loadError =

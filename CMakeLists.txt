@@ -33,6 +33,22 @@ endif()
 set(TOOLBOX_BIN_DIR "${CMAKE_BINARY_DIR}/bin/$<CONFIG>")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${TOOLBOX_BIN_DIR}")
 
+# ── 构建环境指纹（插件 ABI 门禁）─────────────────────────────────────────────
+# 每个插件的 metadata.json 里带一个 abi 字段，宿主在 load() 之前拿它跟自己比。
+#
+# 光比对 IID 只能挡「接口版本不对」，挡不住「接口版本对、但用的是另一套 Qt 或
+# 编译器」—— 那种 DLL 照样能被 QPluginLoader 加载进来，然后因为二进制不兼容
+# 在宿主进程里崩掉。指纹写在静态元数据里，不 load() 就能读到，所以挡得住。
+#
+# 宿主侧拿同一个值，由 TOOLBOX_HOST_ABI 编进 ToolBoxCore（app/CMakeLists.txt）。
+# 两边**必须同源**，否则每个插件都会被自己拒掉 —— 这里只 set 一次就是这个原因。
+if(MSVC)
+    set(TOOLBOX_PLUGIN_ABI "${Qt6_VERSION}-${CMAKE_CXX_COMPILER_ID}-${MSVC_TOOLSET_VERSION}")
+else()
+    set(TOOLBOX_PLUGIN_ABI
+        "${Qt6_VERSION}-${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}")
+endif()
+
 add_subdirectory(sdk)
 add_subdirectory(app)
 add_subdirectory(plugins/base64)
@@ -57,6 +73,7 @@ qt_add_translations(ToolBox
         ToolBoxCore
         base64_tool
         jsonfmt_tool
+        jsonfmt_core
         videodl_tool
         videodl_core
     RESOURCE_PREFIX "/i18n"

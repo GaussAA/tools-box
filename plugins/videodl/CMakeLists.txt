@@ -23,6 +23,12 @@ add_library(videodl_tool MODULE
 
 target_link_libraries(videodl_tool PRIVATE ToolBox::Sdk videodl_core Qt6::Network)
 
+# 同 base64：静态元数据由模板生成，abi 字段由构建注入。
+configure_file(metadata.json.in "${CMAKE_CURRENT_BINARY_DIR}/metadata.json" @ONLY)
+
+# Q_PLUGIN_METADATA 的 FILE 是按 include 路径找的，生成物在构建目录里。
+target_include_directories(videodl_tool PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+
 # 图标编进插件自己的资源里，插件拷到哪都带着图标，不需要额外文件。
 qt_add_resources(videodl_tool "videodl_icons"
     PREFIX "/"

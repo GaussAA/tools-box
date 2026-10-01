@@ -6,9 +6,15 @@ add_library(ToolBoxCore STATIC
     core/LanguageChoice.cpp
     core/LanguageChoice.h
     core/Logger.cpp
-    core/Logger.h)
+    core/Logger.h
+    core/PluginScanPolicy.cpp
+    core/PluginScanPolicy.h)
 
 target_link_libraries(ToolBoxCore PUBLIC Qt6::Core)
+
+# 宿主的构建环境指纹。与写进各插件 metadata.json 的 abi 字段同源（顶层
+# CMakeLists.txt 的 TOOLBOX_PLUGIN_ABI）， PluginScanPolicy 用它做装载前的门禁。
+target_compile_definitions(ToolBoxCore PRIVATE TOOLBOX_HOST_ABI="${TOOLBOX_PLUGIN_ABI}")
 
 # 把头文件目录暴露出去，测试目标才能 #include "core/ToolCatalog.h"
 target_include_directories(ToolBoxCore PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

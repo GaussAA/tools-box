@@ -164,10 +164,31 @@ public:
 /// 插件静态元数据的根键。
 inline constexpr char kPluginMetaKey[] = "toolbox";
 
+/// 取插件静态元数据里的 `toolbox` 对象（即 metadata.json 的那一层）。
+///
+/// 取值得分两层，**少一层就永远拿到空结构**：`QPluginLoader::metaData()` 返回的对象
+/// 里，`MetaData` 这个键才是 `Q_PLUGIN_METADATA(... FILE "metadata.json")` 所指文件的
+/// 内容，而本工程的 metadata.json 顶层又有一个 `toolbox` 对象。
+///
+/// 抽成函数是为了让「JSON 形状」只有一处定义：宿主侧的门禁判定
+/// （`app/core/PluginScanPolicy.h`）与本文件共用它，不需要再抄一遍键名。
+inline QJsonObject pluginMetaObject(const QJsonObject &metaData)
+{
+    return metaData.value(QStringLiteral("MetaData"))
+        .toObject()
+        .value(QString::fromLatin1(kPluginMetaKey))
+        .toObject();
+}
+
 /// 判断一个插件的静态元数据是否实现了当前版本的 IToolPlugin 接口。
 ///
-/// 仅比对 IID，不加载插件，因此可安全地在 load() 之前筛掉不兼容
-/// （如用不同 Qt/编译器版本构建、或接口大版本不符）的 DLL，避免 load() 直接崩溃。
+/// **只比对 IID**，不加载插件，因此可安全地在 load() 之前筛掉「接口大版本不符」
+/// 的 DLL。
+///
+/// 它**挡不住**另一种不兼容：IID 相同、却是用另一套 Qt / 编译器构建的 DLL ——
+/// 那种 load() 得进去，然后因为二进制不兼容在宿主进程里崩。挡它要靠 `abi` 字段
+/// （见 toolbox::evaluatePluginFields()，app/core/PluginScanPolicy.h），
+/// 光有本函数不构成 ABI 防护。
 inline bool isCompatiblePluginMetaData(const QJsonObject &metaData)
 {
     return metaData.value(QStringLiteral("IID")).toString() == QStringLiteral(ToolBoxPlugin_iid);
@@ -175,23 +196,17 @@ inline bool isCompatiblePluginMetaData(const QJsonObject &metaData)
 
 /// 从插件的静态元数据里取 ToolMeta 的纯数据字段（不含 icon）。
 ///
-/// **取值得分两层，少一层就永远拿到空结构**：`QPluginLoader::metaData()` 返回的对象
-/// 里，`MetaData` 这个键才是 `Q_PLUGIN_METADATA(... FILE "metadata.json")` 所指文件的
-/// 内容，而本工程的 metadata.json 顶层又有一个 `toolbox` 对象。
-///
 /// 这个坑曾经真实存在：本函数只读了一层 `toolbox`，于是恒返回空结构；而测试构造了
 /// 一份**假的扁平 JSON**（根键直接是 `toolbox`）去「验证」它，所以一直显示绿色。
-/// 现在测试构造的是与 Qt 真实输出一致的形状（`MetaData` → `toolbox`）。
+/// 现在两层取值统一走 pluginMetaObject()，测试构造的也是与 Qt 真实输出一致的形状。
 ///
-/// 目前只被测试使用：外壳的快速枚举路径尚未接入（`ToolRegistry::rescan` 只用 IID 门禁）。
-/// 将来接入前要注意，metadata.json 里的 name/category/description 是**硬编码中文、
-/// 不经过 `tr()`**，直接拿它渲染界面会让英文界面下显示中文（见 workflow §3.3）。
+/// 目前只被测试使用：外壳的快速枚举路径尚未接入（`ToolRegistry::rescan` 只用门禁，
+/// 名字与分类仍来自运行时的 meta()）。将来接入前要注意，metadata.json 里的
+/// name/category/description 是**硬编码中文、不经过 `tr()`**，直接拿它渲染界面会让
+/// 英文界面下显示中文（见 workflow §3.3）。
 inline ToolMeta toolMetaFromMetaData(const QJsonObject &metaData)
 {
-    const QJsonObject tb = metaData.value(QStringLiteral("MetaData"))
-                               .toObject()
-                               .value(QString::fromLatin1(kPluginMetaKey))
-                               .toObject();
+    const QJsonObject tb = pluginMetaObject(metaData);
     ToolMeta m;
     m.id = tb.value(QStringLiteral("id")).toString();
     m.name = tb.value(QStringLiteral("name")).toString();

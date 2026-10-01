@@ -1,9 +1,0 @@
-{
-  "toolbox": {
-    "id": "media.video-download",
-    "name": "视频下载",
-    "category": "媒体工具",
-    "version": "0.1.0",
-    "description": "粘贴 B站 / YouTube / 抖音 等视频地址，按画质下载到本地（内核为 yt-dlp）。"
-  }
-}
