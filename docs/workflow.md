@@ -306,7 +306,20 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 
    这一步同时验证了插件 DLL、Qt 运行时与 `translations/` 确实都在包里
    （按钮显示「确定」就说明翻译生效）；
-8. 分发 `build/package/ToolBox-<版本>-win64.zip`。
+8. 分发。实际做法是**打 `v*` 标签**（如 `v0.1.0`）把上面这套再让 CI 跑一遍，
+   然后把**该标签那一次构建**的产物挂到 GitHub Release 上：
+
+   ```powershell
+   git tag -a v0.1.0 -m "ToolBox v0.1.0"
+   git push origin v0.1.0
+   gh run watch <该标签触发的 run id> --exit-status
+   gh run download <run id> -n <artifact 名> -D build\release-assets
+   gh release create v0.1.0 build\release-assets\*.zip --title "ToolBox v0.1.0" --notes "<发布说明>"
+   ```
+
+   用标签那一次的产物、而不是手上现成的 zip，是为了让「发出去的二进制」和
+   「CI 验证过的那个提交」是同一个东西。CI 里那份 artifact 只保留 14 天，
+   Release 附件才是长期可下载的交付物。
 
 两件与接收方有关的事，交付时要说明：
 
