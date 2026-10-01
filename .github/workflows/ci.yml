@@ -18,6 +18,9 @@ name: CI
 on:
   push:
     branches: [main]
+    # 打 v* 标签同样跑一遍：发布用的产物应当是 CI 从该标签构建出来的，而不是把手边的
+    # zip 碰巧发出去。发布流程见 docs/workflow.md §9。
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 

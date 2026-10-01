@@ -351,8 +351,9 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 
 ## 11. 持续集成（CI）
 
-仓库在 GitHub：`GaussAA/tools-box`。配置是 [.github/workflows/ci.yml](../.github/workflows/ci.yml)，
-在 push 到 `main`、开 PR、以及手动触发时各跑一遍。
+仓库在 GitHub：`GaussAA/tools-box`（公开）。配置是 [.github/workflows/ci.yml](../.github/workflows/ci.yml)，
+在 push 到 `main`、推 `v*` 标签、开 PR、以及手动触发时各跑一遍。**打标签也跑**，
+是为了让发布用的产物来自 CI 对该标签的构建，而不是把手边的 zip 碰巧发出去。
 
 **它跑的就是本文档里那一套，不是另写一份。** 顺序是「快检 → 构建 → 打包」，
 快检只要几秒，失败得最快，能省掉后面几分钟的构建：
