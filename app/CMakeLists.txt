@@ -4,24 +4,35 @@ add_library(ToolBoxCore STATIC
     core/ToolCatalog.cpp
     core/ToolCatalog.h
     core/LanguageChoice.cpp
-    core/LanguageChoice.h)
+    core/LanguageChoice.h
+    core/Logger.cpp
+    core/Logger.h)
 
 target_link_libraries(ToolBoxCore PUBLIC Qt6::Core)
 
 # 把头文件目录暴露出去，测试目标才能 #include "core/ToolCatalog.h"
 target_include_directories(ToolBoxCore PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
-qt_add_executable(ToolBox
-    main.cpp
+# 把「外壳界面 + 插件装载」抽成一个静态库，让烟雾测试能直接链接它，
+# 而不必把 MainWindow.cpp / ToolRegistry.cpp 重复编译两份（见 docs/best-practices-assessment.md §3.4）。
+# 用 qt_add_library 而非 add_library：库里 MainWindow/ToolRegistry 都带 Q_OBJECT，
+# 需要 Qt 的自动 moc，普通 add_library 不会跑 moc 会缺虚表符号。
+qt_add_library(ToolBoxApp STATIC
     MainWindow.cpp
     MainWindow.h
     ToolRegistry.cpp
     ToolRegistry.h)
+target_link_libraries(ToolBoxApp PUBLIC ToolBox::Sdk ToolBoxCore Qt6::Widgets)
+# 暴露 app 目录，使测试目标能 #include "MainWindow.h" / "ToolRegistry.h"。
+target_include_directories(ToolBoxApp PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+
+qt_add_executable(ToolBox
+    main.cpp)
 
 # 不带控制台窗口，双击 exe 不会弹黑框。
 set_target_properties(ToolBox PROPERTIES WIN32_EXECUTABLE TRUE)
 
-target_link_libraries(ToolBox PRIVATE ToolBox::Sdk ToolBoxCore)
+target_link_libraries(ToolBox PRIVATE ToolBoxApp)
 
 # 版本号只有一个来源：顶层 CMakeLists.txt 的 project(... VERSION ...)。
 # 这里把它传成编译定义，main.cpp 直接引用，避免源码里再硬编码一份（见偏差 9.5）。

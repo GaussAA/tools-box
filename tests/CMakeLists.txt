@@ -41,3 +41,26 @@ toolbox_add_test(tst_outputparsing videodl_core)
 toolbox_add_test(tst_douyinsupport videodl_core)
 toolbox_add_test(tst_cookiefile videodl_core)
 toolbox_add_test(tst_enginelocator videodl_core)
+toolbox_add_test(tst_pluginmeta ToolBox::Sdk)
+toolbox_add_test(tst_logger ToolBoxCore)
+toolbox_add_test(tst_mainwindow ToolBoxApp)
+
+# ── 端到端集成测试 ────────────────────────────────────────────────────────────
+# 部署 base64/jsonfmt 两个纯 GUI 安全插件到测试运行目录的 tools/，验证
+# ToolRegistry 跨 DLL 扫描 + qobject_cast + createPage 真实路径（tst_mainwindow 刻意回避）。
+toolbox_add_test(tst_integration ToolBoxApp)
+
+# 先确保插件被构建，再拷贝 DLL 到 <测试exe目录>/tools/。
+add_dependencies(tst_integration base64_tool jsonfmt_tool)
+
+# 部署到专属目录 integration_tools，而非主程序约定的 tools/ —— 因为所有测试 exe
+# 都落在 tests/<Config>/，若用共享的 tools/，本测试部署的插件会被同目录的 tst_mainwindow
+# 经 defaultPluginDir() 扫到，破坏其「无插件」前提。独立目录让两测试互不干扰。
+add_custom_command(TARGET tst_integration POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "$<TARGET_FILE_DIR:tst_integration>/integration_tools"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "$<TARGET_FILE:base64_tool>" "$<TARGET_FILE_DIR:tst_integration>/integration_tools/"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "$<TARGET_FILE:jsonfmt_tool>" "$<TARGET_FILE_DIR:tst_integration>/integration_tools/"
+    COMMENT "部署 base64/jsonfmt 插件到 tst_integration 专属目录（端到端集成测试）"
+    VERBATIM)
