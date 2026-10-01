@@ -1,10 +1,12 @@
 #include "ToolRegistry.h"
 
 #include "ToolBoxPlugin.h"
+#include "core/Logger.h"
 
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QJsonObject>
 #include <QPluginLoader>
 
 #include <algorithm>
@@ -29,7 +31,10 @@ int ToolRegistry::rescan(const QString &dir)
 
     const QDir pluginDir(dir);
     if (!pluginDir.exists()) {
-        m_errors << tr("插件目录不存在：%1").arg(QDir::toNativeSeparators(dir));
+        const QString dirError =
+            tr("插件目录不存在：%1").arg(QDir::toNativeSeparators(dir));
+        m_errors << dirError;
+        toolbox::Logger::error(dirError);
         return 0;
     }
 
@@ -39,8 +44,27 @@ int ToolRegistry::rescan(const QString &dir)
 
     for (const QFileInfo &file : files) {
         auto *loader = new QPluginLoader(file.absoluteFilePath());
+
+        // §3.1 静态元数据门禁：metaData() 只读取 DLL 内嵌的 JSON，不会把插件的
+        // 代码加载进进程。这样即便某个 DLL 是用不兼容的 Qt/编译器版本构建、或根本
+        // 不是工具箱插件，我们也能在调用 load() 之前识别并跳过，避免 load() 直接
+        // 崩溃把宿主一起拖垮。IID 不符（含接口大版本变化）一律视为不兼容。
+        const QJsonObject metaData = loader->metaData();
+        if (!toolbox::isCompatiblePluginMetaData(metaData)) {
+            const QString incompatible =
+                tr("%1：不是兼容的工具箱插件（IID/接口版本不符，已跳过加载）。")
+                    .arg(file.fileName());
+            m_errors << incompatible;
+            toolbox::Logger::warning(incompatible);
+            delete loader;
+            continue;
+        }
+
         if (!loader->load()) {
-            m_errors << QStringLiteral("%1：%2").arg(file.fileName(), loader->errorString());
+            const QString loadError =
+                QStringLiteral("%1：%2").arg(file.fileName(), loader->errorString());
+            m_errors << loadError;
+            toolbox::Logger::error(loadError);
             delete loader;
             continue;
         }
@@ -48,7 +72,10 @@ int ToolRegistry::rescan(const QString &dir)
         QObject *root = loader->instance();
         auto *plugin = root ? qobject_cast<toolbox::IToolPlugin *>(root) : nullptr;
         if (!plugin) {
-            m_errors << tr("%1：不是有效的工具箱插件（未实现 IToolPlugin）。").arg(file.fileName());
+            const QString invalid =
+                tr("%1：不是有效的工具箱插件（未实现 IToolPlugin）。").arg(file.fileName());
+            m_errors << invalid;
+            toolbox::Logger::error(invalid);
             loader->unload();
             delete loader;
             continue;
@@ -63,6 +90,10 @@ int ToolRegistry::rescan(const QString &dir)
         // 调用 O(n log n) 次，每次重取既浪费又危险。
         entry.meta = plugin->meta();
         m_entries.append(entry);
+
+        toolbox::Logger::info(
+            tr("已加载插件：%1（%2 %3）")
+                .arg(file.fileName(), entry.meta.id, entry.meta.version));
     }
 
     // 按「分类 → 名称」排序，让同一类工具在导航里连续出现。

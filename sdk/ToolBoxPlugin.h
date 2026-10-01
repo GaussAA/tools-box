@@ -1,5 +1,9 @@
 #pragma once
 
+// 接口唯一标识宏：必须在任何使用处之前定义，供下方辅助函数与文末 Q_DECLARE_INTERFACE 共用。
+#define ToolBoxPlugin_iid "com.toolbox.ToolBox/IToolPlugin/1.0"
+#define ToolBoxToolPage_iid "com.toolbox.ToolBox/IToolPage/1.0"
+
 // 工具箱插件 SDK：主程序与所有工具插件共同遵守的唯一契约。
 // 这个头文件不参与编译成库，任何插件直接 include 即可。
 //
@@ -13,6 +17,8 @@
 #include <QVariant>
 #include <QWidget>
 #include <QtPlugin>
+
+#include <QJsonObject>
 
 namespace toolbox {
 
@@ -118,7 +124,7 @@ public:
 /// class MyPlugin : public QObject, public toolbox::IToolPlugin
 /// {
 ///     Q_OBJECT
-///     Q_PLUGIN_METADATA(IID ToolBoxPlugin_iid)
+///     Q_PLUGIN_METADATA(IID ToolBoxPlugin_iid FILE "metadata.json")
 ///     Q_INTERFACES(toolbox::IToolPlugin)
 /// public:
 ///     toolbox::ToolMeta meta() const override;
@@ -128,6 +134,10 @@ public:
 ///
 /// 三个宏都不能少：Q_OBJECT 提供元对象，Q_INTERFACES 让主程序的
 /// qobject_cast 能识别接口，Q_PLUGIN_METADATA 把接口 IID 写进 DLL 元数据。
+///
+/// 推荐（见 docs/best-practices-assessment.md §3.1）额外用
+/// `FILE "metadata.json"` 把 ToolMeta 的纯数据字段静态嵌入 DLL，这样宿主可以在
+/// 不加载插件的前提下枚举/过滤/校验，避免不兼容的 DLL 在 load() 时拖垮宿主。
 class IToolPlugin
 {
 public:
@@ -145,15 +155,40 @@ public:
     virtual QWidget *createPage(QWidget *parent = nullptr) = 0;
 };
 
+// === 静态插件元数据（docs/best-practices-assessment.md §3.1） =====================
+//
+// 插件在 Q_PLUGIN_METADATA(FILE "metadata.json") 里，把下面约定的字段挂到
+// "toolbox" 这个 JSON 对象下；宿主用 QPluginLoader::metaData()（不调用 load()）
+// 读取它来做兼容性门禁与快速枚举。
+
+/// 插件静态元数据的根键。
+inline constexpr char kPluginMetaKey[] = "toolbox";
+
+/// 判断一个插件的静态元数据是否实现了当前版本的 IToolPlugin 接口。
+///
+/// 仅比对 IID，不加载插件，因此可安全地在 load() 之前筛掉不兼容
+/// （如用不同 Qt/编译器版本构建、或接口大版本不符）的 DLL，避免 load() 直接崩溃。
+inline bool isCompatiblePluginMetaData(const QJsonObject &metaData)
+{
+    return metaData.value(QStringLiteral("IID")).toString() == QStringLiteral(ToolBoxPlugin_iid);
+}
+
+/// 从插件的静态元数据里取 ToolMeta 的纯数据字段（不含 icon）。
+///
+/// 用于「不加载即可建目录/搜索」的快速路径；icon 仍需运行时 meta() 提供。
+inline ToolMeta toolMetaFromMetaData(const QJsonObject &metaData)
+{
+    const QJsonObject tb = metaData.value(QStringLiteral("toolbox")).toObject();
+    ToolMeta m;
+    m.id = tb.value(QStringLiteral("id")).toString();
+    m.name = tb.value(QStringLiteral("name")).toString();
+    m.category = tb.value(QStringLiteral("category")).toString();
+    m.version = tb.value(QStringLiteral("version")).toString();
+    m.description = tb.value(QStringLiteral("description")).toString();
+    return m;
+}
+
 } // namespace toolbox
-
-/// 插件主接口的唯一标识。改动 IToolPlugin 的签名时必须同步升版本号，
-/// 否则新旧插件会互相误认。
-#define ToolBoxPlugin_iid "com.toolbox.ToolBox/IToolPlugin/1.0"
-
-/// 工具页面生命周期接口的标识。这个接口是可选的，单独版本化，
-/// 加它不影响已经写好的老插件。
-#define ToolBoxToolPage_iid "com.toolbox.ToolBox/IToolPage/1.0"
 
 Q_DECLARE_INTERFACE(toolbox::IToolPlugin, ToolBoxPlugin_iid)
 Q_DECLARE_INTERFACE(toolbox::IToolPage, ToolBoxToolPage_iid)

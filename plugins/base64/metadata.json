@@ -1,0 +1,9 @@
+{
+  "toolbox": {
+    "id": "text.base64",
+    "name": "Base64 编解码",
+    "category": "文本编码",
+    "version": "0.2.0",
+    "description": "UTF-8 文本与 Base64 互转，支持 URL 安全字符集。"
+  }
+}

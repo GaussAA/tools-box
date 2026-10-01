@@ -1,10 +1,12 @@
 #include "MainWindow.h"
 #include "core/LanguageChoice.h"
+#include "core/Logger.h"
 
 #include <QApplication>
 #include <QLibraryInfo>
 #include <QLocale>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QTranslator>
 
 int main(int argc, char *argv[])
@@ -15,6 +17,15 @@ int main(int argc, char *argv[])
     QApplication::setOrganizationName(QStringLiteral("ToolBox"));
     QApplication::setApplicationName(QStringLiteral("ToolBox"));
     QApplication::setApplicationVersion(QStringLiteral(TOOLBOX_VERSION));
+
+    // 结构化日志：把 qDebug/qInfo/qWarning/qCritical 重定向到磁盘文件 + 控制台。
+    // 必须在任何业务日志之前安装；日志落在 AppData/ToolBox/toolbox.log。
+    {
+        const QString logDir =
+            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        const QString logPath = logDir + QStringLiteral("/toolbox.log");
+        toolbox::Logger::install(logPath);
+    }
 
     // 界面语言：配置里的 ui/language 为空表示跟随系统（见 docs/workflow.md §7）。
     // 只在这里定一次，运行期不切换 —— 改语言要重启，同时这也是 ToolMeta::name
