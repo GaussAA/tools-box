@@ -24,7 +24,7 @@
 ```
 tools-box/
 ├── CMakeLists.txt          顶层：统一 Qt 依赖、编译选项、输出布局，显式列出各子目录
-├── CMakePresets.json       唯一构建入口（MSVC 2022 x64 / Qt 6.10.3 / Ninja Multi-Config）
+├── CMakePresets.json       唯一构建入口（MSVC 2022 x64 / Qt 6.12.0 / Ninja Multi-Config）
 ├── docs/                   本目录：架构、规范、流程
 ├── scripts/verify/         开发期手工验证脚本（powershell）
 ├── sdk/                    契约层：纯头文件 INTERFACE 库，无二进制
@@ -280,3 +280,5 @@ plugins/videodl/
 
 - [coding-standards.md](./coding-standards.md) —— 命名、内存、信号槽等编码规则
 - [workflow.md](./workflow.md) —— 构建、测试、加插件、发布与文档变更流程
+- [best-practices-assessment.md](./best-practices-assessment.md) —— Qt 最佳实践符合性评估与版本迁移记录
+- [version-migration-audit.md](./version-migration-audit.md) —— Qt 6.12 版本迁移的深度完整性审计报告

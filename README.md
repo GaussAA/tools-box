@@ -15,9 +15,9 @@
 
 ## 快速开始
 
-需要 Windows x64、Visual Studio 2022（含 MSVC v143，以及它自带的 clang-format /
-clang-tidy）、Qt 6.10.3 的 `msvc2022_64`、CMake ≥ 3.21。Qt 路径在本机不是
-`D:/Qt/6.10.3/msvc2022_64` 的话，改 `CMakePresets.json` 里那**一处**即可。
+需要 Windows x64、Visual Studio 2022 或更新（MSVC x64 工具集，含自带的 clang-format /
+clang-tidy）、Qt 6.12.0 的 `msvc2022_64`、CMake ≥ 3.25。Qt 路径在本机不是
+`C:/Qt6.12/6.12.0/msvc2022_64` 的话，改 `CMakePresets.json` 里那**一处**即可。
 
 ```powershell
 cmake --preset default                                # 配置
@@ -42,13 +42,14 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 
 ## 文档
 
-**代码与文档不一致时，以文档为准。** 三份文档各有分工，这里不放它们的副本：
+**代码与文档不一致时，以文档为准。** 每份文档各有分工，这里不放它们的副本：
 
 | 文档 | 负责什么 |
 | --- | --- |
 | [architecture.md](docs/architecture.md) | 分层、职责边界、插件契约、偏差台账。**架构的唯一权威来源** |
 | [coding-standards.md](docs/coding-standards.md) | 命名、内存、信号槽、字符串、CMake 等编码规则，以及每条规则靠什么保证 |
 | [workflow.md](docs/workflow.md) | 构建、测试、加插件、发布、CI、文档变更流程 |
+| [best-practices-assessment.md](docs/best-practices-assessment.md) | 架构的 Qt 最佳实践符合性评估与版本迁移记录 |
 
 ## 几条硬约束
 

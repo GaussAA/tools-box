@@ -2,17 +2,17 @@
   "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 21,
+    "minor": 25,
     "patch": 0
   },
   "configurePresets": [
     {
       "name": "default",
-      "displayName": "MSVC 2022 x64 / Qt 6.10.3 / Ninja Multi-Config",
+      "displayName": "MSVC 2022 x64 / Qt 6.12.0 / Ninja Multi-Config",
       "generator": "Ninja Multi-Config",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "D:/Qt/6.10.3/msvc2022_64",
+        "CMAKE_PREFIX_PATH": "C:/Qt6.12/6.12.0/msvc2022_64",
         "CMAKE_CONFIGURATION_TYPES": "Debug;Release",
         "CMAKE_DEFAULT_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"

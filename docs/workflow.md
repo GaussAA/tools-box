@@ -10,9 +10,9 @@
 
 | 项目 | 约定 | 依据 |
 | --- | --- | --- |
-| 编译器 | MSVC 2022 (v143) 64-bit | 与 Qt 预编译包一致 |
-| Qt | 6.10.3 `msvc2022_64`，路径 `D:/Qt/6.10.3/msvc2022_64` | `CMakePresets.json` |
-| CMake | ≥ 3.21 | 顶层 `CMakeLists.txt` |
+| 编译器 | MSVC x64（VS2022 及以上；本机 VS18/v144） | 与 Qt 的 `msvc2022_64` ABI 兼容 |
+| Qt | 6.12.0 `msvc2022_64`，路径 `C:/Qt6.12/6.12.0/msvc2022_64` | `CMakePresets.json` |
+| CMake | ≥ 3.25 | 顶层 `CMakeLists.txt`（Qt 6.12 要求） |
 | 生成器 | Ninja Multi-Config，构建目录固定 `build/` | `CMakePresets.json` |
 | 打包 | CPack（随 CMake 提供，不必单独安装），产物为 zip | 顶层 `CMakeLists.txt`；流程见 §9 |
 | 源码编码 | UTF-8，换行 LF；`*.ps1` 必须带 BOM，其余文件不带 BOM（原因见 §3.1） | 源码含中文，必须 `/utf-8` |
