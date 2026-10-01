@@ -2,6 +2,7 @@
 
 #include <QByteArray>
 #include <QString>
+#include <QStringList>
 
 // 视频下载插件里「解析外部输出」的那部分纯逻辑：程序输出解码、日志清洗、
 // 地址提取、进度与阶段识别、最终产物路径提取。
@@ -66,6 +67,21 @@ enum class OutputStage {
 
 /// 识别阶段标记。**只在 parseProgress 未命中时调用**，与现有输出解析顺序一致。
 OutputStage classifyStage(const QString &line);
+
+/// 解析 HTTP `Content-Range` 响应头的起始字节（`bytes 100-200/300` → 100）。
+///
+/// 断点续传的正确性全靠它：带上 `Range` 之后，服务端**可以**不从我们请求的偏移
+/// 开始给（206 也可能给别的区间）。不校验就把收到的字节往旧的 .part 后面拼，
+/// 会得到一个长度对得上、内容却是错的文件 —— 那种损坏不会报错，只会等到播放时
+/// 才发现。解析不出（头缺失或格式不认识）时返回 -1，由调用方决定怎么办。
+qint64 parseContentRangeStart(const QString &headerValue);
+
+/// 把待执行的命令行整理成可以放心显示的样子。
+///
+/// 日志里那行「执行：…」不是给自己看的：它会被截图、被贴在问题反馈里。
+/// cookies 副本的路径是**登录凭据的所在**，原样打出去等于告诉别人凭据在哪；
+/// 超长的参数（多是带签名或 id 的 URL）也一律截断。
+QString redactCommand(const QString &program, const QStringList &args);
 
 /// 提取最终产物路径。普通下载给的是 [download] Destination，合并/转码后给的是
 /// [Merger] Merging formats into，两种都要认，否则界面报不出下载到哪去了。

@@ -28,6 +28,10 @@ private slots:
     void sanitizeFileNameRejectsUnusableTitles();
     void sanitizeFileNameLimitsLength();
     void sanitizeFileNameEscapesDeviceNames();
+    void parseContentRangeStartReadsRanges();
+    void parseContentRangeStartRejectsGarbage();
+    void redactCommandHidesCookiesPath();
+    void redactCommandTruncatesLongArguments();
 };
 
 void TestOutputParsing::decodeOutputKeepsValidUtf8()
@@ -185,6 +189,48 @@ void TestOutputParsing::sanitizeFileNameEscapesDeviceNames()
     QCOMPARE(videodl::sanitizeFileName(QStringLiteral("COM1")), QStringLiteral("_COM1"));
     // 只是「以 CON 开头」不算撞名，不该误伤。
     QCOMPARE(videodl::sanitizeFileName(QStringLiteral("CONcert")), QStringLiteral("CONcert"));
+}
+
+void TestOutputParsing::parseContentRangeStartReadsRanges()
+{
+    QCOMPARE(videodl::parseContentRangeStart(QStringLiteral("bytes 100-200/300")), 100);
+    QCOMPARE(videodl::parseContentRangeStart(QStringLiteral("bytes 0-0/1")), 0);
+    QCOMPARE(videodl::parseContentRangeStart(QStringLiteral("bytes 1048576-")), 1048576);
+}
+
+void TestOutputParsing::parseContentRangeStartRejectsGarbage()
+{
+    // 头缺失或格式不认识一律 -1，由调用方决定怎么办（本项目：重下整个文件）。
+    QCOMPARE(videodl::parseContentRangeStart(QString()), -1);
+    QCOMPARE(videodl::parseContentRangeStart(QStringLiteral("bytes */300")), -1);
+    QCOMPARE(videodl::parseContentRangeStart(QStringLiteral("none")), -1);
+}
+
+void TestOutputParsing::redactCommandHidesCookiesPath()
+{
+    const QStringList args{QStringLiteral("--cookies"),
+                           QStringLiteral("C:/Users/某人/AppData/Local/Temp/toolbox-cookies.txt"),
+                           QStringLiteral("https://x/y")};
+
+    const QString shown = videodl::redactCommand(QStringLiteral("yt-dlp.exe"), args);
+
+    // 参数名留着，日志才读得通；值必须藏掉 —— 那是登录凭据的所在。
+    QVERIFY(shown.contains(QStringLiteral("--cookies ***")));
+    QVERIFY(!shown.contains(QStringLiteral("toolbox-cookies.txt")));
+    QVERIFY(!shown.contains(QStringLiteral("某人")));
+}
+
+void TestOutputParsing::redactCommandTruncatesLongArguments()
+{
+    const QString longUrl = QStringLiteral(
+        "https://www.douyin.com/aweme/v1/play/?video_id=1234567890123456&ratio=1080p&line=0");
+
+    const QString shown =
+        videodl::redactCommand(QStringLiteral("yt-dlp.exe"), QStringList{longUrl});
+
+    QVERIFY(shown.length() < longUrl.length());
+    // 只截尾巴，站点仍然看得出来 —— 排障要知道是哪个站点。
+    QVERIFY(shown.contains(QStringLiteral("https://www.douyin.com")));
 }
 
 QTEST_APPLESS_MAIN(TestOutputParsing)

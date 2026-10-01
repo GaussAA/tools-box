@@ -3,6 +3,7 @@
 #include <QChar>
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
+#include <QStringList>
 
 namespace videodl {
 
@@ -113,6 +114,46 @@ OutputStage classifyStage(const QString &line)
         return OutputStage::ExtractingAudio;
     }
     return OutputStage::None;
+}
+
+qint64 parseContentRangeStart(const QString &headerValue)
+{
+    static const QRegularExpression rangeRe(QStringLiteral(R"(^\s*bytes\s+(\d+)\s*-\s*)"));
+    const QRegularExpressionMatch match = rangeRe.match(headerValue);
+    if (!match.hasMatch()) {
+        return -1;
+    }
+    bool ok = false;
+    const qint64 start = match.captured(1).toLongLong(&ok);
+    return ok ? start : -1;
+}
+
+QString redactCommand(const QString &program, const QStringList &args)
+{
+    // 超过这个长度的参数基本都是 URL：可能是视频地址，也可能带签名参数，
+    // 显示到能定位是哪个站点就够了。
+    constexpr int kMaxArgLength = 64;
+
+    QStringList shown;
+    shown.reserve(args.size());
+    for (int i = 0; i < args.size(); ++i) {
+        const QString arg = args.at(i);
+
+        // --cookies 后面紧跟的那个值才是要藏的（参数名本身留着，否则日志读不通）。
+        if (arg == QStringLiteral("--cookies")) {
+            shown.append(arg);
+            if (i + 1 < args.size()) {
+                shown.append(QStringLiteral("***"));
+                ++i;
+            }
+            continue;
+        }
+
+        shown.append(arg.size() > kMaxArgLength ? arg.left(kMaxArgLength) + QStringLiteral("…")
+                                                : arg);
+    }
+
+    return program + QLatin1Char(' ') + shown.join(QLatin1Char(' '));
 }
 
 QString parseDestination(const QString &line)
