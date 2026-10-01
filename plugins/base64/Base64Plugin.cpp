@@ -40,16 +40,16 @@ Base64Page::Base64Page(QWidget *parent)
     auto *layout = new QVBoxLayout(this);
 
     m_source = new QPlainTextEdit(this);
-    m_source->setPlaceholderText(QStringLiteral("在这里输入原文，或粘贴 Base64"));
+    m_source->setPlaceholderText(tr("在这里输入原文，或粘贴 Base64"));
 
     m_result = new QPlainTextEdit(this);
-    m_result->setPlaceholderText(QStringLiteral("结果"));
+    m_result->setPlaceholderText(tr("结果"));
     m_result->setReadOnly(true);
 
-    auto *encodeButton = new QPushButton(QStringLiteral("编码 →"), this);
-    auto *decodeButton = new QPushButton(QStringLiteral("← 解码"), this);
-    auto *swapButton = new QPushButton(QStringLiteral("结果转原文"), this);
-    auto *clearButton = new QPushButton(QStringLiteral("清空"), this);
+    auto *encodeButton = new QPushButton(tr("编码 →"), this);
+    auto *decodeButton = new QPushButton(tr("← 解码"), this);
+    auto *swapButton = new QPushButton(tr("结果转原文"), this);
+    auto *clearButton = new QPushButton(tr("清空"), this);
 
     auto *buttons = new QHBoxLayout;
     buttons->addWidget(encodeButton);
@@ -58,13 +58,13 @@ Base64Page::Base64Page(QWidget *parent)
     buttons->addWidget(swapButton);
     buttons->addWidget(clearButton);
 
-    m_urlSafe = new QCheckBox(QStringLiteral("URL 安全字符集（用 - _ 代替 + /）"), this);
+    m_urlSafe = new QCheckBox(tr("URL 安全字符集（用 - _ 代替 + /）"), this);
 
-    layout->addWidget(new QLabel(QStringLiteral("原文"), this));
+    layout->addWidget(new QLabel(tr("原文"), this));
     layout->addWidget(m_source, 1);
     layout->addLayout(buttons);
     layout->addWidget(m_urlSafe);
-    layout->addWidget(new QLabel(QStringLiteral("结果"), this));
+    layout->addWidget(new QLabel(tr("结果"), this));
     layout->addWidget(m_result, 1);
 
     // 所有连接都以 this 作为上下文对象，页面销毁时连接自动断开。
@@ -106,10 +106,10 @@ toolbox::ToolMeta Base64Plugin::meta() const
 {
     toolbox::ToolMeta info;
     info.id = QStringLiteral("text.base64");
-    info.name = QStringLiteral("Base64 编解码");
-    info.category = QStringLiteral("文本编码");
+    info.name = tr("Base64 编解码");
+    info.category = tr("文本编码");
     info.version = QStringLiteral("0.2.0");
-    info.description = QStringLiteral("UTF-8 文本与 Base64 互转，支持 URL 安全字符集。");
+    info.description = tr("UTF-8 文本与 Base64 互转，支持 URL 安全字符集。");
     // 图标来自插件自身的资源（由 CMakeLists.txt 里的 qt_add_resources 打进 DLL）。
     info.icon = QIcon(QStringLiteral(":/icons/base64.svg"));
     return info;

@@ -36,6 +36,7 @@ function(toolbox_add_test name)
 endfunction()
 
 toolbox_add_test(tst_toolcatalog ToolBoxCore)
+toolbox_add_test(tst_languagechoice ToolBoxCore)
 toolbox_add_test(tst_outputparsing videodl_core)
 toolbox_add_test(tst_douyinsupport videodl_core)
 toolbox_add_test(tst_cookiefile videodl_core)

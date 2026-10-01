@@ -9,6 +9,10 @@
 技术栈固定为 **Qt 6 Widgets + C++17 + CMake + MSVC 2022 x64**，采用 **MVP + 分层**
 架构。现有工具看 `plugins/` 目录，或直接运行程序看左侧导航。
 
+界面**跟随系统语言**：中文系统显示中文，其余显示英文（译文已随程序打包，不需要额外
+文件）。想固定语言，把配置 `ui/language` 设成 `zh_CN` / `en` 即可，改完重启生效 ——
+详见 [workflow.md §3.3](docs/workflow.md#33-界面语言与翻译)。
+
 ## 快速开始
 
 需要 Windows x64、Visual Studio 2022（含 MSVC v143，以及它自带的 clang-format /

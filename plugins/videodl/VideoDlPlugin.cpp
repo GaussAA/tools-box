@@ -1229,11 +1229,11 @@ toolbox::ToolMeta VideoDlPlugin::meta() const
 {
     toolbox::ToolMeta info;
     info.id = QStringLiteral("media.video-download");
-    info.name = QStringLiteral("视频下载");
-    info.category = QStringLiteral("媒体工具");
+    info.name = tr("视频下载");
+    info.category = tr("媒体工具");
     info.version = QStringLiteral("0.1.0");
     info.description =
-        QStringLiteral("粘贴 B站 / YouTube / 抖音 等视频地址，按画质下载到本地（内核为 yt-dlp）。");
+        tr("粘贴 B站 / YouTube / 抖音 等视频地址，按画质下载到本地（内核为 yt-dlp）。");
     info.icon = QIcon(QStringLiteral(":/icons/videodl.svg"));
     return info;
 }

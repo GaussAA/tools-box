@@ -2,7 +2,9 @@
 # 分层判定标准见 docs/architecture.md §3。
 add_library(ToolBoxCore STATIC
     core/ToolCatalog.cpp
-    core/ToolCatalog.h)
+    core/ToolCatalog.h
+    core/LanguageChoice.cpp
+    core/LanguageChoice.h)
 
 target_link_libraries(ToolBoxCore PUBLIC Qt6::Core)
 

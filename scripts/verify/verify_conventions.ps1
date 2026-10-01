@@ -14,6 +14,8 @@
 #      on "whoever included what first"
 #   6. an "#include "Xxx.moc"" for an inline Q_OBJECT class is the last thing in
 #      the file; anything after it is compiled before the generated code exists
+#   7. no Chinese inside QStringLiteral outside of core/ - Chinese literals are
+#      almost always user-visible text, which must go through tr()
 #
 # NOTE: this file must keep its UTF-8 BOM. Windows PowerShell 5.1 reads a BOM-less
 # script with the system ANSI codepage (936 / GB2312 here), which mangles UTF-8 Chinese
@@ -125,6 +127,29 @@ foreach ($item in $scan) {
 }
 Check ($lateMoc.Count -eq 0) ("moc include is the last line ({0} file(s) with code after it)" -f $lateMoc.Count)
 
+# ---------- 7. no Chinese in QStringLiteral outside core/ ----------
+# This rule exists because of a specific escape: the base64 plugin's entire UI text
+# was written with QStringLiteral, while docs/coding-standards.md section 7 claimed
+# "tr() everywhere, keep it that way". Rule 2 only looked for QString("literal") and
+# let QStringLiteral straight through, so review was the only thing that could have
+# caught it - and did not.
+#
+# core/ and tests/ are exempt on purpose: a Chinese constant there can be legitimate
+# (a parsing suffix, a test fixture), and by docs/architecture.md section 3 those
+# directories are not supposed to deal in UI text at all.
+$cjkLiteral = @()
+foreach ($item in $scan) {
+  if ($item.Rel -match '(^|/)core/') { continue }
+  if ($item.Rel -like "tests/*")     { continue }
+  $m = Select-String -Path $item.Path -Pattern 'QStringLiteral\("[^"]*\p{IsCJKUnifiedIdeographs}'
+  foreach ($one in $m) {
+    if ($one.Line -notmatch 'tr\(') {
+      $cjkLiteral += ("{0}:{1}: {2}" -f $item.Rel, $one.LineNumber, $one.Line.Trim())
+    }
+  }
+}
+Check ($cjkLiteral.Count -eq 0) ("Chinese literals go through tr() outside core/ ({0} hit(s))" -f $cjkLiteral.Count)
+
 # ---------- report ----------
 foreach ($group in @(
     @{ Label = "legacy SIGNAL()/SLOT()";        Items = $legacy },
@@ -132,7 +157,8 @@ foreach ($group in @(
     @{ Label = "cross-layer include";           Items = $crossHits },
     @{ Label = "bare QSettings key";            Items = $bareKeys },
     @{ Label = "header without #pragma once";   Items = $noPragma },
-    @{ Label = "code after the moc include";    Items = $lateMoc })) {
+    @{ Label = "code after the moc include";    Items = $lateMoc },
+    @{ Label = "Chinese outside tr()";          Items = $cjkLiteral })) {
   if ($group.Items.Count -gt 0) {
     Write-Output ("-- " + $group.Label)
     $group.Items | Select-Object -First 20 | ForEach-Object { Write-Output ("   " + $_) }

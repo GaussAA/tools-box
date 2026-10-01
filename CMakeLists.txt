@@ -7,7 +7,7 @@ project(ToolBox
 
 # 主程序与所有插件都必须是同一套 Qt、同一个编译器、同一个 C++ 标准。
 # 插件 DLL 与主程序之间共享 QWidget 对象，二进制不兼容会直接崩溃。
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network Test)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network Test LinguistTools)
 
 qt_standard_project_setup()
 
@@ -39,6 +39,27 @@ add_subdirectory(plugins/base64)
 add_subdirectory(plugins/jsonfmt)
 add_subdirectory(plugins/videodl)
 add_subdirectory(tests)
+
+# ── 界面翻译 ────────────────────────────────────────────────────────────────
+# 源语言是中文（tr() 里写的就是中文），这里编的是英文译文。lupdate 从下面这些
+# 目标的源码里抽 tr() 字符串，lrelease 编成 .qm，再由 RESOURCE_PREFIX 编进可执行
+# 文件的资源 —— 不落成外部文件，就不存在「翻译文件忘了一起拷」这种失败。
+# （对比偏差 9.6 修的 Qt 自带翻译：那份必须随程序分发，所以只能走 translations/。）
+#
+# 新增插件时**必须把它的目标加进 SOURCE_TARGETS**，否则新插件的界面文案不会被抽取
+# （workflow §4 第 9 步）。改写已有字符串后跑：
+#   cmake --build build --target update_translations   刷新 .ts（然后补译文）
+qt_add_translations(ToolBox
+    TS_FILES translations/toolbox_en.ts
+    SOURCE_TARGETS
+        ToolBox
+        ToolBoxCore
+        base64_tool
+        jsonfmt_tool
+        videodl_tool
+        videodl_core
+    RESOURCE_PREFIX "/i18n"
+    NO_GENERATE_PLURALS_TS_FILE)
 
 # ── 交付打包 ────────────────────────────────────────────────────────────────
 # 交付形态固定为「解压即用」的 zip，交付流程见 docs/workflow.md §9。

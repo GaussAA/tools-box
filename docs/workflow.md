@@ -28,9 +28,9 @@ Qt 安装相关的已知坑（历史踩过的，不要再试）：
 ## 2. 源码树里什么进版本控制
 
 进版本控制：`CMakeLists.txt`、`CMakePresets.json`、`README.md`、`docs/`、`scripts/`、
-`sdk/`、`app/`、`plugins/`、`tests/`、`.github/`（CI 配置），以及五份工具配置
-`.clang-format`、`.clang-tidy`、`.editorconfig`、`.gitattributes`、
-`.git-blame-ignore-revs`。
+`sdk/`、`app/`、`plugins/`、`tests/`、`.github/`（CI 配置）、`translations/`
+（`.ts` 译文，见 §3.3），以及五份工具配置 `.clang-format`、`.clang-tidy`、
+`.editorconfig`、`.gitattributes`、`.git-blame-ignore-revs`。
 
 **不进版本控制**（已在 `.gitignore` 中声明）：`build/`（完全可再生成）、
 IDE 目录、CMake 缓存。
@@ -162,6 +162,48 @@ powershell -ExecutionPolicy Bypass -File scripts\verify\verify_naming.ps1
 `verify_format` 刻意避开的「结果取决于镜像」的坑。**结论：钉不住版本的工具不拿去
 当门禁**；将来 LLVM 出更小的分发或 PyPI 补上该版本，可以重新评估。
 
+### 3.3 界面语言与翻译
+
+**源语言是中文**：`tr()` 里写的就是中文，中文界面不需要任何翻译文件。英文译文在
+`translations/toolbox_en.ts`，由顶层 `CMakeLists.txt` 的 `qt_add_translations` 用
+lrelease 编成 `.qm`，再**编进可执行文件的资源**（`RESOURCE_PREFIX "/i18n"`）——
+不落成外部文件，就不存在「翻译文件忘了一起拷」这种失败，直接跑构建产物也有译文。
+
+**语言在启动时定一次，运行期不切换**（改语言要重启）。取值来自配置 `ui/language`：
+**空 = 跟随系统**，非空按语言代码强制（只认 `en*` / `zh*`，认不出来的值退回跟随系统）。
+判定逻辑在 `app/core/LanguageChoice.*`，脱离界面可单测。命令行改语言：
+
+```powershell
+# 强制英文（改完要重启程序）
+New-Item -Path "HKCU:\Software\ToolBox\ToolBox\ui" -Force | Out-Null
+Set-ItemProperty -Path "HKCU:\Software\ToolBox\ToolBox\ui" -Name language -Value "en"
+# 恢复跟随系统
+Remove-ItemProperty -Path "HKCU:\Software\ToolBox\ToolBox\ui" -Name language
+```
+
+验证：`verify_shell.ps1` 有 `-Lang en|zh`，两组断言分别对应两种语言的界面
+（含 Qt 自带对话框按钮的文案）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\verify\verify_shell.ps1 -Lang en
+```
+
+维护译文时要留意的三件事：
+
+1. **`.ts` 目前是手工维护的**。本机这份 Qt 没装 `qtdeclarative`，而 `lupdate` 依赖
+   `Qt6Qml.dll`，所以 `update_translations` 目标在这里跑不起来（`lrelease` 不受影响，
+   构建照常）。有完整 Qt 的机器上可以跑
+   `cmake --build build --target update_translations` 刷新 `.ts` 骨架，但**译文仍要
+   人来补**。所以：**改了 `tr()` 里的字面量之后，必须手动同步 `.ts` 里的
+   `<source>`**，否则运行期按「上下文 + 源字符串」查不到译文，会静默退回中文。
+2. **同一个源字符串只能有一个译文**。「收藏」既做导航分区标题（英文要 Favorites）
+   又做右键菜单动作（英文要 Add to favorites）时，必须**让源字符串分开**（现取
+   「加入收藏」）—— Qt 的 `//: 消歧注释` 在运行期查不到，解决不了这个问题。
+3. **用户可见的字符串一律 `tr()`**。这条有新加的机械检查兜着
+   （`verify_conventions.ps1` 第 7 条：UI 目录下不允许出现含中文的
+   `QStringLiteral`），因为在这之前 base64 插件的界面文案全是 `QStringLiteral`，
+   而文档当时写着「已全量做到」。
+
 ## 4. 新增一个工具插件
 
 按顺序做，每一步都有明确产出：
@@ -176,7 +218,9 @@ powershell -ExecutionPolicy Bypass -File scripts\verify\verify_naming.ps1
 6. 页面需要持久化则实现 `IToolPage`，键名只用裸名，由 `ToolSettings` 加前缀；
 7. 纯逻辑（解析、转换、过滤）必须放进独立的无 UI 依赖的类或自由函数，
    并补 Qt Test 用例（见 §5）；
-8. 更新本文档 §8 的脚本清单（若新增了手工验证脚本）。
+8. 更新本文档 §8 的脚本清单（若新增了手工验证脚本）；
+9. 把新插件的**目标名加进顶层 `CMakeLists.txt` 的 `qt_add_translations(... SOURCE_TARGETS)`
+   列表**，否则它的界面文案不会被抽取成译文（§3.3）。
 
 **不允许**为了让新工具跑起来而修改 `app/` 里的代码。如果需要改外壳，
 说明契约不足，应先走 §7 的契约变更流程。
@@ -196,6 +240,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | 测试 | 被测模块 |
 | --- | --- |
 | `tst_toolcatalog` | [app/core/ToolCatalog.*](../app/core/ToolCatalog.h)：导航过滤、失效 id 清理、最近使用去重与限长 |
+| `tst_languagechoice` | [app/core/LanguageChoice.*](../app/core/LanguageChoice.h)：界面语言的解析（跟随系统 / 强制 / 配置写坏的兜底） |
 | `tst_outputparsing` | [videodl/core/OutputParsing.*](../plugins/videodl/core/OutputParsing.h)：输出解码、剥色、地址提取、进度/阶段/产物解析 |
 | `tst_douyinsupport` | [videodl/core/DouyinSupport.*](../plugins/videodl/core/DouyinSupport.h)：站点判定、画质档位、DOM 字段提取 |
 | `tst_cookiefile` | [videodl/core/CookieFile.*](../plugins/videodl/core/CookieFile.h)：cookies 规范化与各失败分支 |
@@ -245,7 +290,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | `verify_naming.ps1` | 命名：`m_` / `k` 前缀与大小写（clang-tidy `readability-identifier-naming`）。**需先构建**，且不钉版本的工具不当门禁，故不进 CI（§3.2） |
 | `verify_conventions.ps1` | 可机械判定的编码规范：旧式 `SIGNAL()/SLOT()`、`QString("字面量")`、跨层 include、裸字符串 QSettings 键、头文件缺 `#pragma once`、`#include "Xxx.moc"` 之后还有代码（可纳入 CI） |
 | `verify_docs.ps1` | 文档一致性：所有纳入版本控制的 `*.md`（含根目录 `README.md`）相对链接目标存在、`#锚点` 能落到标题、`docs/` 内无孤立文档（§10 第 5 条，可纳入 CI） |
-| `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译。`-Exe` 可指向别处的构建产物，用于验收打包结果（§9） |
+| `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译。`-Exe` 可指向别处的构建产物（验收打包结果，§9）；`-Lang en\|zh` 断言对应语言的界面（§3.3） |
 | `verify_recent.ps1` | 收藏 / 最近使用 / 配置持久化 / 搜索 |
 | `verify_videodl.ps1` | 视频下载插件的界面与状态 |
 | `verify_videodl2.ps1` | 视频下载插件的界面与状态（补充场景） |

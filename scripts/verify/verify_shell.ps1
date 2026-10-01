@@ -15,7 +15,10 @@
 # because the script has to stay readable under whatever codepage the host picks.
 
 param(
-  [string]$Exe = "c:\WorkSpace\ProjectSpace\tools-box\build\bin\Debug\ToolBox.exe"
+  [string]$Exe = "c:\WorkSpace\ProjectSpace\tools-box\build\bin\Debug\ToolBox.exe",
+  # Expected UI language. The caller is responsible for making the app actually run in
+  # that language (ui/language in the registry, empty = follow the system).
+  [ValidateSet("zh", "en")][string]$Lang = "zh"
 )
 
 Add-Type -AssemblyName System.Drawing
@@ -68,17 +71,36 @@ $ErrorActionPreference = "Continue"
 
 function Chars([int[]]$cp) { return -join ($cp | ForEach-Object { [char]$_ }) }
 
-$titleBox     = Chars @(0x5DE5, 0x5177, 0x7BB1)                  # gong ju xiang
-$menuHelp     = Chars @(0x5E2E, 0x52A9)                          # bang zhu
-$menuAbout    = Chars @(0x5173, 0x4E8E)                          # guan yu
-$dlgAbout     = Chars @(0x5173, 0x4E8E, 0x5DE5, 0x5177, 0x7BB1)  # guan yu gong ju xiang
-$btnOk        = Chars @(0x786E, 0x5B9A)                          # que ding
-$loadedPrefix = Chars @(0x5DF2, 0x52A0, 0x8F7D)                  # yi jia zai
-# "the following plugins failed to load:" - shown on the home page only on failure
-$loadErrorMark = Chars @(0x4EE5, 0x4E0B, 0x63D2, 0x4EF6, 0x52A0, 0x8F7D, 0x5931, 0x8D25)
-$toolA        = "Base64 " + (Chars @(0x7F16, 0x89E3, 0x7801))
-$toolB        = "JSON "   + (Chars @(0x683C, 0x5F0F, 0x5316))
-$toolC        = Chars @(0x89C6, 0x9891, 0x4E0B, 0x8F7D)
+# Expected strings depend on the UI language. Chinese is the source language (what you
+# get with no translation file installed); English comes from translations/toolbox_en.ts.
+# The language is chosen at startup from ui/language (empty = follow the system), so the
+# caller sets that registry value before running with -Lang en.
+# Chinese is rebuilt from code points so this script stays readable under any codepage;
+# the English set is plain ASCII.
+if ($Lang -eq "en") {
+  $titleBox      = "Toolbox"
+  $menuHelp      = "Help"
+  $menuAbout     = "About"
+  $dlgAbout      = "About Toolbox"
+  $btnOk         = "OK"
+  $loadedPrefix  = "tools loaded"
+  $loadErrorMark = "These plugins failed to load:"
+  $toolA         = "Base64 Encode / Decode"
+  $toolB         = "JSON Formatter"
+  $toolC         = "Video Downloader"
+} else {
+  $titleBox     = Chars @(0x5DE5, 0x5177, 0x7BB1)                  # gong ju xiang
+  $menuHelp     = Chars @(0x5E2E, 0x52A9)                          # bang zhu
+  $menuAbout    = Chars @(0x5173, 0x4E8E)                          # guan yu
+  $dlgAbout     = Chars @(0x5173, 0x4E8E, 0x5DE5, 0x5177, 0x7BB1)  # guan yu gong ju xiang
+  $btnOk        = Chars @(0x786E, 0x5B9A)                          # que ding
+  $loadedPrefix = Chars @(0x5DF2, 0x52A0, 0x8F7D)                  # yi jia zai
+  # "the following plugins failed to load:" - shown on the home page only on failure
+  $loadErrorMark = Chars @(0x4EE5, 0x4E0B, 0x63D2, 0x4EF6, 0x52A0, 0x8F7D, 0x5931, 0x8D25)
+  $toolA        = "Base64 " + (Chars @(0x7F16, 0x89E3, 0x7801))
+  $toolB        = "JSON "   + (Chars @(0x683C, 0x5F0F, 0x5316))
+  $toolC        = Chars @(0x89C6, 0x9891, 0x4E0B, 0x8F7D)
+}
 $tools        = @($toolA, $toolB, $toolC)
 
 $exe   = $Exe

@@ -87,7 +87,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_registry(new ToolRegistry(this))
 {
-    setWindowTitle(QStringLiteral("工具箱"));
+    setWindowTitle(tr("工具箱"));
     resize(1024, 700);
 
     // 收藏和最近使用必须在 reloadTools() 之前读回来：reloadTools() 会把
@@ -460,7 +460,12 @@ void MainWindow::onNavContextMenu(const QPoint &pos)
     }
 
     QMenu menu(this);
-    QAction *toggle = menu.addAction(m_favorites.contains(toolId) ? tr("取消收藏") : tr("收藏"));
+    // 这里刻意写「加入收藏」而不是「收藏」：导航分区标题也叫「收藏」，两者共用同一个
+    // 源字符串时，英文只能给出一个译文，而分区标题要 Favorites、菜单动作要
+    // Add to favorites。译文按「上下文 + 源字符串」查找，所以只能让源字符串分开
+    // （Qt 的 //: 消歧注释在运行期查不到，做不到这一点）。
+    QAction *toggle =
+        menu.addAction(m_favorites.contains(toolId) ? tr("取消收藏") : tr("加入收藏"));
     if (menu.exec(m_nav->viewport()->mapToGlobal(pos)) == toggle) {
         toggleFavorite(toolId);
     }
