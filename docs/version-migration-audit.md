@@ -33,7 +33,7 @@
 - **构建**：Qt 6.12.0 + Ninja Multi-Config（cmake 4.3.1 / ninja 1.13.2 / MSVC 19.51）——配置成功、Debug + Release 双配置构建通过、**双 `ctest` 各 10/10**、`lrelease` **161/161**。
 - **规范门禁**：`verify_whitespace` / `verify_docs` / `verify_conventions` / `verify_naming` 全部 **ALL PASS**（命名检查这一条是**补验**的，见 §6 勘误 —— 首次撰写本报告时它其实有 13 条命中）。
 - **Qt API**：无弃用用法（`QLibraryInfo::path()` 已是 Qt 6 现代 API）。
-- **CI（GitHub Actions，干净机器）**：**全绿**（run `36868739998`）——whitespace / format / conventions / docs 四道快检、Qt 6.12.0 安装、MSVC 环境、Debug + Release 双配置构建、`ctest`、`windeployqt`、打包与上传全部通过。**注意**：该 run 跑的是「命名检查不进 CI」的旧 workflow；此后给 CI 增加了命名检查（装 PyPI 的 `clang-tidy==22.1.8`）与 Release 配置的 `ctest`，**需要一次新的 run 才算验证过**，见 §6 勘误。
+- **CI（GitHub Actions，干净机器）**：**全绿**（run `36868739998`）——whitespace / format / conventions / docs 四道快检、Qt 6.12.0 安装、MSVC 环境、Debug + Release 双配置构建、`ctest`、`windeployqt`、打包与上传全部通过。**该 run 之后 CI 又增加了命名检查与 Release 配置的 `ctest`**，新增部分另有一次验证：run `36881672459`（7m11s，23 步全绿），详见 §6 勘误。
 
 ## 4. 结论
 
@@ -55,7 +55,7 @@
 | 原述 | 实际情况 | 处置 |
 | --- | --- | --- |
 | §3「`verify_naming.ps1` 全部 ALL PASS」 | 实跑 **13 条**命中：`tests/tst_pluginmeta.cpp` / `tests/tst_logger.cpp` 的类名与下划线方法名（应为 `TestXxx` + 小驼峰），以及 `app/core/Logger.cpp` 匿名命名空间里的 6 个 `g_` 全局（`.clang-tidy` 缺 `GlobalVariablePrefix`）。根因是**编码规范没覆盖「文件级可变状态」与「类静态数据成员」**这两个场景 | 已修：测试类名与方法名按约定改名；`.clang-tidy` 增加 `GlobalVariablePrefix: 'g_'`；[coding-standards.md §1](./coding-standards.md#1-命名) 补上 `s_` / `g_` 两行与硬规则。**教训：结论必须来自当次实跑，不能由「刚才还是绿的」推得。** |
-| §3 CI「全绿（run `36868739998`）」 | 该 run 跑的是「命名检查不进 CI」的旧 workflow。此后 CI 增加了命名检查（PyPI `clang-tidy==22.1.8`，钉 LLVM 22.1 线）与 Release 配置的 `ctest` | 需要一次**新的 run** 才能断言全绿；在那之前，本报告的 CI 结论只对旧 workflow 成立 |
+| §3 CI「全绿（run `36868739998`）」 | 该 run 跑的是「命名检查不进 CI」的旧 workflow。此后 CI 增加了命名检查（PyPI `clang-tidy==22.1.8`，钉 LLVM 22.1 线）与 Release 配置的 `ctest` | **已补验**：run `36881672459`（7m11s，23 步全绿）。命名步骤实测走的是 PyPI 装的 22.1.8（`PATH` 优先命中钉版，没落到 runner 上 VS 自带那份），`scope = 23 C++ file(s)`、0 个翻译单元被跳过、0 条违规；两个配置的 `ctest` 各 10/10 |
 
 同一轮复核还发现了三处**本报告未覆盖**的代码问题，均已修复：
 
