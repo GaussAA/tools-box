@@ -25,6 +25,7 @@ private slots:
     void unparsableConfiguredValueFallsBackToSystem();
     void blankConfiguredValueIsTreatedAsUnset();
     void localeAlwaysAgreesWithLanguage();
+    void bareLanguageCodeGetsADefaultRegion();
 };
 
 void TestLanguageChoice::followsSystemWhenNothingConfigured()
@@ -102,6 +103,26 @@ void TestLanguageChoice::localeAlwaysAgreesWithLanguage()
     const UiLanguageSelection forcedRegion =
         resolveUiLanguage(QStringLiteral("en_GB"), QLocale(QStringLiteral("zh_CN")));
     QCOMPARE(forcedRegion.locale.name(), QLocale(QStringLiteral("en_GB")).name());
+}
+
+void TestLanguageChoice::bareLanguageCodeGetsADefaultRegion()
+{
+    // 只写语言代码（"zh"）是最自然的配置写法，但 QLocale("zh").name() 就是 "zh"，
+    // 而 Qt 自带的翻译文件**只按地区命名**：有 qtbase_zh_CN.qm / qtbase_zh_TW.qm，
+    // 没有 qtbase_zh.qm。原样传下去会一个都找不到，然后静默什么都不装 ——
+    // 症状是消息框按钮一直是 "OK"（工具自己的中文文案却完全正常），很难联想到语言。
+    // 所以这里必须补上默认地区。
+    const UiLanguageSelection forcedZh =
+        resolveUiLanguage(QStringLiteral("zh"), QLocale(QStringLiteral("en_US")));
+
+    QCOMPARE(forcedZh.language, UiLanguage::Chinese);
+    QVERIFY(forcedZh.locale.name().contains(QLatin1Char('_'))); // 必须带地区
+    QCOMPARE(forcedZh.locale.name(), QLocale(QStringLiteral("zh_CN")).name());
+
+    // 大小写不敏感，结果必须一样。
+    QCOMPARE(
+        resolveUiLanguage(QStringLiteral("ZH"), QLocale(QStringLiteral("en_US"))).locale.name(),
+        QLocale(QStringLiteral("zh_CN")).name());
 }
 
 QTEST_APPLESS_MAIN(TestLanguageChoice)
