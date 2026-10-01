@@ -1,4 +1,4 @@
-# Mechanical checks for the documents under docs/, which are the single source of
+﻿# Mechanical checks for the documents under docs/, which are the single source of
 # truth for this project (see docs/architecture.md preamble and workflow.md
 # section 10). Docs drift silently: a section gets renumbered, a file gets moved,
 # and every reference to it rots without anybody noticing. These are the parts of
@@ -12,9 +12,10 @@
 #   3. no orphan document: every docs/*.md is linked from at least one other doc
 #      in the set, so a newly added document cannot be forgotten
 #
-# NOTE: keep every literal at the PowerShell level ASCII. PowerShell 5.1 parses a
-# BOM-less .ps1 as ANSI, so Chinese in comments/strings corrupts the token stream.
-# Chinese only ever enters this script as document content read from disk.
+# NOTE: this file must keep its UTF-8 BOM. Windows PowerShell 5.1 reads a BOM-less
+# script with the system ANSI codepage (936 / GB2312 here), which mangles UTF-8 Chinese
+# comments badly enough to break parsing. verify_whitespace.ps1 enforces the BOM.
+# Chinese still only enters this script as document content read from disk.
 #
 # Usage:  powershell -ExecutionPolicy Bypass -File scripts\verify\verify_docs.ps1
 # Exit code 0 = clean, 1 = violations found.

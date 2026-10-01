@@ -1,4 +1,4 @@
-# Mechanical checks for the conventions that can be tested by reading source text.
+﻿# Mechanical checks for the conventions that can be tested by reading source text.
 # Complements verify_whitespace.ps1 (encoding/whitespace) and the compiler
 # (/W4 /WX plus the core libraries linking only Qt6::Core).
 #
@@ -15,8 +15,9 @@
 #   6. an "#include "Xxx.moc"" for an inline Q_OBJECT class is the last thing in
 #      the file; anything after it is compiled before the generated code exists
 #
-# NOTE: keep every literal at the PowerShell level ASCII. PowerShell 5.1 parses a
-# BOM-less .ps1 as ANSI, so Chinese in comments/strings corrupts the token stream.
+# NOTE: this file must keep its UTF-8 BOM. Windows PowerShell 5.1 reads a BOM-less
+# script with the system ANSI codepage (936 / GB2312 here), which mangles UTF-8 Chinese
+# comments badly enough to break parsing. verify_whitespace.ps1 enforces the BOM.
 #
 # Usage:  powershell -ExecutionPolicy Bypass -File scripts\verify\verify_conventions.ps1
 # Exit code 0 = clean, 1 = violations found.

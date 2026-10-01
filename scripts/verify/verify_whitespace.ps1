@@ -1,14 +1,20 @@
-# Whitespace / encoding check for every tracked file.
+﻿# Whitespace / encoding check for every tracked file.
 # Enforces the rules that .editorconfig declares and that are editor-independent:
 #   - LF only, no CR byte
 #   - exactly one trailing newline
 #   - no trailing whitespace on any line
 #   - no tab characters in source files (indent_style = space)
+#   - every *.ps1 starts with a UTF-8 BOM (see below - this one has teeth)
 # Covers docs/coding-standards.md section 12, row "charset / indent / final newline".
 # The clang-format layer is deliberately NOT checked here; see docs/workflow.md 3.1.
 #
-# NOTE: keep every literal at the PowerShell level ASCII. PowerShell 5.1 parses a
-# BOM-less .ps1 as ANSI, so Chinese in comments/strings corrupts the token stream.
+# NOTE on the .ps1 BOM rule: Windows PowerShell 5.1 loads a BOM-less script using the
+# system ANSI codepage (936 / GB2312 on this machine). UTF-8 Chinese comments then get
+# mis-decoded, and a byte pair can decode into a stray ASCII character that breaks the
+# token stream - a Chinese comment once produced a phantom "}" and the script stopped
+# parsing. With a BOM the loader uses UTF-8 and Chinese is safe. Keep the BOM.
+#
+# The literals in THIS file are ASCII anyway, so it stays readable under any codepage.
 #
 # Usage:  powershell -ExecutionPolicy Bypass -File scripts\verify\verify_whitespace.ps1
 # Exit code 0 = clean, 1 = violations found.
@@ -42,6 +48,7 @@ $blankTailFiles = @()
 $trailingFiles = @()
 $trailingCount = 0
 $tabFiles = @()
+$ps1NoBom = @()
 
 foreach ($rel in $tracked) {
   $path = Join-Path $repo $rel
@@ -55,6 +62,13 @@ foreach ($rel in $tracked) {
   for ($i = 0; $i -lt $probe; $i++) { if ($bytes[$i] -eq 0) { $isBinary = $true; break } }
   if ($isBinary) { continue }
   $checked++
+
+  # 0. every *.ps1 carries a UTF-8 BOM (see the header note; without it Windows
+  #    PowerShell 5.1 decodes the file as ANSI and Chinese comments break parsing).
+  if ($rel -like "*.ps1") {
+    $hasBom = ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
+    if (-not $hasBom) { $ps1NoBom += $rel }
+  }
 
   # 1. LF only
   if ($bytes -contains 13) { $crFiles += $rel }
@@ -93,13 +107,15 @@ Check ($finalNewlineFiles.Count -eq 0)          ("file ends with a newline ({0} 
 Check ($blankTailFiles.Count -eq 0)             ("no blank line at end of file ({0} offender(s))" -f $blankTailFiles.Count)
 Check ($trailingCount -eq 0)                    ("no trailing whitespace ({0} line(s))" -f $trailingCount)
 Check ($tabFiles.Count -eq 0)                   ("no tab characters in source ({0} offender(s))" -f $tabFiles.Count)
+Check ($ps1NoBom.Count -eq 0)                   ("every *.ps1 has a UTF-8 BOM ({0} offender(s))" -f $ps1NoBom.Count)
 
 foreach ($group in @(
     @{ Label = "CR byte";           Items = $crFiles },
     @{ Label = "no final newline";  Items = $finalNewlineFiles },
     @{ Label = "blank line at EOF"; Items = $blankTailFiles },
     @{ Label = "trailing space";    Items = $trailingFiles },
-    @{ Label = "tab character";     Items = $tabFiles })) {
+    @{ Label = "tab character";     Items = $tabFiles },
+    @{ Label = "ps1 without BOM";   Items = $ps1NoBom })) {
   if ($group.Items.Count -gt 0) {
     Write-Output ("-- " + $group.Label)
     $group.Items | Select-Object -First 20 | ForEach-Object { Write-Output ("   " + $_) }

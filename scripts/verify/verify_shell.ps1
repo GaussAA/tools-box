@@ -1,4 +1,4 @@
-# Shell smoke test: plugin load count, version single-source, Qt dialog translation.
+﻿# Shell smoke test: plugin load count, version single-source, Qt dialog translation.
 # Covers docs/architecture.md ledger items 9.5 / 9.6 and "the shell loads every plugin".
 # Touches no plugin settings; it does switch the selected tool, so ui/lastToolId ends up
 # pointing at the home page when the window closes.
@@ -8,9 +8,11 @@
 # that is the only way to prove the package really carries the plugins, the Qt
 # runtime and translations/.
 #
-# NOTE: keep every literal at the PowerShell level ASCII. PowerShell 5.1 parses a
-# BOM-less .ps1 as ANSI, so Chinese in comments/strings corrupts the token stream.
-# Chinese text needed for assertions is rebuilt from code points via Chars.
+# NOTE: this file must keep its UTF-8 BOM. Windows PowerShell 5.1 reads a BOM-less
+# script with the system ANSI codepage (936 / GB2312 here), which mangles UTF-8 Chinese
+# comments badly enough to break parsing. verify_whitespace.ps1 enforces the BOM.
+# The Chinese strings asserted below are still rebuilt from code points via Chars,
+# because the script has to stay readable under whatever codepage the host picks.
 
 param(
   [string]$Exe = "c:\WorkSpace\ProjectSpace\tools-box\build\bin\Debug\ToolBox.exe"

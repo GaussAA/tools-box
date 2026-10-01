@@ -1,4 +1,10 @@
-﻿param([string]$Which = "yt-dlp", [int]$TimeoutSec = 240)
+﻿param([string]$Which = "yt-dlp", [int]$TimeoutSec = 240,
+      [string]$Exe = "c:\WorkSpace\ProjectSpace\tools-box\build\bin\Debug\ToolBox.exe")
+
+# -Exe points the test at another build. Aiming it at an extracted release zip is the
+# only way to prove the packaged app can really reach the network: the deployed tree
+# carries its own TLS backend (tls/qschannelbackend.dll) and networkinformation
+# plugin, and nothing else in the verify set exercises them.
 
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
@@ -40,15 +46,17 @@ public class W {
 $ErrorActionPreference = "Continue"
 [void][W]::SetProcessDPIAware()
 
-$bin    = "c:\WorkSpace\ProjectSpace\tools-box\build\bin\Debug"
-$exe    = Join-Path $bin "ToolBox.exe"
+$exe    = $Exe
+$bin    = Split-Path $exe -Parent
 $engDir = Join-Path $bin "tools\bin"
 $shots  = "c:\WorkSpace\ProjectSpace\tools-box\build\shots"
 $videoDl = -join ([char]0x89C6, [char]0x9891, [char]0x4E0B, [char]0x8F7D)
 $startDl = -join ([char]0x5F00, [char]0x59CB, [char]0x4E0B, [char]0x8F7D)
 New-Item -ItemType Directory -Force -Path $shots | Out-Null
+if (-not (Test-Path $exe)) { Write-Output "ABORT: exe not found at $exe"; exit 1 }
 
 $target = Join-Path $engDir "$Which.exe"
+$part   = "$target.part"
 
 function Get-Hwnd {
   $p = Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -93,8 +101,12 @@ Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 600
 [void][W]::ReleaseLeft()
 
+# 从确定的状态开始：把上一轮可能留下的产物清掉。否则「目标文件已存在」既可能
+# 是上一轮的残留、也可能是本轮下载成功，检查就失去意义了。
+Remove-Item -Force $target -ErrorAction SilentlyContinue
+Remove-Item -Force $part -ErrorAction SilentlyContinue
 Write-Output ("=== target = {0}" -f $target)
-Write-Output ("exists before = {0}" -f (Test-Path $target))
+Write-Output ("exists before = {0} (expect False)" -f (Test-Path $target))
 
 [void](Start-Process -FilePath $exe -PassThru)
 Start-Sleep -Seconds 3
@@ -121,19 +133,34 @@ if (-not $btn) { Write-Output "ABORT: fetch button not found"; exit 1 }
 [void](Click-Elem $hwnd $btn ("fetch " + $Which))
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
-while ($sw.Elapsed.TotalSeconds -lt $TimeoutSec -and -not (Test-Path $target)) {
+$size = 0
+$stable = 0
+while ($sw.Elapsed.TotalSeconds -lt $TimeoutSec) {
   Start-Sleep -Seconds 3
+  # 完成的判据是「最终文件名存在、.part 已消失、且大小不再变化」。
+  # 只看最终文件是否存在会被上一轮跑剩的文件骗过 —— 那会让这个检查永远 PASS。
+  if ((Test-Path $target) -and -not (Test-Path $part)) {
+    $now = (Get-Item $target).Length
+    if ($now -gt 0 -and $now -eq $size) { $stable++; if ($stable -ge 2) { break } }
+    else { $stable = 0 }
+    $size = $now
+  } else {
+    $stable = 0
+    $size = 0
+  }
 }
 $elapsed = [int]$sw.Elapsed.TotalSeconds
 Write-Output ("waited {0}s" -f $elapsed)
 
-if (Test-Path $target) {
+$ok = $false
+if ((Test-Path $target) -and -not (Test-Path $part)) {
   $f = Get-Item $target
+  $ok = $f.Length -gt 0
   Write-Output ("OK: {0}  size={1:N0} bytes  mtime={2}" -f $f.Name, $f.Length, $f.LastWriteTime)
 } else {
-  Write-Output "TIMEOUT: target still missing"
-  $part = Join-Path $engDir "$Which.exe.part"
+  Write-Output "TIMEOUT: target still missing or .part never cleared"
   if (Test-Path $part) { Write-Output ("   partial: {0:N0} bytes" -f (Get-Item $part).Length) }
+  if (Test-Path $target) { Write-Output ("   target:  {0:N0} bytes" -f (Get-Item $target).Length) }
 }
 Start-Sleep -Seconds 2
 Shot $hwnd ("fetch_{0}.png" -f $Which)
@@ -149,4 +176,8 @@ foreach ($b in (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Butt
 [void][W]::PostMessage($hwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
 Start-Sleep -Seconds 2
 Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
-Write-Output "DONE"
+
+# 退出码要能当门禁用：下载没成功就不算通过。
+if ($ok) { Write-Output "DONE(ALL PASS)"; exit 0 }
+Write-Output ("DONE(FAILED): {0} was not fetched" -f $Which)
+exit 1

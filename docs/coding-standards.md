@@ -115,7 +115,10 @@
   在这套配置下不可能发生。新增代码带出告警时，要么改掉，要么就地写明为什么必须
   抑制（`#pragma warning(push/pop)` + 注释），不允许整体降警告等级。
 - 源文件统一 UTF-8 无 BOM、换行符统一 LF。由 `.editorconfig` 与 `.gitattributes`
-  共同保证，不依赖个人编辑器设置。
+  共同保证，不依赖个人编辑器设置。**唯一例外是 `*.ps1`：必须带 UTF-8 BOM** ——
+  Windows PowerShell 5.1 按系统 ANSI 代码页解码无 BOM 的脚本，会把 UTF-8 的中文注释
+  解错到语法层面（本项目因此遇到过一次凭空多出的 `}` 导致脚本无法解析）。原因与检查
+  见 [workflow.md §3.1](./workflow.md#31-代码风格检查)。
 
 ## 10. CMake 约定
 
@@ -148,6 +151,7 @@
 | --- | --- | --- |
 | 缩进、行宽、大括号位置、符号对齐 | `.clang-format` | 已配置但**不强制**：实跑会让 14 个文件 / 约 330 行重排，见 workflow §3.1 与偏差 9.9 |
 | 字符集、缩进风格、末尾空行、行尾空白 | `.editorconfig` + `scripts/verify/verify_whitespace.ps1` | 已配置且有脚本检查（可纳入 CI） |
+| `*.ps1` 带 UTF-8 BOM | `verify_whitespace.ps1` 查每个脚本文件的前三个字节 | 已达标（13 个脚本全部带 BOM；已做去掉 BOM 的反向验证） |
 | 换行符统一 LF | `.gitattributes`（`* text=auto eol=lf`） | 已配置（本机 `core.autocrlf=true`，必须靠它兜底） |
 | 层间依赖方向（`plugins` / `app` / `sdk`） | `scripts/verify/verify_conventions.ps1` 查跨层 include；`core/` 静态库只链接 `Qt6::Core`，误用界面类会直接编译失败 | 已达标 |
 | 显式 `tr()` / `QStringLiteral()` | `verify_conventions.ps1` 查 `QString("字面量")` 这类构造；`tr()` 覆盖的是否完备靠评审 | 已达标 |

@@ -25,6 +25,11 @@ indent_size = 2
 
 [*.ps1]
 indent_size = 4
+# 例外，必须保留：Windows PowerShell 5.1 加载**无 BOM** 的 .ps1 时按系统 ANSI 代码页
+# 解码（本机是 936 / GB2312），UTF-8 的中文注释会被解错，个别字节对会解出一个多余的
+# ASCII 字符打断语法 —— 曾经因此凭空多出一个 `}`，脚本直接无法解析。带 BOM 时按
+# UTF-8 读，中文注释才安全。由 scripts/verify/verify_whitespace.ps1 强制。
+charset = utf-8-bom
 
 [*.svg]
 indent_size = 2

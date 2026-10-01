@@ -15,7 +15,7 @@
 | CMake | ≥ 3.21 | 顶层 `CMakeLists.txt` |
 | 生成器 | Ninja Multi-Config，构建目录固定 `build/` | `CMakePresets.json` |
 | 打包 | CPack（随 CMake 提供，不必单独安装），产物为 zip | 顶层 `CMakeLists.txt`；流程见 §9 |
-| 源码编码 | UTF-8（无 BOM），换行 LF | 源码含中文，必须 `/utf-8` |
+| 源码编码 | UTF-8，换行 LF；`*.ps1` 必须带 BOM，其余文件不带 BOM（原因见 §3.1） | 源码含中文，必须 `/utf-8` |
 | 警告等级 | `/W4 /permissive- /WX`，**警告即错误**，Debug / Release 均须 0 告警 | 顶层 `CMakeLists.txt`；规则见 coding-standards §9 |
 | 格式化 | clang-format 22.1.3，随 Visual Studio 提供，**不必单独安装**；配置见根目录 `.clang-format` | 只作风格参考，不强制，见 §3.1 |
 | 静态检查 | clang-tidy 22.1.3，同样随 Visual Studio 提供；配置见根目录 `.clang-tidy` | 目前手动跑，不接入构建，见 §3.2 |
@@ -64,13 +64,22 @@ cmake --build build --config Release --target deploy
 风格规则分两层，**一层能强制、一层只描述**，不要混为一谈。
 
 **能强制的一层**：`.editorconfig` 里与编辑器无关的那几条 —— UTF-8、LF、文件末尾
-恰好一个换行、不留行尾空白、源码不用制表符。检查手段是
+恰好一个换行、不留行尾空白、源码不用制表符，外加 **`*.ps1` 必须带 UTF-8 BOM**。
+检查手段是
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_whitespace.ps1
 ```
 
 它扫全部纳入版本控制的文本文件，有违规就打印文件名与规则并返回非零退出码。
+
+`*.ps1` 为什么要 BOM 这个例外：**Windows PowerShell 5.1 加载无 BOM 的脚本时按系统
+ANSI 代码页解码**（本机是 936 / GB2312）。脚本里的中文注释是 UTF-8，被按 GB2312 解回来
+就可能凑出一个多余的 ASCII 字符 —— 本项目实际踩到过：一段中文注释凭空多出一个 `}`，
+脚本直接无法解析（`Unexpected token '}'`），而用 UTF-8 解码同一个文件却有 0 个错误。
+带 BOM 时加载器改按 UTF-8 读，中文注释才安全。这个坑不看字节根本发现不了，所以交给
+脚本强制，而不是靠人记住。`.editorconfig` 的 `[*.ps1]` 段与
+`scripts/verify/verify_whitespace.ps1` 头部都有这条说明。
 
 **只描述、不强制的一层**：`.clang-format`（大括号位置、100 列、指针符号、缩进、
 注释不重排）。它的用途是统一人写代码时的判断，不是拿去批量重排。
