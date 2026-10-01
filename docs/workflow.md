@@ -196,6 +196,8 @@ powershell -ExecutionPolicy Bypass -File scripts\verify\verify_shell.ps1 -Lang e
    `cmake --build build --target update_translations` 刷新 `.ts` 骨架，但**译文仍要
    人来补**。所以：**改了 `tr()` 里的字面量之后，必须手动同步 `.ts` 里的
    `<source>`**，否则运行期按「上下文 + 源字符串」查不到译文，会静默退回中文。
+   顺带一提：`<location>` 里的行号只是给 Linguist 跳转用的提示，会随代码改动漂移，
+   不影响译文生效，不必手工维护。
 2. **同一个源字符串只能有一个译文**。「收藏」既做导航分区标题（英文要 Favorites）
    又做右键菜单动作（英文要 Add to favorites）时，必须**让源字符串分开**（现取
    「加入收藏」）—— Qt 的 `//: 消歧注释` 在运行期查不到，解决不了这个问题。

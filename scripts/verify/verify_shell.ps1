@@ -108,6 +108,20 @@ $shots = "c:\WorkSpace\ProjectSpace\tools-box\build\shots"
 New-Item -ItemType Directory -Force -Path $shots | Out-Null
 if (-not (Test-Path $exe)) { Write-Output "FAIL: exe not found at $exe"; exit 1 }
 Write-Output "exe       = $exe"
+
+# The expected app version is read from its single source of truth, the top-level
+# project(... VERSION ...), rather than spelled out here. A literal would be a second
+# copy to bump on every release - the duplication ledger 9.5 set out to remove - and
+# this check is supposed to prove the version really is single-sourced.
+$expectedVersion = $null
+$cmakeLists = (Resolve-Path (Join-Path $PSScriptRoot "..\..\CMakeLists.txt")).Path
+# Read the whole file: project(ToolBox) and its VERSION sit on separate lines, so a
+# line-based match would never hit. \s in .NET regex spans newlines, so this works.
+$raw = Get-Content $cmakeLists -Raw
+if ($raw -match 'project\(\s*ToolBox\s+VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)') {
+  $expectedVersion = $Matches[1]
+}
+Write-Output ("version   = " + $(if ($expectedVersion) { $expectedVersion } else { "<not found in CMakeLists.txt>" }))
 # The shell finds plugins next to itself, so a packaged copy is checked in place.
 Write-Output ("tools/    = " + ((Get-ChildItem (Join-Path (Split-Path $exe -Parent) "tools") -Filter *.dll -ErrorAction SilentlyContinue | Measure-Object).Count) + " dll(s)")
 
@@ -233,8 +247,13 @@ if ($help) {
       Shot ([IntPtr]$dlg.Current.NativeWindowHandle) "shell_about.png"
       $dtexts = @(Get-AllText $dlg)
       Write-Output ("   dialog text: " + ($dtexts -join " / "))
-      # Version comes from the top-level project(... VERSION ...) via TOOLBOX_VERSION.
-      Check (($dtexts -join " ") -match "0\.1\.0") "about dialog shows app version 0.1.0"
+      # Compared against the value read from CMakeLists.txt above, so this also proves
+      # TOOLBOX_VERSION really is wired through from project(... VERSION ...).
+      Check ($null -ne $expectedVersion) "found the app version in CMakeLists.txt"
+      if ($expectedVersion) {
+        Check (($dtexts -join " ") -match [regex]::Escape($expectedVersion)) `
+              "about dialog shows app version $expectedVersion"
+      }
 
       $buttons = @()
       $buttonEls = Find-ByControlType $dlg ([System.Windows.Automation.ControlType]::Button) ([System.Windows.Automation.TreeScope]::Descendants)

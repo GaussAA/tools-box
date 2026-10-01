@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(ToolBox
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "插件式桌面工具箱"
     LANGUAGES CXX)
 
