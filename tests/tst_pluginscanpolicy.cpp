@@ -56,9 +56,8 @@ void TestPluginScanPolicy::isValidToolIdRejectsMalformedIds()
 
 void TestPluginScanPolicy::evaluateAcceptsMatchingAbi()
 {
-    const toolbox::PluginScanResult result =
-        toolbox::evaluatePluginFields(makeToolbox(QStringLiteral("text.base64"), kHostAbi),
-                                      kHostAbi);
+    const toolbox::PluginScanResult result = toolbox::evaluatePluginFields(
+        makeToolbox(QStringLiteral("text.base64"), kHostAbi), kHostAbi);
 
     QCOMPARE(result.verdict, toolbox::PluginVerdict::Accept);
     QCOMPARE(result.id, QStringLiteral("text.base64"));
@@ -87,9 +86,8 @@ void TestPluginScanPolicy::evaluateRejectsAbiMismatch()
 void TestPluginScanPolicy::evaluateRejectsMissingAbi()
 {
     // 没有指纹 = 不是这套工具链产出的，一律拒绝：门禁的意义就是挡来源不明的 DLL。
-    const toolbox::PluginScanResult result =
-        toolbox::evaluatePluginFields(makeToolbox(QStringLiteral("text.base64"), QString()),
-                                      kHostAbi);
+    const toolbox::PluginScanResult result = toolbox::evaluatePluginFields(
+        makeToolbox(QStringLiteral("text.base64"), QString()), kHostAbi);
 
     QCOMPARE(result.verdict, toolbox::PluginVerdict::RejectAbi);
     QVERIFY(result.actualAbi.isEmpty());
@@ -98,9 +96,8 @@ void TestPluginScanPolicy::evaluateRejectsMissingAbi()
 void TestPluginScanPolicy::evaluateRejectsUnknownHost()
 {
     // 宿主自己没拿到指纹（构建忘了注入）时也必须拒绝，而不是放行一切。
-    const toolbox::PluginScanResult result =
-        toolbox::evaluatePluginFields(makeToolbox(QStringLiteral("text.base64"), kHostAbi),
-                                      QString());
+    const toolbox::PluginScanResult result = toolbox::evaluatePluginFields(
+        makeToolbox(QStringLiteral("text.base64"), kHostAbi), QString());
 
     QCOMPARE(result.verdict, toolbox::PluginVerdict::RejectAbi);
 }

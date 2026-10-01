@@ -7,8 +7,7 @@ namespace toolbox {
 bool isValidToolId(const QString &id)
 {
     // 与 docs/architecture.md §4.1 的约定逐字对应：小写开头，至少带一个点分段。
-    static const QRegularExpression idRe(
-        QStringLiteral(R"(^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$)"));
+    static const QRegularExpression idRe(QStringLiteral(R"(^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$)"));
     return idRe.match(id).hasMatch();
 }
 
