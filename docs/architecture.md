@@ -213,7 +213,7 @@ tools-box/
 | # | 偏差 | 位置 | 原因 | 决定 | 计划 |
 | --- | --- | --- | --- | --- | --- |
 | 9.1 | 导航的领域逻辑曾写在窗口里 | [MainWindow.cpp](../app/MainWindow.cpp) | 功能逐步叠加，规模尚小 | **已收敛（P1）**：过滤与列表维护规则已抽到 [ToolCatalog.cpp](../app/core/ToolCatalog.cpp)，窗口只留控件装配与渲染 | 剩余的 `ui/NavPanel`、`IconFactory` 表现层拆分主动放弃，理由见 §10 D1 |
-| 9.2 | 单个页面类承担界面、进程、网络、解压、解析、平台适配 | [videodl/VideoDlPlugin.cpp](../plugins/videodl/VideoDlPlugin.cpp) | 抖音适配与内核下载为后期追加 | **部分收敛（P1）**：解析规则已抽到 `plugins/videodl/core/` 并编成 `videodl_core`（可单测）；**但页面仍直接持有 `QProcess` 与 `QNetworkAccessManager`，D2 验收标准 1 未达成** —— 写「已收敛」会让人以为没有剩余工作 | 剩余的 `DownloadService`、`DouyinResolver` 拆分暂缓，理由见 §10 D2；文件规模改由 `scripts/verify/verify_filesize.ps1` 按 1300 行上限盯住，超了就 FAIL |
+| 9.2 | 单个页面类承担界面、进程、网络、解压、解析、平台适配 | [videodl/VideoDlPlugin.cpp](../plugins/videodl/VideoDlPlugin.cpp) | 抖音适配与内核下载为后期追加 | **部分收敛（P1，2026-10-02 更新）**：解析规则已抽到 `plugins/videodl/core/`（可单测）；内核下载已拆成 [EngineFetcher](../plugins/videodl/EngineFetcher.h)，页面**不再持有 `QNetworkAccessManager`**；**仍直接持有两个 `QProcess`**（下载进程与抖音渲染进程），D2 验收标准 1 部分达成 | 剩余的 `DownloadService`、`DouyinResolver` 见 §10 D2；文件规模由 `scripts/verify/verify_filesize.ps1` 按 1300 行上限盯住，超了就 FAIL（本次即由它触发拆分） |
 | 9.3 | ~~无自动化测试，纯逻辑靠手工脚本验证~~ | 全项目 | 一直以手工验证推进 | **已消除（P1）**：`tests/` 下 10 个 Qt Test 目标（含两个外壳装配 / 跨 DLL 的集成用例），双配置 `ctest` 全绿 | 新增 `*/core/` 模块必须同步补用例（workflow §5） |
 | 9.4 | ~~验证脚本混在可再生成的 `build/` 目录内~~ | `build/*.ps1` | 顺手放置 | **已消除（P0）**：脚本迁至 `scripts/verify/`，固定样本在 `scripts/verify/fixtures/` | 脚本运行时的截图/下载产物仍落在 `build/` —— 那些是可再生成物，属于正确位置 |
 | 9.5 | ~~版本号硬编码两处~~ | [CMakeLists.txt](../CMakeLists.txt)、[main.cpp](../app/main.cpp) | — | **已消除（P2）**：版本号只留顶层 `project(... VERSION ...)`，由 `app/CMakeLists.txt` 的 `TOOLBOX_VERSION` 编译定义传给 `main.cpp` | 无 |
@@ -302,11 +302,16 @@ plugins/videodl/
 
 **进度（P1：解析部分已完成）**：四个 `core/` 模块已抽出并接入测试，验收标准 2 满足。
 
-**验收标准 1 的现状（2026-10-02 订正）**：`VideoDlPage` 仍直接持有 `QProcess`
-（下载内核进程与抖音渲染进程各一个）与 `QNetworkAccessManager`，标准 1 **未达成**。
-偏差 9.2 此前写「已收敛」是与现状不符的乐观表述，已订正。文件规模另由
-`scripts/verify/verify_filesize.ps1` 按 1300 行豁免上限盯住 —— 免得「暂缓」期间
-继续膨胀到既拆不动也没人敢动。
+**验收标准 1 的进展（2026-10-02）**：内核下载已拆成
+[EngineFetcher.*](../plugins/videodl/EngineFetcher.h)（持有 `QNetworkAccessManager`
+与解压用的 `QProcess`，页面只通过 `logLine` / `progress` / `status` / `finished`
+四个信号接收结果），页面**不再持有 `QNetworkAccessManager`**。剩下两个 `QProcess`
+（yt-dlp 下载进程、抖音渲染进程）仍在页面上 —— 它们与界面状态和取消流程耦合更紧，
+留给 `DownloadService` / `DouyinResolver` 那一步。
+
+这次拆分的直接触发是 `scripts/verify/verify_filesize.ps1`：页面被撑到 1358 行、撞破
+1300 的豁免上限，**检查直接失败**。这正说明把「600 行要评估拆分」做成脚本是对的 ——
+靠人记着，这条规则等于不存在。拆分后页面 992 行。
 
 **剩余部分暂缓**：`DownloadService` 与 `DouyinResolver` 目前各只有一处调用点，
 且都强依赖 `QProcess` / `QNetworkAccessManager` 的生命周期；拆出去会先引入一层只有

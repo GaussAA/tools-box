@@ -10,3 +10,6 @@
 # 一旦某个提交同时改了语义，登记它就会掩盖真实改动。
 73b1e4ad700d3d0ad8b15d36b5289ba10ffeef82
 d0ba549b6f7473c306efb1c79d915589ff372a33
+
+# 纯格式：按 .clang-format 归一化 PluginScanPolicy 与 tst_pluginscanpolicy
+5637d963cb204e64f2a509f4b81eef451fb56b6d

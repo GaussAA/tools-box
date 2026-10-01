@@ -30,7 +30,7 @@ $threshold = 600
 $exemptions = @{
   "plugins/videodl/VideoDlPlugin.cpp" = @{
     Limit = 1300
-    Why   = "deviation 9.2 / plan D2 in docs/architecture.md: parsing rules moved to plugins/videodl/core, the rest of the split is deferred until the plugin is next extended"
+    Why   = "deviation 9.2 / plan D2 in docs/architecture.md: parsing rules are in plugins/videodl/core and engine fetching is in EngineFetcher.h; DownloadService and DouyinResolver (the two QProcess instances the page still owns) are still to be split"
   }
 }
 
