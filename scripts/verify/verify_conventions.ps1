@@ -37,7 +37,12 @@ function Check($ok, $what) {
 }
 
 # Only sources are inspected; CMake files have their own conventions.
-$sources = @(& git -C $repo ls-files "*.cpp" "*.h" "*.hpp")
+# Untracked-but-not-ignored files are included: a brand new source file is exactly the
+# one that has not been reviewed yet, so leaving it out would hide the cases that matter
+# most (see the same reasoning in verify_whitespace.ps1).
+$sources = @(& git -C $repo ls-files "*.cpp" "*.h" "*.hpp") `
+           + @(& git -C $repo ls-files --others --exclude-standard "*.cpp" "*.h" "*.hpp")
+$sources = @($sources | Sort-Object -Unique)
 $scan = @()
 foreach ($rel in $sources) {
   $path = Join-Path $repo $rel

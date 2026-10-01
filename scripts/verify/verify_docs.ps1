@@ -37,8 +37,11 @@ function Check($ok, $what) {
 }
 
 # git ls-files "*.md" matches at any depth, so this picks up docs/ and the root README
-# in one go. Deduplicate in case the pattern overlaps.
-$docsRel = @(& git -C $repo ls-files "*.md" | Select-Object -Unique)
+# in one go. Untracked-but-not-ignored files are included too - a document written but
+# not yet committed is exactly the one whose links have never been checked.
+$docsRel = @(& git -C $repo ls-files "*.md") `
+           + @(& git -C $repo ls-files --others --exclude-standard "*.md")
+$docsRel = @($docsRel | Sort-Object -Unique)
 if ($docsRel.Count -eq 0) { Write-Output "FAIL: no markdown documents found"; exit 1 }
 
 # ---------- heading -> anchor, GitHub flavored ----------

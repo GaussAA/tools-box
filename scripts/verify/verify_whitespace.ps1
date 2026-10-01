@@ -37,9 +37,15 @@ $noTrimSuffixes = @(".patch", ".diff")
 $tabCheckedSuffixes = @(".cpp", ".h", ".ps1", ".cmake", ".json", ".yml", ".yaml", ".md", ".svg")
 $tabCheckedNames = @("CMakeLists.txt")
 
-$tracked = @(& git -C $repo ls-files)
+# Untracked-but-not-ignored files are scanned too. Without this the check only sees what
+# is already committed, and the failure it catches most often - a brand new file missing
+# its final newline or its BOM - is exactly the case that is still untracked at that
+# moment. That gap let the same mistake reach CI twice, so the check now covers the
+# working tree rather than only the index.
+$tracked = @(& git -C $repo ls-files) + @(& git -C $repo ls-files --others --exclude-standard)
+$tracked = @($tracked | Sort-Object -Unique)
 Write-Output ("repo        = " + $repo)
-Write-Output ("tracked     = " + $tracked.Count + " files")
+Write-Output ("tracked     = " + $tracked.Count + " files (including untracked)")
 
 $checked = 0
 $crFiles = @()
