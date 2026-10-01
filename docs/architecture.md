@@ -96,6 +96,20 @@ tools-box/
 ### 4.2 版本与 ABI
 
 - 插件接口 IID 已版本化：`com.toolbox.ToolBox/IToolPlugin/1.0`。
+- **构建环境指纹（`abi`）**：每个插件的静态元数据里带一个 `abi` 字段，形如
+  `6.12.0-MSVC-144`（Qt 版本 + 编译器 + 工具集）。宿主在 `load()` **之前**比对，
+  不一致就跳过并记录错误。
+  - 为什么还需要它：IID 只能挡「接口版本不对」，挡不住「接口版本对、却是用另一套
+    Qt / 编译器构建」的 DLL —— 那种能被 `QPluginLoader` 加载进来，然后因为二进制
+    不兼容在宿主进程里崩掉。只有指纹能在不加载的前提下识别它。
+  - 字段由构建注入，不手写：`metadata.json` 已改成 `metadata.json.in`，经
+    `configure_file` 注入（变量 `TOOLBOX_PLUGIN_ABI`）；宿主侧拿的是**同一个变量**
+    经 `TOOLBOX_HOST_ABI` 编进 `ToolBoxCore`。两边同源，因此不可能漂移 ——
+    手写一份的后果是每个插件都被自家门禁拒掉。
+  - 判定规则在 [app/core/PluginScanPolicy.*](../app/core/PluginScanPolicy.h)
+    的 `evaluatePluginFields()`（可脱离 `QPluginLoader` 单测）；取 JSON 走
+    [ToolBoxPlugin.h](../sdk/ToolBoxPlugin.h) 的 `pluginMetaObject()`，
+    「`MetaData` → `toolbox`」这个形状只有一处定义。
 - `ToolMeta` 按值跨 DLL 传递，**只允许在末尾追加字段**，不允许改类型、不允许重排。
 - 修改 `IToolPlugin` / `IToolPage` 的已有签名 = 破坏 ABI，必须：
   1. 升 IID 版本号；
@@ -138,7 +152,11 @@ tools-box/
   1. 显式超时且不超过 5000 ms；
   2. 位于用户主动触发的路径或收尾路径；
   3. 就近写明「为什么这里可以阻塞」的注释。
-  现有实例：抖音渲染启动的 `waitForStarted(5000)`、析构时的 `waitForFinished(2000)`。
+  现有实例：只有析构时收尾子进程的那一次 `waitForFinished(2000)`。抖音渲染启动
+  曾经也有一个 `waitForStarted(5000)`，已改回异步：那次阻塞既卡界面，又让
+  「`waitForStarted` 返回 false」与「`errorOccurred(FailedToStart)`」两条路径
+  同时报失败，日志里出现两条互相矛盾的原因。启动结果现在统一由
+  `onRenderFinished()` 一处判定。
 
 ## 6. 状态与持久化
 
@@ -195,7 +213,7 @@ tools-box/
 | # | 偏差 | 位置 | 原因 | 决定 | 计划 |
 | --- | --- | --- | --- | --- | --- |
 | 9.1 | 导航的领域逻辑曾写在窗口里 | [MainWindow.cpp](../app/MainWindow.cpp) | 功能逐步叠加，规模尚小 | **已收敛（P1）**：过滤与列表维护规则已抽到 [ToolCatalog.cpp](../app/core/ToolCatalog.cpp)，窗口只留控件装配与渲染 | 剩余的 `ui/NavPanel`、`IconFactory` 表现层拆分主动放弃，理由见 §10 D1 |
-| 9.2 | 单个页面类曾承担界面、进程、网络、解压、解析、平台适配 | [videodl/VideoDlPlugin.cpp](../plugins/videodl/VideoDlPlugin.cpp) | 抖音适配与内核下载为后期追加 | **已收敛（P1）**：解析规则抽到 `plugins/videodl/core/` 并编成 `videodl_core`，页面只留界面、进程与网络 | 剩余的 `DownloadService`、`DouyinResolver` 拆分暂缓，理由见 §10 D2 |
+| 9.2 | 单个页面类承担界面、进程、网络、解压、解析、平台适配 | [videodl/VideoDlPlugin.cpp](../plugins/videodl/VideoDlPlugin.cpp) | 抖音适配与内核下载为后期追加 | **部分收敛（P1）**：解析规则已抽到 `plugins/videodl/core/` 并编成 `videodl_core`（可单测）；**但页面仍直接持有 `QProcess` 与 `QNetworkAccessManager`，D2 验收标准 1 未达成** —— 写「已收敛」会让人以为没有剩余工作 | 剩余的 `DownloadService`、`DouyinResolver` 拆分暂缓，理由见 §10 D2；文件规模改由 `scripts/verify/verify_filesize.ps1` 按 1300 行上限盯住，超了就 FAIL |
 | 9.3 | ~~无自动化测试，纯逻辑靠手工脚本验证~~ | 全项目 | 一直以手工验证推进 | **已消除（P1）**：`tests/` 下 10 个 Qt Test 目标（含两个外壳装配 / 跨 DLL 的集成用例），双配置 `ctest` 全绿 | 新增 `*/core/` 模块必须同步补用例（workflow §5） |
 | 9.4 | ~~验证脚本混在可再生成的 `build/` 目录内~~ | `build/*.ps1` | 顺手放置 | **已消除（P0）**：脚本迁至 `scripts/verify/`，固定样本在 `scripts/verify/fixtures/` | 脚本运行时的截图/下载产物仍落在 `build/` —— 那些是可再生成物，属于正确位置 |
 | 9.5 | ~~版本号硬编码两处~~ | [CMakeLists.txt](../CMakeLists.txt)、[main.cpp](../app/main.cpp) | — | **已消除（P2）**：版本号只留顶层 `project(... VERSION ...)`，由 `app/CMakeLists.txt` 的 `TOOLBOX_VERSION` 编译定义传给 `main.cpp` | 无 |
@@ -283,6 +301,12 @@ plugins/videodl/
 3. 抖音与 B站 各完成一次真实下载回归。
 
 **进度（P1：解析部分已完成）**：四个 `core/` 模块已抽出并接入测试，验收标准 2 满足。
+
+**验收标准 1 的现状（2026-10-02 订正）**：`VideoDlPage` 仍直接持有 `QProcess`
+（下载内核进程与抖音渲染进程各一个）与 `QNetworkAccessManager`，标准 1 **未达成**。
+偏差 9.2 此前写「已收敛」是与现状不符的乐观表述，已订正。文件规模另由
+`scripts/verify/verify_filesize.ps1` 按 1300 行豁免上限盯住 —— 免得「暂缓」期间
+继续膨胀到既拆不动也没人敢动。
 
 **剩余部分暂缓**：`DownloadService` 与 `DouyinResolver` 目前各只有一处调用点，
 且都强依赖 `QProcess` / `QNetworkAccessManager` 的生命周期；拆出去会先引入一层只有

@@ -70,6 +70,11 @@ jobs:
       - name: Coding conventions
         run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_conventions.ps1
 
+      # 「单文件超过 600 行必须评估拆分、并记录结论」——不进 CI 的话这条规则等于没写：
+      # 没人会在评审里翻这条，文件只会继续长下去。
+      - name: Source file size
+        run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_filesize.ps1
+
       - name: Docs consistency
         run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_docs.ps1
 

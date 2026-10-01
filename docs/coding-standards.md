@@ -49,7 +49,10 @@
 - 头文件只放声明：优先使用前向声明而非 include；不 include 用不到的头文件。
 - 头文件必须有 `#pragma once`，且不依赖「谁先 include 了谁」。
 - 单个文件超过约 600 行，或者单个类超过约 10 个职责明确的成员函数时，
-  必须评估拆分，并在评审中给出留下或拆分的结论。
+  必须评估拆分，并把结论**落到书面上**：拆就拆了，不拆就登记进
+  `scripts/verify/verify_filesize.ps1` 的豁免表（写明理由与「结论记在哪一份文档」），
+  并给它一个上限。这条**由脚本强制**（见 §12）—— 结论只活在评审里的话，
+  文件下次改动又会悄悄长回去，而没人会翻这条规则。
 
 ## 3. 内存与所有权
 
@@ -174,7 +177,8 @@
 | `#include "Xxx.moc"` 必须在文件末尾 | `verify_conventions.ps1` 查该 include 之后是否还有代码 | 已达标 |
 | 父子对象树与所有权 | 评审。clang-tidy 的 `cppcoreguidelines-owning-memory` 已评估并**排除**（与 Qt 父子对象树惯用法冲突，全仓 61 条全是误报），见 workflow §3.2 | 已达标 |
 | `m_` / `s_` / `g_` / `k` 前缀、命名一致 | `scripts/verify/verify_naming.ps1`（clang-tidy `readability-identifier-naming`，配置见根目录 `.clang-tidy`） | 已达标：全仓 0 命中，且已做注入式反向验证。**已在 CI 中跑**：工具钉在 LLVM 22.1 线上（CI 装 PyPI 的 `clang-tidy==22.1.8`，本机 VS 自带的 22.1.3 同样通过），版本不符即 FAIL 而不是悄悄给绿，见 workflow §3.2 |
-| 纯逻辑可单测 | 评审（对照 §architecture 3 的判定特征）+ `ctest` | 已达标：`app/core`、`plugins/videodl/core` 均有 Qt Test 用例，见 workflow §5 |
+| 单文件规模（>600 行须评估拆分并记录结论） | `scripts/verify/verify_filesize.ps1`：超阈值且未登记即 FAIL；豁免必须写明理由、结论所在文档与自己的上限 | 已达标：1 个豁免（`plugins/videodl/VideoDlPlugin.cpp`，对应偏差 9.2 / 计划 D2），已在 CI 跑 |
+| 纯逻辑可单测 | 评审（对照 §architecture 3 的判定特征）+ `ctest` | 已达标：`app/core`、`plugins/videodl/core`、`plugins/jsonfmt/core` 均有 Qt Test 用例，见 workflow §5 |
 | 编译警告不引入新告警 | MSVC `/W4 /permissive- /WX`（警告即错误） | 已达标：Debug 与 Release 全量重建 0 告警 |
 | 不使用已标记弃用的 API | 同一个 `/WX`：弃用告警是 `C4996`，在 `/WX` 下直接编译失败（实测确认） | 已达标 |
 | C++ 标准不超标 | 编译器约束（`CMAKE_CXX_STANDARD`） | 已达标 |

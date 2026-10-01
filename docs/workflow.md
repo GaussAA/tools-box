@@ -219,6 +219,9 @@ powershell -ExecutionPolicy Bypass -File scripts\verify\verify_shell.ps1 -Lang e
 2. 重命名 `Base64Plugin.*` 为新插件名，同步改类名与 `CMakeLists.txt` 里的目标名；
 3. 在 `meta()` 中填写：`id`（遵守 [architecture.md §4.1](./architecture.md#41-工具标识)
    的格式与不可变约定）、`name`、`category`、`version`、`description`；
+   **同步 `metadata.json.in` 里同样的四个字段**（name/category/description/version）。
+   这份静态元数据是宿主 `load()` 之前唯一的依据，`abi` 那一行由构建注入、
+   不要手改（[architecture.md §4.2](./architecture.md#42-版本与-abi)）；
 4. 需要图标就放 `icons/*.svg` 并在 `CMakeLists.txt` 里加 `qt_add_resources`；
    不需要图标则留空，外壳会自动生成首字占位图标；
 5. 在顶层 `CMakeLists.txt` 中 `add_subdirectory(plugins/<新目录>)`；
@@ -254,6 +257,8 @@ ctest --test-dir build -C Debug --output-on-failure
 | `tst_enginelocator` | [videodl/core/EngineLocator.*](../plugins/videodl/core/EngineLocator.h)：内核定位顺序 |
 | `tst_pluginmeta` | [sdk/ToolBoxPlugin.h](../sdk/ToolBoxPlugin.h)：静态元数据的 IID 门禁，以及 `toolMetaFromMetaData()` 的两层取值（`MetaData` → `toolbox`） |
 | `tst_logger` | [app/core/Logger.*](../app/core/Logger.h)：重定向到文件、install 幂等、级别过滤、环境变量覆盖级别、轮转与备份份数 |
+| `tst_pluginscanpolicy` | [app/core/PluginScanPolicy.*](../app/core/PluginScanPolicy.h)：装载门禁的每条分支（id 格式、abi 一致/缺失/宿主未注入） |
+| `tst_jsonformat` | [jsonfmt/core/JsonFormat.*](../plugins/jsonfmt/core/JsonFormat.h)：JSON 解析与序列化、出错偏移与原因的回传 |
 | `tst_mainwindow` | 外壳在**无插件**环境下的四条主路径：构造、扫描不存在目录、切页、搜索（不装载任何真实插件） |
 | `tst_integration` | 跨 DLL 真链路：把 base64 / jsonfmt 部署到专属目录，验证 `rescan` → `qobject_cast` → `createPage` 全程可用 |
 
@@ -305,6 +310,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | `verify_naming.ps1` | 命名：`m_` / `s_` / `g_` / `k` 前缀与大小写（clang-tidy `readability-identifier-naming`，工具钉在 LLVM 22.1 线上）。**需先构建**，所以在 CI 里排在构建之后（§3.2） |
 | `verify_conventions.ps1` | 可机械判定的编码规范：旧式 `SIGNAL()/SLOT()`、`QString("字面量")`、跨层 include、裸字符串 QSettings 键、头文件缺 `#pragma once`、`#include "Xxx.moc"` 之后还有代码（可纳入 CI） |
 | `verify_docs.ps1` | 文档一致性：所有纳入版本控制的 `*.md`（含根目录 `README.md`）相对链接目标存在、`#锚点` 能落到标题、`docs/` 内无孤立文档（§10 第 5 条，可纳入 CI） |
+| `verify_filesize.ps1` | 单文件规模：源码超过 600 行且未在脚本内的豁免表登记即失败，豁免须写明理由、结论所在文档与自己的上限（coding-standards §2 / §12，可纳入 CI） |
 | `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译。`-Exe` 可指向别处的构建产物（验收打包结果，§9）；`-Lang en\|zh` 断言对应语言的界面（§3.3） |
 | `verify_recent.ps1` | 收藏 / 最近使用 / 配置持久化 / 搜索 |
 | `verify_videodl.ps1` | 视频下载插件的界面与状态 |
@@ -332,10 +338,11 @@ ctest --test-dir build -C Debug --output-on-failure
 > 链路 —— 那几项只能靠人。
 
 ```powershell
-# 1) 四个不依赖构建、秒级的检查，都返回 0 才继续
+# 1) 五个不依赖构建、秒级的检查，都返回 0 才继续
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_whitespace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_format.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_conventions.ps1
+powershell -ExecutionPolicy Bypass -File scripts\verify\verify_filesize.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_docs.ps1
 #    命名检查要 build/compile_commands.json，所以只能排在构建之后
 
@@ -350,8 +357,8 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 
 完整清单：
 
-1. 跑上面第 1 步的四个脚本，构建之后再补跑命名检查
-   （[§3.2](#32-命名检查clang-tidy)）：五个都返回 0 才继续；
+1. 跑上面第 1 步的五个脚本，构建之后再补跑命名检查
+   （[§3.2](#32-命名检查clang-tidy)）：六个都返回 0 才继续；
 2. 按 §6 确认版本号单一来源 —— 打包配置里没有再写一份版本号，
    `CPACK_PACKAGE_VERSION` 取的就是顶层 `project(... VERSION ...)`；
 3. 构建 + `deploy`（见上面第 2 步）；
