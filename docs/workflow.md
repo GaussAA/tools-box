@@ -252,6 +252,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | `tst_toolcatalog` | [app/core/ToolCatalog.*](../app/core/ToolCatalog.h)：导航过滤、失效 id 清理、最近使用去重与限长 |
 | `tst_languagechoice` | [app/core/LanguageChoice.*](../app/core/LanguageChoice.h)：界面语言的解析（跟随系统 / 强制 / 配置写坏的兜底） |
 | `tst_outputparsing` | [videodl/core/OutputParsing.*](../plugins/videodl/core/OutputParsing.h)：输出解码、剥色、地址提取、进度/阶段/产物解析、文件名消毒、`Content-Range` 起始偏移解析、命令行脱敏 |
+| `tst_downloadargs` | [videodl/core/DownloadArgs.*](../plugins/videodl/core/DownloadArgs.h)：命名模板与百分号转义、仅音频、无 ffmpeg 的降级、四档画质、referer 与 cookies |
 | `tst_douyinsupport` | [videodl/core/DouyinSupport.*](../plugins/videodl/core/DouyinSupport.h)：站点判定、画质档位、DOM 字段提取 |
 | `tst_cookiefile` | [videodl/core/CookieFile.*](../plugins/videodl/core/CookieFile.h)：cookies 规范化与各失败分支 |
 | `tst_enginelocator` | [videodl/core/EngineLocator.*](../plugins/videodl/core/EngineLocator.h)：内核定位顺序 |

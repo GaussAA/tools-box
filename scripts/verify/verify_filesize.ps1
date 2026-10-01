@@ -29,8 +29,8 @@ $threshold = 600
 # recorded, so a reader can go and read the reasoning instead of trusting this table.
 $exemptions = @{
   "plugins/videodl/VideoDlPlugin.cpp" = @{
-    Limit = 1300
-    Why   = "deviation 9.2 / plan D2 in docs/architecture.md: parsing rules are in plugins/videodl/core and engine fetching is in EngineFetcher.h; DownloadService and DouyinResolver (the two QProcess instances the page still owns) are still to be split"
+    Limit = 800
+    Why   = "deviation 9.2 / plan D2 in docs/architecture.md: parsing rules are in plugins/videodl/core, the engine downloader is EngineFetcher.h, and the runner / resolver are DownloadRunner.h / DouyinResolver.h; the page is UI-only and must not grow back past this"
   }
 }
 

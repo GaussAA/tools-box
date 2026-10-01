@@ -5,6 +5,8 @@ add_library(videodl_core STATIC
     core/CookieFile.h
     core/DouyinSupport.cpp
     core/DouyinSupport.h
+    core/DownloadArgs.cpp
+    core/DownloadArgs.h
     core/EngineLocator.cpp
     core/EngineLocator.h
     core/OutputParsing.cpp
@@ -20,6 +22,10 @@ target_include_directories(videodl_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 add_library(videodl_tool MODULE
     VideoDlPlugin.cpp
     VideoDlPlugin.h
+    DownloadRunner.cpp
+    DownloadRunner.h
+    DouyinResolver.cpp
+    DouyinResolver.h
     EngineFetcher.cpp
     EngineFetcher.h)
 

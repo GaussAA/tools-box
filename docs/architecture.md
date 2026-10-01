@@ -213,7 +213,7 @@ tools-box/
 | # | 偏差 | 位置 | 原因 | 决定 | 计划 |
 | --- | --- | --- | --- | --- | --- |
 | 9.1 | 导航的领域逻辑曾写在窗口里 | [MainWindow.cpp](../app/MainWindow.cpp) | 功能逐步叠加，规模尚小 | **已收敛（P1）**：过滤与列表维护规则已抽到 [ToolCatalog.cpp](../app/core/ToolCatalog.cpp)，窗口只留控件装配与渲染 | 剩余的 `ui/NavPanel`、`IconFactory` 表现层拆分主动放弃，理由见 §10 D1 |
-| 9.2 | 单个页面类承担界面、进程、网络、解压、解析、平台适配 | [videodl/VideoDlPlugin.cpp](../plugins/videodl/VideoDlPlugin.cpp) | 抖音适配与内核下载为后期追加 | **部分收敛（P1，2026-10-02 更新）**：解析规则已抽到 `plugins/videodl/core/`（可单测）；内核下载已拆成 [EngineFetcher](../plugins/videodl/EngineFetcher.h)，页面**不再持有 `QNetworkAccessManager`**；**仍直接持有两个 `QProcess`**（下载进程与抖音渲染进程），D2 验收标准 1 部分达成 | 剩余的 `DownloadService`、`DouyinResolver` 见 §10 D2；文件规模由 `scripts/verify/verify_filesize.ps1` 按 1300 行上限盯住，超了就 FAIL（本次即由它触发拆分） |
+| 9.2 | 单个页面类承担界面、进程、网络、解压、解析、平台适配 | [videodl/VideoDlPlugin.cpp](../plugins/videodl/VideoDlPlugin.cpp) | 抖音适配与内核下载为后期追加 | **已收敛（P1，2026-10-02）**：解析规则在 `plugins/videodl/core/`（可单测），内核下载在 `EngineFetcher`，下载进程在 `DownloadRunner`，抖音渲染在 `DouyinResolver`，命令行构造在 `core/DownloadArgs`；页面 678 行，**不再持有任何 `QProcess` / `QNetworkAccessManager`** | 文件规模由 `scripts/verify/verify_filesize.ps1` 按 800 行上限盯住，超了就 FAIL（本次拆分即由它触发） |
 | 9.3 | ~~无自动化测试，纯逻辑靠手工脚本验证~~ | 全项目 | 一直以手工验证推进 | **已消除（P1）**：`tests/` 下 10 个 Qt Test 目标（含两个外壳装配 / 跨 DLL 的集成用例），双配置 `ctest` 全绿 | 新增 `*/core/` 模块必须同步补用例（workflow §5） |
 | 9.4 | ~~验证脚本混在可再生成的 `build/` 目录内~~ | `build/*.ps1` | 顺手放置 | **已消除（P0）**：脚本迁至 `scripts/verify/`，固定样本在 `scripts/verify/fixtures/` | 脚本运行时的截图/下载产物仍落在 `build/` —— 那些是可再生成物，属于正确位置 |
 | 9.5 | ~~版本号硬编码两处~~ | [CMakeLists.txt](../CMakeLists.txt)、[main.cpp](../app/main.cpp) | — | **已消除（P2）**：版本号只留顶层 `project(... VERSION ...)`，由 `app/CMakeLists.txt` 的 `TOOLBOX_VERSION` 编译定义传给 `main.cpp` | 无 |
@@ -281,14 +281,17 @@ app/
 
 ```
 plugins/videodl/
-├── VideoDlPlugin.*             插件入口与 meta()（现状：VideoDlPage 也在这里）
-├── core/                       无 QWidget 依赖，可单测 —— P1 已完成
-│   ├── OutputParsing.*         输出解码、剥色、地址提取、进度/阶段/产物解析
-│   ├── DouyinSupport.*         站点判定、画质档位、DOM 字段提取
-│   ├── EngineLocator.*         内核定位顺序（手动 → 随程序目录 → PATH）
-│   └── CookieFile.*            cookie 规范化
-├── DownloadService.*           待做：进程 / 网络 / 断点续传
-└── DouyinResolver.*            待做：浏览器渲染取流
+├── VideoDlPlugin.*             插件入口、meta() 与页面（现状：VideoDlPage 也在这里，678 行）
+├── DownloadRunner.*            跑 yt-dlp，输出行 → 进度/阶段/产物信号
+├── DouyinResolver.*            借浏览器渲染取 video_id，拼播放直链
+├── EngineFetcher.*             内核下载 / 断点续传 / 解压 / 取消
+└── core/                       无 QWidget 依赖，可单测
+    ├── OutputParsing.*         输出解码、剥色、地址提取、进度/阶段/产物解析、
+    │                           文件名消毒、Content-Range 解析、命令行脱敏
+    ├── DownloadArgs.*          一次下载 → yt-dlp 参数的全部规则
+    ├── DouyinSupport.*         站点判定、画质档位、DOM 字段提取
+    ├── EngineLocator.*         内核定位顺序（手动 → 随程序目录 → PATH）
+    └── CookieFile.*            cookie 规范化
 ```
 
 `core/` 编成静态库 `videodl_core`（PUBLIC 暴露头文件目录），插件本体链接它；
@@ -302,21 +305,25 @@ plugins/videodl/
 
 **进度（P1：解析部分已完成）**：四个 `core/` 模块已抽出并接入测试，验收标准 2 满足。
 
-**验收标准 1 的进展（2026-10-02）**：内核下载已拆成
-[EngineFetcher.*](../plugins/videodl/EngineFetcher.h)（持有 `QNetworkAccessManager`
-与解压用的 `QProcess`，页面只通过 `logLine` / `progress` / `status` / `finished`
-四个信号接收结果），页面**不再持有 `QNetworkAccessManager`**。剩下两个 `QProcess`
-（yt-dlp 下载进程、抖音渲染进程）仍在页面上 —— 它们与界面状态和取消流程耦合更紧，
-留给 `DownloadService` / `DouyinResolver` 那一步。
+**已完成（2026-10-02）**：`VideoDlPage` 现在**不持有任何 `QProcess` /
+`QNetworkAccessManager`**，只做界面与信号接线，验收标准 1 **达成**。拆出来的是：
 
-这次拆分的直接触发是 `scripts/verify/verify_filesize.ps1`：页面被撑到 1358 行、撞破
-1300 的豁免上限，**检查直接失败**。这正说明把「600 行要评估拆分」做成脚本是对的 ——
-靠人记着，这条规则等于不存在。拆分后页面 992 行。
+| 拆出的部分 | 负责什么 | 位置 |
+| --- | --- | --- |
+| `EngineFetcher` | 内核（yt-dlp / ffmpeg）下载、断点续传、解压、取消 | [EngineFetcher.h](../plugins/videodl/EngineFetcher.h) |
+| `DownloadRunner` | 跑 yt-dlp、把输出行翻译成进度/阶段/产物信号 | [DownloadRunner.h](../plugins/videodl/DownloadRunner.h) |
+| `DouyinResolver` | 借浏览器渲染取 `video_id` 并拼出播放直链 | [DouyinResolver.h](../plugins/videodl/DouyinResolver.h) |
+| `buildYtDlpArgs` | 「一次下载翻译成什么命令行」的全部规则（纯逻辑，可单测） | [core/DownloadArgs.h](../plugins/videodl/core/DownloadArgs.h) |
 
-**剩余部分暂缓**：`DownloadService` 与 `DouyinResolver` 目前各只有一处调用点，
-且都强依赖 `QProcess` / `QNetworkAccessManager` 的生命周期；拆出去会先引入一层只有
-自己用的间接，收益要等第二次扩展才出现。触发条件保持「下次扩展该插件时」，
-届时连同验收标准 1、3 一起补齐。
+触发这次拆分的是 `scripts/verify/verify_filesize.ps1`：页面先被撑到 1358 行、撞破
+当时 1300 的豁免上限，**检查直接失败**。这正说明把「600 行要评估拆分」做成脚本是对的 ——
+靠人记着，这条规则等于不存在。拆分后页面 678 行，豁免上限随之收紧到 800 行。
+
+**触发条件已兑现**：原计划里那三个「各只有一处调用点、拆了也换不来可测性」的顾虑，
+被 `verify_filesize.ps1` 的硬上限推翻了 —— 页面撞破上限后不改不行，而拆完发现收益比
+预期大：`buildYtDlpArgs` 这批规则（画质档位、无 ffmpeg 降级、模板转义）**本来就该是
+纯逻辑**，抽进 `core/` 之后第一次有了测试（`tst_downloadargs`），验收标准 3 的
+真实下载回归仍属手工（见 workflow §8）。
 
 ## 相关文档
 
