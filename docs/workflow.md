@@ -14,6 +14,7 @@
 | Qt | 6.10.3 `msvc2022_64`，路径 `D:/Qt/6.10.3/msvc2022_64` | `CMakePresets.json` |
 | CMake | ≥ 3.21 | 顶层 `CMakeLists.txt` |
 | 生成器 | Ninja Multi-Config，构建目录固定 `build/` | `CMakePresets.json` |
+| 打包 | CPack（随 CMake 提供，不必单独安装），产物为 zip | 顶层 `CMakeLists.txt`；流程见 §9 |
 | 源码编码 | UTF-8（无 BOM），换行 LF | 源码含中文，必须 `/utf-8` |
 | 警告等级 | `/W4 /permissive- /WX`，**警告即错误**，Debug / Release 均须 0 告警 | 顶层 `CMakeLists.txt`；规则见 coding-standards §9 |
 | 格式化 | clang-format 22.1.3，随 Visual Studio 提供，**不必单独安装**；配置见根目录 `.clang-format` | 只作风格参考，不强制，见 §3.1 |
@@ -223,7 +224,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | `verify_whitespace.ps1` | 空白与编码：全仓 LF、末尾换行、无行尾空白、源码无制表符（§3.1，可纳入 CI） |
 | `verify_conventions.ps1` | 可机械判定的编码规范：旧式 `SIGNAL()/SLOT()`、`QString("字面量")`、跨层 include、裸字符串 QSettings 键、头文件缺 `#pragma once`、`#include "Xxx.moc"` 之后还有代码（可纳入 CI） |
 | `verify_docs.ps1` | 文档一致性：相对链接目标存在、`#锚点` 能落到标题、无孤立文档（§10 第 5 条，可纳入 CI） |
-| `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译 |
+| `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译。`-Exe` 可指向别处的构建产物，用于验收打包结果（§9） |
 | `verify_recent.ps1` | 收藏 / 最近使用 / 配置持久化 / 搜索 |
 | `verify_videodl.ps1` | 视频下载插件的界面与状态 |
 | `verify_videodl2.ps1` | 视频下载插件的界面与状态（补充场景） |
@@ -239,21 +240,57 @@ ctest --test-dir build -C Debug --output-on-failure
 
 ## 9. 发布
 
-1. 跑三个不依赖界面的检查：`scripts\verify\verify_whitespace.ps1`、
-   `scripts\verify\verify_conventions.ps1`、`scripts\verify\verify_docs.ps1`，
-   都返回 0 才继续；命名检查
-   （[§3.2](#32-命名检查clang-tidy目前手动跑)）要单独配置并构建一个目录，不强制拦在
-   发版路径上，但改动过命名相关的代码后应当跑一次；
-2. 按 §6 确认版本号单一来源；
-3. `cmake --build --preset release` + `deploy` 目标；
+交付形态是一个「解压即用」的 zip，由 CPack 产生。**顺序不能颠倒**：
+
+```powershell
+# 1) 三个不依赖界面、秒级的检查，都返回 0 才继续
+powershell -ExecutionPolicy Bypass -File scripts\verify\verify_whitespace.ps1
+powershell -ExecutionPolicy Bypass -File scripts\verify\verify_conventions.ps1
+powershell -ExecutionPolicy Bypass -File scripts\verify\verify_docs.ps1
+
+# 2) 构建 + 把 Qt 运行时收进输出目录（Qt 的 DLL 靠这一步产生，缺了就打不出可用的包）
+cmake --build --preset release
+cmake --build build --config Release --target deploy
+
+# 3) 打包
+cpack --config build\CPackConfig.cmake -C Release -B build\package
+```
+
+完整清单：
+
+1. 跑上面第 1 步的三个脚本；命名检查（[§3.2](#32-命名检查clang-tidy目前手动跑)）
+   要单独配置并构建一个目录，不强制拦在发版路径上，但改动过命名相关的代码后应当跑一次；
+2. 按 §6 确认版本号单一来源 —— 打包配置里没有再写一份版本号，
+   `CPACK_PACKAGE_VERSION` 取的就是顶层 `project(... VERSION ...)`；
+3. 构建 + `deploy`（见上面第 2 步）；
 4. 确认 `build/bin/Release/translations/` 下有 `qt_zh_CN.qm`（deploy 目标的
    `--translations zh_CN` 负责，`main.cpp` 负责装载）—— 缺了它中文界面里的
    Qt 自带对话框按钮会是英文；
-5. 确认 `build/bin/Release/` 下包含：`ToolBox.exe`、`tools/*.dll`、
-   `tools/bin/`（外部内核，若已下载）、Qt 运行时与平台插件；
-6. **过一遍 [偏差台账](./architecture.md#9-偏差台账)**，逐条确认「接受」的理由仍然成立，
+5. **过一遍 [偏差台账](./architecture.md#9-偏差台账)**，逐条确认「接受」的理由仍然成立，
    能关掉的条目关掉并更新文档；
-7. 整目录分发，接收方无需安装 Qt 或 Python。
+6. 打包（见上面第 3 步）。两条保护在 `install()` 里，打错配置或忘了 deploy 会直接
+   报错停下，不会产出一个缺 DLL 的包；
+7. **解压产物跑一次冒烟测试** —— 只检查 zip 里有没有文件是不够的，要证明它能跑：
+
+   ```powershell
+   # 解压到任意目录，然后指给 verify_shell.ps1（§8）
+   powershell -ExecutionPolicy Bypass -File scripts\verify\verify_shell.ps1 `
+              -Exe <解压目录>\ToolBox-<版本>-win64\ToolBox.exe
+   ```
+
+   这一步同时验证了插件 DLL、Qt 运行时与 `translations/` 确实都在包里
+   （按钮显示「确定」就说明翻译生效）；
+8. 分发 `build/package/ToolBox-<版本>-win64.zip`。
+
+两件与接收方有关的事，交付时要说明：
+
+- **MSVC 运行时**：Qt 的 DLL 依赖 `msvcp140.dll` / `vcruntime140.dll`，包里没有
+  app-local 版本，只有 deploy 顺带放进来的 `vc_redist.x64.exe`。接收方若缺运行时，
+  先跑一次它。
+- **包大小**：zip 约 44 MB（其中 `opengl32sw.dll` 20 MB、`dxcompiler.dll` 14 MB 是
+  windeployqt 带上的）。若 `tools/bin/` 下已下载外部内核（yt-dlp / ffmpeg，合计约
+  177 MB），它们也会被打进包里 —— 这是有意为之：架构 §8 约定「整个 `bin/<Config>/`
+  拷走即可运行」。想要瘦身就先删掉 `tools/bin/` 再打包，插件会按需重新下载。
 
 ## 10. 文档维护规则（防漂移条款）
 
@@ -264,6 +301,7 @@ ctest --test-dir build -C Debug --output-on-failure
    - 改动 `sdk/ToolBoxPlugin.h` → `architecture.md §4` 与本文档 §7
    - 改变层间依赖方向或新增一层 → `architecture.md §2`、`§3`
    - 改变输出布局或插件目录约定 → `architecture.md §8`、本文档 §3
+   - 改变交付形态或打包方式 → `architecture.md §8`、本文档 §9
    - 新增 / 改动 QSettings 键 → `architecture.md §6`
    - 引入新的第三方依赖或新的 Qt 模块 → `architecture.md §1`、本文档 §1
    - 拆分 / 合并架构组件 → `architecture.md §10`

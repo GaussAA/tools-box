@@ -39,3 +39,39 @@ add_subdirectory(plugins/base64)
 add_subdirectory(plugins/jsonfmt)
 add_subdirectory(plugins/videodl)
 add_subdirectory(tests)
+
+# ── 交付打包 ────────────────────────────────────────────────────────────────
+# 交付形态固定为「解压即用」的 zip，交付流程见 docs/workflow.md §9。
+#
+# 这里不逐个 install 目标，而是整个 bin/<Config>/ 目录一起装。理由是这个目录本身就
+# 是运行时形态：主程序、tools/*.dll（插件）、Qt 运行时、translations/、以及
+# tools/bin/ 下已下载的外部内核（架构 §8）。副作用是新增插件**不需要动本文件**，
+# 与「新增工具不改外壳」这条核心约束保持一致。
+install(DIRECTORY "${TOOLBOX_BIN_DIR}/"
+        DESTINATION "."
+        USE_SOURCE_PERMISSIONS)
+
+# 打错配置、或者忘了跑 deploy，都在这里拦住，别等用户那边才发现。
+# 用方括号实参的原样字符串：里面的变量要在安装时求值，不能在配置时被展开。
+install(CODE [[
+    if(NOT CMAKE_INSTALL_CONFIG_NAME STREQUAL "Release")
+        message(FATAL_ERROR
+            "打包只针对 Release 配置（当前是 ${CMAKE_INSTALL_CONFIG_NAME}）。"
+            "Debug 产物还依赖 MSVC 调试运行时，不用于分发。")
+    endif()
+    if(NOT EXISTS "${CMAKE_INSTALL_PREFIX}/Qt6Core.dll")
+        message(FATAL_ERROR
+            "输出目录里没有 Qt 运行时。Qt 的 DLL 是 windeployqt 产生的，"
+            "先跑 cmake --build build --config Release --target deploy。")
+    endif()
+]])
+
+set(CPACK_GENERATOR "ZIP")
+set(CPACK_PACKAGE_NAME "ToolBox")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "插件式桌面工具箱")
+# 版本号不在打包配置里重复写：CPACK_PACKAGE_VERSION 默认取 CMAKE_PROJECT_VERSION，
+# 也就是顶层 project(... VERSION ...) 那一个来源（见偏差 9.5）。
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-win64")
+# zip 里套一层同名目录，解压不会把文件散在用户选定的目录里。
+set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY ON)
+include(CPack)

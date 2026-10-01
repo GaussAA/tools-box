@@ -157,6 +157,10 @@ tools-box/
 - 插件外部依赖的内核程序（如 yt-dlp / ffmpeg）落在 `<exe 目录>/tools/bin/`，
   与插件 DLL 同处一层，保证整个 `bin/<Config>/` 拷走即可运行。
 - 运行时可执行文件的查找顺序固定为：**手动指定 → `<exe 目录>/tools/bin/` → PATH**。
+- **交付形态就是 `bin/<Config>/` 这一个目录**，由顶层的 `install()`（整目录安装）
+  与 CPack 打成 zip 发出。因此 `install()` 规则不允许出现在子目录里 ——
+  一旦有人往插件目录里加 `install(TARGETS)`，交付内容就会分裂成两处描述。
+  发布流程见 [workflow.md §9](./workflow.md#9-发布)。
 
 ## 9. 偏差台账
 
@@ -174,7 +178,7 @@ tools-box/
 | 9.7 | 插件 `CMakeLists.txt` 样板重复 | `plugins/*/CMakeLists.txt` | 复制目录即建新插件的模板 | 接受 | 出现第 5 个插件时抽取 `toolbox_add_plugin()` |
 | 9.8 | ~~排序比较器中反复调用 `plugin->meta()`~~ | [ToolRegistry.cpp](../app/ToolRegistry.cpp) | — | **已消除（P2）**：装载时取一次存进 `Entry::meta`，比较器只读缓存；`meta()` 的无副作用契约见 §4.3 | 无 |
 | 9.9 | `.clang-format` 只能当风格参考、不能当强制检查；静态检查尚未接入 CI | 根目录 `.clang-format` / `.clang-tidy`、`scripts/verify/verify_whitespace.ps1` | clang-format 没有「保留手工换行」的选项，又按字符数而非中文双宽算列宽，对现有代码手工折断的长调用、手工对齐的 lambda 实参一律重排；且只有一个全局 `AfterEnum` 开关，无法同时表达「短枚举一行、长枚举大括号另起一行」 | 格式分两层：`.editorconfig` 那几条（LF、末尾换行、行尾空白、制表符）交给 `verify_whitespace.ps1` 强制；clang-format 层保持描述性，不执行全仓格式化（理由与实测数据见 [workflow.md §3.1](./workflow.md#31-代码风格检查)）。clang-tidy 侧的结论见 [workflow.md §3.2](./workflow.md#32-命名检查clang-tidy目前手动跑) | 引入 CI 后依次接上 `verify_whitespace.ps1`、`verify_conventions.ps1` 与 clang-tidy；格式若要强制，必须先提一个「只做格式归一化」的独立提交并登记进 `.git-blame-ignore-revs`。**clang-tidy 评估已完成**：`.clang-tidy` 落地，命名规则全仓 0 命中（已做注入式反向验证），`cppcoreguidelines-owning-memory` 因与 Qt 父子对象树惯用法冲突而排除 —— 所有权一条继续留在评审，不再指望工具 |
-| 9.10 | 无 `install()` / CPack 打包规则，交付靠手工拷贝 `bin/` | 全项目 | 交付频次低 | 接受 | 发布流程成形后再补 |
+| 9.10 | ~~无 `install()` / CPack 打包规则，交付靠手工拷贝 `bin/`~~ | 顶层 [CMakeLists.txt](../CMakeLists.txt) | 交付频次低 | **已消除（P3）**：顶层整目录 `install()` + CPack 出 zip，版本号仍只有 `project(... VERSION ...)` 一个来源；两条 `install(CODE)` 保护会拦下「打错配置」与「忘了 deploy」，实测都会报错停下 | 发布流程见 [workflow.md §9](./workflow.md#9-发布)；`verify_shell.ps1 -Exe` 用于验收解压后的产物 |
 
 ## 10. 目标架构与迁移计划
 

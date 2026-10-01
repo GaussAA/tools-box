@@ -3,9 +3,18 @@
 # Touches no plugin settings; it does switch the selected tool, so ui/lastToolId ends up
 # pointing at the home page when the window closes.
 #
+# -Exe points the test at another build of the shell. Use it to check a packaged
+# output (unzip the release zip somewhere, then pass the extracted ToolBox.exe):
+# that is the only way to prove the package really carries the plugins, the Qt
+# runtime and translations/.
+#
 # NOTE: keep every literal at the PowerShell level ASCII. PowerShell 5.1 parses a
 # BOM-less .ps1 as ANSI, so Chinese in comments/strings corrupts the token stream.
 # Chinese text needed for assertions is rebuilt from code points via Chars.
+
+param(
+  [string]$Exe = "c:\WorkSpace\ProjectSpace\tools-box\build\bin\Debug\ToolBox.exe"
+)
 
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
@@ -70,9 +79,13 @@ $toolB        = "JSON "   + (Chars @(0x683C, 0x5F0F, 0x5316))
 $toolC        = Chars @(0x89C6, 0x9891, 0x4E0B, 0x8F7D)
 $tools        = @($toolA, $toolB, $toolC)
 
-$exe   = "c:\WorkSpace\ProjectSpace\tools-box\build\bin\Debug\ToolBox.exe"
+$exe   = $Exe
 $shots = "c:\WorkSpace\ProjectSpace\tools-box\build\shots"
 New-Item -ItemType Directory -Force -Path $shots | Out-Null
+if (-not (Test-Path $exe)) { Write-Output "FAIL: exe not found at $exe"; exit 1 }
+Write-Output "exe       = $exe"
+# The shell finds plugins next to itself, so a packaged copy is checked in place.
+Write-Output ("tools/    = " + ((Get-ChildItem (Join-Path (Split-Path $exe -Parent) "tools") -Filter *.dll -ErrorAction SilentlyContinue | Measure-Object).Count) + " dll(s)")
 
 $failed = @()
 function Check($ok, $what) {

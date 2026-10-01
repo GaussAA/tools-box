@@ -123,6 +123,10 @@
   不使用全局变量式的 `include_directories` / `link_libraries`。
 - 顶层集中决定输出布局（`TOOLBOX_BIN_DIR`），子目录只引用，不自行推导路径。
 - 插件统一输出到 `TOOLBOX_BIN_DIR/tools`，不指定固定文件名（外壳按目录扫描）。
+- **`install()` 规则只写在顶层**，而且只装整个 `bin/<Config>/`，不在子目录里逐个
+  `install(TARGETS)`。原因有二：一是这个目录本身就是交付形态，Qt 运行时、翻译、
+  外部内核都不是本工程的目标却必须一起交付；二是新增插件因此不需要改顶层文件，
+  与架构 §1「新增工具不改外壳」保持一致。打包流程见 [workflow.md §9](./workflow.md#9-发布)。
 - 插件的图片/图标资源用 `qt_add_resources` 编进 DLL，不做外部文件依赖。
 - 新增插件时必须在顶层 `CMakeLists.txt` 显式 `add_subdirectory`（保持显式，不用 glob）。
 
