@@ -323,13 +323,21 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 
 两件与接收方有关的事，交付时要说明：
 
-- **MSVC 运行时**：Qt 的 DLL 依赖 `msvcp140.dll` / `vcruntime140.dll`，包里没有
-  app-local 版本，只有 deploy 顺带放进来的 `vc_redist.x64.exe`。接收方若缺运行时，
-  先跑一次它。
-- **包大小**：zip 约 44 MB（其中 `opengl32sw.dll` 20 MB、`dxcompiler.dll` 14 MB 是
-  windeployqt 带上的）。若 `tools/bin/` 下已下载外部内核（yt-dlp / ffmpeg，合计约
-  177 MB），它们也会被打进包里 —— 这是有意为之：架构 §8 约定「整个 `bin/<Config>/`
-  拷走即可运行」。想要瘦身就先删掉 `tools/bin/` 再打包，插件会按需重新下载。
+- **MSVC 运行时是 app-local 的**：deploy 用 `--no-compiler-runtime` 跳过了
+  `vc_redist.x64.exe`（17.9 MB 的安装器），改为把 CRT 的 DLL 复制到程序旁边
+  （约 1.6 MB）。接收方**不需要再跑任何安装器**。目录名随工具集版本变
+  （VS 18 是 `Microsoft.VC145.CRT`、VS 2022 是 `VC143`），所以用 glob 匹配；
+  找不到就**让 deploy 失败**，而不是产出一个「接收方一运行就缺 DLL」的包。
+- **包大小**：zip 约 20 MB、解压后约 47 MB。与早期相比砍掉三块：`opengl32sw.dll`
+  （19.7 MB 软件 OpenGL，纯 Widgets 用光栅引擎，用 `--no-opengl-sw` 去掉）、
+  `vc_redist.x64.exe`（17.9 MB，见上）、以及不再需要它带来的体积。
+  **还剩 `dxcompiler.dll` + `dxil.dll` 共 15.1 MB**：它们是 Qt 运行期按需加载的
+  （已用 `dumpbin /dependents` 确认不在 `Qt6Gui.dll` 的导入表里），只在走 D3D
+  渲染路径时才需要。删掉它们不是 windeployqt 支持的开关，而「永远不走那条路径」
+  我们没法完全证明，所以**保留**，把测量结果留在这里供以后决定。
+- 若 `tools/bin/` 下已下载外部内核（yt-dlp / ffmpeg，合计约 177 MB），它们也会被打进
+  包里 —— 这是有意为之：架构 §8 约定「整个 `bin/<Config>/` 拷走即可运行」。
+  想要瘦身就先删掉 `tools/bin/` 再打包，插件会按需重新下载。
 
 ## 10. 文档维护规则（防漂移条款）
 

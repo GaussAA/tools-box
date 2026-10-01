@@ -187,17 +187,34 @@ tools-box/
 
 ### D1 · 外壳拆分（触发条件：下次改动 `MainWindow` 相关文件）
 
+最初的拆分设想（**注意：这是设想，不是现状** —— 现状见本节末尾）：
+
 ```
 app/
 ├── main.cpp
 ├── core/                       无 QWidget 依赖，可单测
-│   ├── ToolRegistry.*          现有，保持不变
-│   ├── ToolCatalog.*           新增：工具条目模型 + 搜索过滤 + 收藏/最近使用
-│   └── IconFactory.*           新增：无图标时的占位图标生成
+│   ├── ToolRegistry.*          ← 设想放在这里，实际放不进来，见下
+│   ├── ToolCatalog.*           工具条目模型 + 搜索过滤 + 收藏/最近使用
+│   └── IconFactory.*           无图标时的占位图标生成
 └── ui/
     ├── MainWindow.*            仅装配与转发
-    └── NavPanel.*              新增：导航列表的构建与分区渲染
+    └── NavPanel.*              导航列表的构建与分区渲染
 ```
+
+**现状（P3 订正）**：`app/` 下只有 `main.cpp`、`MainWindow.*`、`ToolRegistry.*` 和
+`core/ToolCatalog.*`；`ui/` 目录**从未创建**，`IconFactory` 也没有。
+
+其中 `ToolRegistry.*` **进不了 `core/`，不是还没做，而是做不到**：它 include 了
+`ToolBoxPlugin.h`，而这份 SDK 契约头文件本身 include 了 `<QWidget>` 与 `<QIcon>`
+（`IToolPage::createPage()` 返回 `QWidget *`，`ToolMeta::icon` 是 `QIcon`）。任何处理
+`ToolMeta` 的代码都因此需要 QtGui/Widgets，而 `ToolBoxCore` 只链接 `Qt6::Core`
+（正是下面验收标准 1 所依赖的不变量）。放进去会直接编译失败 —— 这是**契约层决定的
+边界**，不是拆分力度不够。
+
+推论：外壳里能进 `core/` 的只有「不碰 `ToolMeta`」的逻辑，`ToolCatalog` 正是如此
+（它吃的是拍平后的 `CatalogEntry`，与 `QIcon`/`QWidget` 无关）。将来若想让
+`ToolRegistry` 可单测，要动的是**契约**（例如让 `ToolMeta` 不携带 `QIcon`），
+而按 §4.2 那属于破坏 ABI 的改动，必须升 IID 版本号并重编全部插件。
 
 验收标准：
 1. `core/` 下的文件不 include 任何 `QtWidgets` 头文件。**这一条不需要 grep 兜底**：
@@ -209,7 +226,8 @@ app/
 
 **进度（P1：核心部分已完成）**：[ToolCatalog.*](../app/core/ToolCatalog.h) 已落地，
 `MainWindow` 只保留控件装配与渲染；`tst_toolcatalog` 覆盖过滤器与列表维护，
-`verify_recent.ps1` 实测通过。验收标准 1–3 均已满足。
+`verify_recent.ps1` 实测通过。验收标准 1–3 均已满足（标准 1 对 `core/` 的约束成立，
+因为 `core/` 里只有不碰 `ToolMeta` 的 `ToolCatalog`）。
 
 **决定：`ui/MainWindow`、`ui/NavPanel`、`IconFactory` 这三项不再做。** 它们是纯表现层
 搬运：`MainWindow` 剩下的代码就是「建控件、按模型刷列表、转发信号」，再切出一个面板类
