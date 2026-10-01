@@ -23,6 +23,11 @@ private slots:
     void classifyStageRecognisesStages();
     void parseDestinationReadsFinalArtifact();
     void parseDestinationIgnoresOtherLines();
+    void sanitizeFileNameReplacesPathSeparators();
+    void sanitizeFileNameTrimsDotsAndSpaces();
+    void sanitizeFileNameRejectsUnusableTitles();
+    void sanitizeFileNameLimitsLength();
+    void sanitizeFileNameEscapesDeviceNames();
 };
 
 void TestOutputParsing::decodeOutputKeepsValidUtf8()
@@ -134,6 +139,52 @@ void TestOutputParsing::parseDestinationReadsFinalArtifact()
 void TestOutputParsing::parseDestinationIgnoresOtherLines()
 {
     QVERIFY(videodl::parseDestination(QStringLiteral("[download]  45.3% of 10.00MiB")).isEmpty());
+}
+
+// 标题里的 / 与 \ 必须变成下划线：原样进 -o 模板会被当成路径分隔符，
+// 文件就写到保存目录之外去了（路径穿越）。
+void TestOutputParsing::sanitizeFileNameReplacesPathSeparators()
+{
+    // 开头的点会被一并 trim 掉，所以最前面那两个点在结果里消失了（它们本来就指向目录）。
+    QCOMPARE(videodl::sanitizeFileName(QStringLiteral("../../evil")), QStringLiteral("_.._evil"));
+    QCOMPARE(videodl::sanitizeFileName(QStringLiteral("a\\b/c:d")), QStringLiteral("a_b_c_d"));
+
+    // 正常标题一个字符都不该动。
+    QCOMPARE(videodl::sanitizeFileName(QStringLiteral("某条视频的标题")),
+             QStringLiteral("某条视频的标题"));
+}
+
+void TestOutputParsing::sanitizeFileNameTrimsDotsAndSpaces()
+{
+    // 首尾的点与空白：Windows 上要么非法、要么被隐含掉。
+    QCOMPARE(videodl::sanitizeFileName(QStringLiteral("  ..标题..  ")), QStringLiteral("标题"));
+}
+
+void TestOutputParsing::sanitizeFileNameRejectsUnusableTitles()
+{
+    // 消毒后为空 = 这个标题救不回来，调用方据此回落默认模板。
+    QVERIFY(videodl::sanitizeFileName(QStringLiteral("..")).isEmpty());
+    QVERIFY(videodl::sanitizeFileName(QStringLiteral("...")).isEmpty());
+    QVERIFY(videodl::sanitizeFileName(QString()).isEmpty());
+
+    // 只剩分隔符不算「救不回来」：下划线是合法文件名，不该白白丢掉一次下载。
+    QCOMPARE(videodl::sanitizeFileName(QStringLiteral("///")), QStringLiteral("___"));
+}
+
+void TestOutputParsing::sanitizeFileNameLimitsLength()
+{
+    const QString longTitle(200, QLatin1Char('a'));
+    const QString name = videodl::sanitizeFileName(longTitle);
+    QCOMPARE(name.size(), 120);
+}
+
+void TestOutputParsing::sanitizeFileNameEscapesDeviceNames()
+{
+    // CON / NUL / COM1 在任何目录下都指向设备，不是文件。
+    QCOMPARE(videodl::sanitizeFileName(QStringLiteral("con")), QStringLiteral("_con"));
+    QCOMPARE(videodl::sanitizeFileName(QStringLiteral("COM1")), QStringLiteral("_COM1"));
+    // 只是「以 CON 开头」不算撞名，不该误伤。
+    QCOMPARE(videodl::sanitizeFileName(QStringLiteral("CONcert")), QStringLiteral("CONcert"));
 }
 
 QTEST_APPLESS_MAIN(TestOutputParsing)

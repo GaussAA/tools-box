@@ -31,6 +31,17 @@ QString stripAnsi(const QString &text);
 /// 调用方负责先做 trim —— 那是界面输入的事，不属于解析规则。
 QString extractUrl(const QString &input);
 
+/// 把外部给的文本收拾成可以当文件名用的样子。
+///
+/// 页面标题这类文本来自站点的 DOM，属于**外部输入**，不能直接拼进下载模板：
+/// 里面一个 `/` 或 `\` 就会被当成路径分隔符，把文件写到保存目录之外。
+/// 处理规则：不可见字符与 Windows 文件名非法字符换成下划线；首尾的空白与点去掉；
+/// 撞上设备名（CON / NUL / COM1…）加前缀破开；最后按长度截断。
+///
+/// 返回空串表示「这个标题救不回来了」，调用方应回落到默认的输出模板，
+/// 而不是拿空名字去下载。上限 120 个 UTF-16 码元。
+QString sanitizeFileName(const QString &title);
+
 /// 一行输出里解析出的下载进度。
 struct ProgressInfo
 {

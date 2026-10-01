@@ -179,6 +179,7 @@ private:
     int m_renderQuality = 0;
     bool m_renderAudioOnly = false;
     bool m_renderTimedOut = false;
+    bool m_renderStartFailed = false; ///< 浏览器压根没起来（与「起来了但超时」是两回事）
     bool m_renderCancelled = false;
     int m_renderGeneration = 0; ///< 轮次编号，用来让过期的超时定时器失效
 
@@ -225,9 +226,12 @@ VideoDlPage::VideoDlPage(QWidget *parent)
     m_render->setProcessChannelMode(QProcess::SeparateChannels);
     connect(m_render, &QProcess::readyReadStandardOutput, this, &VideoDlPage::onRenderOutput);
     connect(m_render, &QProcess::finished, this, &VideoDlPage::onRenderFinished);
+    // 启动失败与「渲染超时」必须分开记：早先这里复用 m_renderTimedOut，于是浏览器
+    // 根本没起来时也报「60 秒超时」，把排查往完全错误的方向引（真因在 errorString
+    // 里，却因为走了超时分支被丢掉了）。
     connect(m_render, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
         if (error == QProcess::FailedToStart) {
-            m_renderTimedOut = true;
+            m_renderStartFailed = true;
             onRenderFinished(-1, QProcess::NormalExit);
         }
     });
@@ -849,14 +853,26 @@ void VideoDlPage::launchDownload(const QString &target, const QString &titleHint
          << QStringLiteral("--no-playlist") // 只下载当前这一个视频
          << QStringLiteral("-P") << dir;
 
+    const QString defaultTemplate = QStringLiteral("%(title)s [%(id)s].%(ext)s");
     if (titleHint.isEmpty()) {
-        args << QStringLiteral("-o") << QStringLiteral("%(title)s [%(id)s].%(ext)s");
+        args << QStringLiteral("-o") << defaultTemplate;
     } else {
         // 抖音那条路拿到的是直链，generic extractor 只会把文件叫成 video.mp4，
-        // 只好把页面标题直接写进输出模板。百分号在模板里有含义，先转义掉。
-        const QString safeTitle =
-            QString(titleHint).replace(QLatin1Char('%'), QStringLiteral("%%"));
-        args << QStringLiteral("-o") << (safeTitle + QStringLiteral(".%(ext)s"));
+        // 只好把页面标题直接写进输出模板。
+        //
+        // 标题取自抖音页面的 DOM，是**外部输入**：里面一个 / 或 \ 就会被 yt-dlp
+        // 当成路径分隔符，把文件写到保存目录之外。先按文件名规则消毒，
+        // 消毒后为空说明这个标题救不回来，回落默认模板而不是拿空名字去下载。
+        const QString safeTitle = videodl::sanitizeFileName(titleHint);
+        if (safeTitle.isEmpty()) {
+            appendLog(tr("视频标题无法用作文件名，已改用默认命名。"));
+            args << QStringLiteral("-o") << defaultTemplate;
+        } else {
+            // 百分号在模板里有含义，先转义掉。
+            const QString escaped =
+                QString(safeTitle).replace(QLatin1Char('%'), QStringLiteral("%%"));
+            args << QStringLiteral("-o") << (escaped + QStringLiteral(".%(ext)s"));
+        }
     }
 
     if (needsReferer) {
@@ -965,6 +981,7 @@ bool VideoDlPage::beginDouyinDownload(const QString &url, const QString &dir, in
     m_renderAudioOnly = audioOnly;
     m_renderOut.clear();
     m_renderTimedOut = false;
+    m_renderStartFailed = false;
     m_renderCancelled = false;
 
     // 用独立的 profile 目录，免得去碰用户正在用的浏览器数据。
@@ -991,16 +1008,14 @@ bool VideoDlPage::beginDouyinDownload(const QString &url, const QString &dir, in
     setStatus(tr("正在渲染抖音页面…"));
 
     m_render->start(browser, args);
-    if (!m_render->waitForStarted(5000)) {
-        appendLog(tr("浏览器启动失败：%1").arg(m_render->errorString()));
-        setStatus(tr("无法启动浏览器。"));
-        m_progress->setRange(0, 100);
-        m_progress->setValue(0);
-        return true;
-    }
 
-    // 正常十几秒就跑完，60 秒还没动静就是卡住了。带上次序号，
-    // 免得上一次留下的定时器把这一轮刚启动的进程杀掉。
+    // 这里刻意**不** waitForStarted()：一来它会在 GUI 线程上阻塞最多 5 秒，二来
+    // start() 失败时「waitForStarted 返回 false」与「errorOccurred(FailedToStart)」
+    // 两条路径都会说话，日志里出现两条互相矛盾的失败原因。启动结果统一交给
+    // onRenderFinished 一处判定。
+    //
+    // 超时定时器因此从「启动」就开始计时：正常十几秒跑完，60 秒还没动静就是卡住了。
+    // 带上次序号，免得上一次留下的定时器把这一轮刚启动的进程杀掉。
     const int generation = ++m_renderGeneration;
     QTimer::singleShot(60000, this, [this, generation] {
         if (generation == m_renderGeneration && m_render->state() != QProcess::NotRunning) {
@@ -1024,8 +1039,10 @@ void VideoDlPage::onRenderFinished(int exitCode, QProcess::ExitStatus status)
 
     const bool cancelled = m_renderCancelled;
     const bool timedOut = m_renderTimedOut;
+    const bool startFailed = m_renderStartFailed;
     m_renderCancelled = false;
     m_renderTimedOut = false;
+    m_renderStartFailed = false;
 
     // 浏览器会在 profile 目录里堆一堆文件，用完就清干净。
     QDir(QDir::tempPath() + QStringLiteral("/toolbox-douyin-render")).removeRecursively();
@@ -1040,6 +1057,12 @@ void VideoDlPage::onRenderFinished(int exitCode, QProcess::ExitStatus status)
 
     if (cancelled) {
         giveUp(tr("已取消。"), tr("已取消。"));
+        return;
+    }
+    if (startFailed) {
+        // 真因在 errorString 里（路径失效、权限、被安全软件拦下都有可能），
+        // 必须原样带给用户 —— 否则「无法启动」这种提示等于什么都没说。
+        giveUp(tr("无法启动浏览器：%1").arg(m_render->errorString()), tr("无法启动浏览器。"));
         return;
     }
     if (timedOut) {
