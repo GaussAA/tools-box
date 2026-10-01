@@ -1,0 +1,11 @@
+# 只做格式、不含语义改动的提交。git blame 默认会把整段历史归到这些提交上，
+# 让「这行代码是谁为什么写的」彻底查不出来。把 hash 登记到这里，
+# git blame 就能跳过它们：
+#
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#   git blame <文件>          # 仓库级开关，每人配一次
+#   git blame --ignore-revs-file .git-blame-ignore-revs <文件>   # 或按次指定
+#
+# 用法说明见 docs/workflow.md §3.1。**只登记纯格式提交**，
+# 一旦某个提交同时改了语义，登记它就会掩盖真实改动。
+73b1e4ad700d3d0ad8b15d36b5289ba10ffeef82

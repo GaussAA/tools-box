@@ -1,15 +1,24 @@
 # 工具箱代码格式配置。规则对应 docs/coding-standards.md 的命名与格式章节。
 #
-# 本文件是按现有代码的实际风格倒推出来的，用途是**统一人写代码时的判断**，
-# 不是拿去批量重排。已用 VS 自带的 clang-format 实跑校验过，结论是：
+# **这份配置现在是强制的**：全仓已于 73b1e4a 做过一次归一化，之后由
+# scripts/verify/verify_format.ps1 检查（clang-format --dry-run --Werror），
+# 任何不符合的文件都会被拦下。跑法与依据见 docs/workflow.md §3.1。
 #
-#   约束不了现状，不能当强制检查用。实测会让 14 个文件 / 约 330 行发生改动，
-#   原因是 clang-format 没有「保留手工换行」的选项，而且按字符数而不是中文双宽
-#   算列宽 —— 现有代码里手工折断的长调用、手工对齐的 lambda 实参都会被重排。
+# 三点需要知道的历史与取舍：
 #
-# 真想启用它，必须单独提一个「只做格式归一化」的提交，并把该提交登记进
-# .git-blame-ignore-revs，否则会污染历史 blame。取舍与依据见
-# docs/workflow.md §3.1 与 docs/architecture.md §9 的偏差 9.9。
+# 1. 归一化之前，现有代码里手工折断的长调用、手工对齐的 lambda 实参、以及靠
+#    「字符数」而非「中文双宽」算出来的列宽，与这份配置并不一致，一次性改动是
+#    15 个文件 / 328 行。归一化时逐文件比对了字符多重集，确认增删的只有空格与
+#    换行 —— 即只动位置、不动内容。
+# 2. clang-format 没有「保留手工换行」的选项。手工折断的长调用会被合回一行，
+#    这是它带来的主要风格变化，不是配置错误。
+# 3. 它只有一个全局 AfterEnum 开关，无法同时表达「短枚举写成一行、长枚举大括号
+#    另起一行」—— 而现有代码两种都在用。这里取 false（短枚举一行），
+#    实测取 false 时全仓改动更少。
+#
+# 注意：clang-format 会按 SortIncludes 重排 include 分组。`IncludeBlocks: Preserve`
+# 保住了「插件 .cpp 末尾的 #include "Xxx.moc" 必须在最后一行」这条硬约束，
+# 该约束另由 verify_conventions.ps1 盯着。
 #
 # 现有风格并不是纯粹的 Allman：函数/类/结构体/枚举的 { 独占一行，但控制语句
 # 和 namespace 的 { 留在行尾，所以只能用 BreakBeforeBraces: Custom 逐项指定。

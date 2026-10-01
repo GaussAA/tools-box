@@ -17,7 +17,7 @@
 | 打包 | CPack（随 CMake 提供，不必单独安装），产物为 zip | 顶层 `CMakeLists.txt`；流程见 §9 |
 | 源码编码 | UTF-8，换行 LF；`*.ps1` 必须带 BOM，其余文件不带 BOM（原因见 §3.1） | 源码含中文，必须 `/utf-8` |
 | 警告等级 | `/W4 /permissive- /WX`，**警告即错误**，Debug / Release 均须 0 告警 | 顶层 `CMakeLists.txt`；规则见 coding-standards §9 |
-| 格式化 | clang-format 22.1.3，随 Visual Studio 提供，**不必单独安装**；配置见根目录 `.clang-format` | 只作风格参考，不强制，见 §3.1 |
+| 格式化 | clang-format 22.1.3，随 Visual Studio 提供，**不必单独安装**；配置见根目录 `.clang-format` | **已强制**：全仓已归一化，`verify_format.ps1` 把关，见 §3.1 |
 | 静态检查 | clang-tidy 22.1.3，同样随 Visual Studio 提供；配置见根目录 `.clang-tidy` | 目前手动跑，不接入构建，见 §3.2 |
 
 Qt 安装相关的已知坑（历史踩过的，不要再试）：
@@ -28,8 +28,8 @@ Qt 安装相关的已知坑（历史踩过的，不要再试）：
 ## 2. 源码树里什么进版本控制
 
 进版本控制：`CMakeLists.txt`、`CMakePresets.json`、`docs/`、`scripts/`、
-`sdk/`、`app/`、`plugins/`、`tests/`，以及四份工具配置 `.clang-format`、
-`.clang-tidy`、`.editorconfig`、`.gitattributes`。
+`sdk/`、`app/`、`plugins/`、`tests/`，以及五份工具配置 `.clang-format`、
+`.clang-tidy`、`.editorconfig`、`.gitattributes`、`.git-blame-ignore-revs`。
 
 **不进版本控制**（已在 `.gitignore` 中声明）：`build/`（完全可再生成）、
 IDE 目录、CMake 缓存。
@@ -61,9 +61,9 @@ cmake --build build --config Release --target deploy
 
 ### 3.1 代码风格检查
 
-风格规则分两层，**一层能强制、一层只描述**，不要混为一谈。
+风格规则分两层，**两层现在都可强制**：空白与编码一层，clang-format 一层。
 
-**能强制的一层**：`.editorconfig` 里与编辑器无关的那几条 —— UTF-8、LF、文件末尾
+**空白与编码这一层**：`.editorconfig` 里与编辑器无关的那几条 —— UTF-8、LF、文件末尾
 恰好一个换行、不留行尾空白、源码不用制表符，外加 **`*.ps1` 必须带 UTF-8 BOM**。
 检查手段是
 
@@ -81,30 +81,39 @@ ANSI 代码页解码**（本机是 936 / GB2312）。脚本里的中文注释是
 脚本强制，而不是靠人记住。`.editorconfig` 的 `[*.ps1]` 段与
 `scripts/verify/verify_whitespace.ps1` 头部都有这条说明。
 
-**只描述、不强制的一层**：`.clang-format`（大括号位置、100 列、指针符号、缩进、
-注释不重排）。它的用途是统一人写代码时的判断，不是拿去批量重排。
-
-本机 clang-format 来自 Visual Studio，路径
-`C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\Llvm\x64\bin\clang-format.exe`，
-空跑命令：
+**clang-format 这一层**：`.clang-format` 已于 73b1e4a 完成一次性全仓归一化，
+并改由 `scripts/verify/verify_format.ps1` 强制：
 
 ```powershell
-$cf = "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\Llvm\x64\bin\clang-format.exe"
-& $cf --dry-run --Werror (git ls-files "*.cpp" "*.h")
+powershell -ExecutionPolicy Bypass -File scripts\verify\verify_format.ps1
 ```
 
-**实跑结论（P2）：不要让这份配置变成强制检查。** 实测它会让 14 个文件、约 330 行
-发生改动，原因有二：
+它用 `clang-format --dry-run --Werror` 扫全部 C++ 源文件，只读不写，有不符合就
+列出文件并给出修复命令。clang-format 来自 Visual Studio，路径
+`...\VC\Tools\Llvm\x64\bin\clang-format.exe`，**不必单独安装**；本机版本 22.1.3。
 
-1. clang-format 没有「保留手工换行」的选项，也按字符数而不是中文双宽算列宽，
-   于是现有代码里手工折断的长调用、手工对齐的 lambda 实参都会被重排；
-2. 它只有一个全局 `AfterEnum` 开关，无法同时表达「短枚举写成一行、长枚举大括号
-   另起一行」—— 而现有代码两种都在用。
+归一化这件事是怎么做的、代价是什么：
 
-所以：**保持描述性，不执行全仓格式化**。将来若要强制，必须先单独提一个「只做格式
-归一化」的提交，并把该提交的 hash 登记进 `.git-blame-ignore-revs`，再把上面的
-`--dry-run --Werror` 接进 CI。取舍记在
-[architecture.md §9](./architecture.md#9-偏差台账) 的偏差 9.9。
+1. **一次性改动 15 个文件 / 328 行**（146 增 182 删，净减是因为手工折断的长调用
+   被合回一行）。
+2. **怎么确认它没动语义**：不是靠看 diff，而是逐文件比对前后两版的**字符多重集**
+   —— 统计结果里唯一有增减的字符是空格与换行，其余字符（标识符、字符串字面量、
+   标点、注释里的中文）计数完全一致。这条比对照重排和换行都不敏感，恰好能穿透
+   `SortIncludes` 的重排。再加 Debug / Release 全量重建 0 告警、`ctest` 5/5、
+   外壳冒烟实测通过。
+3. **变更性质**：clang-format 没有「保留手工换行」的选项，手工折断的长调用会被合
+   回一行；空函数体 `{` `}` 收成 `{}`；include 按 `CaseSensitive` 在分组内重排
+   （`IncludeBlocks: Preserve` 保住了 `#include "Xxx.moc"` 必须在文件末尾这条硬约束，
+   `verify_conventions.ps1` 也在盯着）。中文注释一个字符没动（`ReflowComments: false`）。
+4. **为什么必须单独成一个提交**：否则 `git blame` 会把整段历史都归到这一次重排上。
+   归一化提交的 hash 登记在 `.git-blame-ignore-revs`，用之前先配一次：
+
+   ```powershell
+   git config blame.ignoreRevsFile .git-blame-ignore-revs
+   ```
+
+   **今后任何纯格式提交都要这样登记**；一旦某个提交同时改了语义，登记它就会掩盖
+   真实改动，所以这条规则只适用于「只动格式」的提交。
 
 ### 3.2 命名检查（clang-tidy，目前手动跑）
 
@@ -230,7 +239,8 @@ ctest --test-dir build -C Debug --output-on-failure
 
 | 脚本 | 覆盖范围 |
 | --- | --- |
-| `verify_whitespace.ps1` | 空白与编码：全仓 LF、末尾换行、无行尾空白、源码无制表符（§3.1，可纳入 CI） |
+| `verify_whitespace.ps1` | 空白与编码：全仓 LF、末尾换行、无行尾空白、源码无制表符、`*.ps1` 带 BOM（§3.1，可纳入 CI） |
+| `verify_format.ps1` | 格式：全部 C++ 源文件与 `.clang-format` 一致（`clang-format --dry-run --Werror`，只读不写）（§3.1，可纳入 CI） |
 | `verify_conventions.ps1` | 可机械判定的编码规范：旧式 `SIGNAL()/SLOT()`、`QString("字面量")`、跨层 include、裸字符串 QSettings 键、头文件缺 `#pragma once`、`#include "Xxx.moc"` 之后还有代码（可纳入 CI） |
 | `verify_docs.ps1` | 文档一致性：相对链接目标存在、`#锚点` 能落到标题、无孤立文档（§10 第 5 条，可纳入 CI） |
 | `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译。`-Exe` 可指向别处的构建产物，用于验收打包结果（§9） |
@@ -252,8 +262,9 @@ ctest --test-dir build -C Debug --output-on-failure
 交付形态是一个「解压即用」的 zip，由 CPack 产生。**顺序不能颠倒**：
 
 ```powershell
-# 1) 三个不依赖界面、秒级的检查，都返回 0 才继续
+# 1) 四个不依赖界面、秒级的检查，都返回 0 才继续
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_whitespace.ps1
+powershell -ExecutionPolicy Bypass -File scripts\verify\verify_format.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_conventions.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_docs.ps1
 
@@ -267,7 +278,7 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 
 完整清单：
 
-1. 跑上面第 1 步的三个脚本；命名检查（[§3.2](#32-命名检查clang-tidy目前手动跑)）
+1. 跑上面第 1 步的四个脚本；命名检查（[§3.2](#32-命名检查clang-tidy目前手动跑)）
    要单独配置并构建一个目录，不强制拦在发版路径上，但改动过命名相关的代码后应当跑一次；
 2. 按 §6 确认版本号单一来源 —— 打包配置里没有再写一份版本号，
    `CPACK_PACKAGE_VERSION` 取的就是顶层 `project(... VERSION ...)`；
