@@ -379,6 +379,14 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 - **Action 保持在大版本号的最新档**。Action 自带运行时会被 GitHub 淘汰（第一次跑就
   收到过 Node.js 20 的弃用告警），钉在旧大版本上迟早会红。升级前用 `gh api` 读它的
   `action.yml` 核对 inputs 有没有改名，别猜。
+- **MSVC 那段是自己写的，不是第三方 Action**。原先用 `ilammy/msvc-dev-cmd`，但它的
+  `action.yml` 声明 `using: node20` 且只有 v1.x，那条弃用告警只能靠不用它来消除。
+  它做的事就是「跑 vcvars、把环境变量传给后续步骤」，所以改成 `vswhere` +
+  微软自带的 `Microsoft.VisualStudio.DevShell.dll`：只导出相对调用前**新增或改变**
+  的变量（本机实测 38 个），避免把 `GITHUB_*` / `RUNNER_*` 回写进 `GITHUB_ENV`；
+  多行值会直接让这一步报错，因为 `GITHUB_ENV` 是「一行一个 KEY=VALUE」。这一步必须
+  用 `pwsh`（PowerShell 7）：5.1 写 UTF-8 会带 BOM，会污染 `GITHUB_ENV`。
+  代价是这段要自己维护，换来少一个第三方依赖、且不再有运行时弃用告警。
 - **界面与真实下载链路不进 CI**。它们靠 UI 自动化驱动真实窗口和真实网络，属于
   手工回归（§5），不是单元测试的替代品。
 - **命名检查（`verify_naming.ps1`）不进 CI**：clang-tidy 在这里钉不到与本地相同的

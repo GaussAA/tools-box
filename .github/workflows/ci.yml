@@ -7,15 +7,13 @@ name: CI
 # UI 自动化驱动真实窗口与真实网络，属于手工回归，不是单元测试的替代品 —— 这条
 # 分工写在 docs/workflow.md §5。
 #
-# 维护提醒：这些 Action 保持在大版本号的最新档。第一次跑就收到
-# 「Node.js 20 is deprecated」的告警 —— Action 自带运行时会被 GitHub 淘汰，
-# 钉在旧大版本上迟早会红。升级前先确认 inputs 没改名（用 gh api 读它的
-# action.yml，比猜可靠）。
+# 维护提醒：这些 Action 保持在大版本号的最新档。Action 自带运行时会被 GitHub 淘汰，
+# 钉在旧大版本上迟早会红（第一次跑就收到过 Node.js 20 的弃用告警）。升级前先确认
+# inputs 没改名（用 gh api 读它的 action.yml，比猜可靠）。
 #
-# 升到 v7 之后告警只剩 ilammy/msvc-dev-cmd@v1 一条，而 v1 已经是它的最新大版本，
-# 没有更高的可以升。GitHub 会把它强制跑在 Node 24 上，属于上游待修，暂时留着。
-# 它的作用不可省：GitHub 每个 run 步骤是独立 shell，MSVC 的环境变量得靠它写进
-# GITHUB_ENV 才能跨步骤生效（自己动手导出环境变量要脆得多）。
+# 现在整个 workflow 只剩三个 GitHub 官方 Action 加一个第三方（install-qt-action）。
+# 原先后端还需要 ilammy/msvc-dev-cmd，但它的 action.yml 声明 `using: node20` 且没有
+# v2，那条弃用告警只能靠「不用它」来消除 —— 详见下面 Set up MSVC 那一步的注释。
 
 on:
   push:
@@ -78,12 +76,49 @@ jobs:
           arch: 'win64_msvc2022_64'
           cache: true
 
-      # Ninja 需要 cl.exe 在 PATH 上。GitHub 的每个 run 步骤是独立 shell，所以
-      # 环境变量得靠这个 action 写进 GITHUB_ENV 才能跨步骤生效。
+      # Ninja 需要 cl.exe 在 PATH 上。GitHub 的每个 run 步骤是独立 shell，所以环境
+      # 变量得写进 GITHUB_ENV 才能跨步骤生效。
+      #
+      # 这里刻意不用第三方 Action（原先用 ilammy/msvc-dev-cmd）：它在 action.yml 里
+      # 声明 `using: node20`，且只有 v1.x 没有 v2，于是每次跑都会挂一条 Node 20 弃用
+      # 告警。而它做的事就是「跑 vcvars 并把环境变量传给后续步骤」—— 用微软自带的
+      # vswhere + DevShell 模块更直接，也少一个第三方依赖。
+      #
+      # 必须用 pwsh（PowerShell 7）：5.1 的 Out-File/Add-Content -Encoding utf8 会写
+      # BOM，写进 GITHUB_ENV 会把文件污染掉。
       - name: Set up MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) { throw "vswhere not found: $vswhere" }
+          $vsPath = & $vswhere -latest -products * `
+                    -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+                    -property installationPath
+          if (-not $vsPath) { throw "no Visual Studio installation with the C++ x64 toolset" }
+          Write-Output "Visual Studio = $vsPath"
+
+          $before = @{}
+          Get-ChildItem Env: | ForEach-Object { $before[$_.Name] = $_.Value }
+
+          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation `
+                           -DevCmdArguments "-arch=x64 -host_arch=x64" | Out-Null
+
+          # 只导出「新增或改变」的变量（本机实测 38 个）：全量回写会把 GITHUB_* /
+          # RUNNER_* 这些 runner 自己的变量也写回 GITHUB_ENV。
+          $lines = New-Object System.Collections.Generic.List[string]
+          Get-ChildItem Env: | ForEach-Object {
+            $old = if ($before.ContainsKey($_.Name)) { $before[$_.Name] } else { $null }
+            if ($old -ne $_.Value) {
+              # GITHUB_ENV 是「一行一个 KEY=VALUE」，多行值会直接破坏格式。
+              if ($_.Value -match "`r|`n") { throw "env var $($_.Name) is multi-line; GITHUB_ENV cannot carry it" }
+              $lines.Add("$($_.Name)=$($_.Value)")
+            }
+          }
+          Add-Content -Path $env:GITHUB_ENV -Value $lines
+          Write-Output "exported $($lines.Count) variable(s) to GITHUB_ENV"
+          Write-Output "cl.exe = $((Get-Command cl.exe).Source)"
 
       # 出错时先看这里：确认 Qt 与 MSVC 的位置是否符合预期。
       - name: Show toolchain

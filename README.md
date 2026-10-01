@@ -1,5 +1,7 @@
 # 工具箱（ToolBox）
 
+[![CI](https://github.com/GaussAA/tools-box/actions/workflows/ci.yml/badge.svg)](https://github.com/GaussAA/tools-box/actions/workflows/ci.yml)
+
 插件式桌面工具箱。主程序只是一个「外壳」：导航、搜索、收藏、配置存取；每个具体工具
 都是独立的 DLL 插件，放进 `<exe 目录>/tools/` 就生效。**新增工具不需要修改外壳代码** ——
 这是本项目的核心设计约束，任何改动都不能破坏它。
