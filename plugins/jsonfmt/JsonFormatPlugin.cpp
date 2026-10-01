@@ -1,8 +1,8 @@
 #include "JsonFormatPlugin.h"
 
+#include "core/JsonFormat.h"
+
 #include <QHBoxLayout>
-#include <QJsonDocument>
-#include <QJsonParseError>
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -49,23 +49,22 @@ QWidget *JsonFormatPlugin::createPage(QWidget *parent)
     layout->addWidget(hint);
     layout->addWidget(result, 1);
 
-    const auto convert = [source, result, hint](QJsonDocument::JsonFormat format) {
-        QJsonParseError error{};
-        const QJsonDocument document =
-            QJsonDocument::fromJson(source->toPlainText().toUtf8(), &error);
-        if (error.error != QJsonParseError::NoError) {
+    // 解析与序列化在 core/JsonFormat.h 里（可单测），这里只把结果翻成界面文案 ——
+    // 文案要 tr()，属于 View。
+    const auto convert = [source, result, hint](bool compact) {
+        const jsonfmt::FormatResult formatted = jsonfmt::formatJson(source->toPlainText(), compact);
+        if (!formatted.ok) {
             result->clear();
-            hint->setText(tr("解析失败：偏移 %1 —— %2").arg(error.offset).arg(error.errorString()));
+            hint->setText(
+                tr("解析失败：偏移 %1 —— %2").arg(formatted.errorOffset).arg(formatted.errorText));
             return;
         }
         hint->clear();
-        result->setPlainText(QString::fromUtf8(document.toJson(format)));
+        result->setPlainText(formatted.text);
     };
 
-    connect(beautifyButton, &QPushButton::clicked, page,
-            [convert] { convert(QJsonDocument::Indented); });
-    connect(compactButton, &QPushButton::clicked, page,
-            [convert] { convert(QJsonDocument::Compact); });
+    connect(beautifyButton, &QPushButton::clicked, page, [convert] { convert(false); });
+    connect(compactButton, &QPushButton::clicked, page, [convert] { convert(true); });
     connect(clearButton, &QPushButton::clicked, page, [source, result, hint] {
         source->clear();
         result->clear();
