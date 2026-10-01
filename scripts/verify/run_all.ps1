@@ -1,6 +1,6 @@
 ﻿# Runs every automatic check in scripts/verify, in the order they should run.
 #
-# Why this exists: the six checks were only ever invoked one by one, by hand, from
+# Why this exists: the seven checks were only ever invoked one by one, by hand, from
 # whatever paragraph of docs/workflow.md the reader happened to find first. On a
 # machine that has never run them the natural outcome is "ran two of them and moved
 # on". One command that runs all of them, in order, and reports a single verdict
@@ -26,6 +26,7 @@ $checks = @(
   @{ Name = "verify_format";      NeedsBuild = $false }
   @{ Name = "verify_conventions"; NeedsBuild = $false }
   @{ Name = "verify_filesize";    NeedsBuild = $false }
+  @{ Name = "verify_coretest";    NeedsBuild = $false }
   @{ Name = "verify_docs";        NeedsBuild = $false }
   @{ Name = "verify_naming";      NeedsBuild = $true  }
 )

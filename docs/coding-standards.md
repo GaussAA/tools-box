@@ -179,6 +179,7 @@
 | `m_` / `s_` / `g_` / `k` 前缀、命名一致 | `scripts/verify/verify_naming.ps1`（clang-tidy `readability-identifier-naming`，配置见根目录 `.clang-tidy`） | 已达标：全仓 0 命中，且已做注入式反向验证。**已在 CI 中跑**：工具钉在 LLVM 22.1 线上（CI 装 PyPI 的 `clang-tidy==22.1.8`，本机 VS 自带的 22.1.3 同样通过），版本不符即 FAIL 而不是悄悄给绿，见 workflow §3.2 |
 | 单文件规模（>600 行须评估拆分并记录结论） | `scripts/verify/verify_filesize.ps1`：超阈值且未登记即 FAIL；豁免必须写明理由、结论所在文档与自己的上限 | 已达标：1 个豁免（`plugins/videodl/VideoDlPlugin.cpp`，对应偏差 9.2 / 计划 D2），已在 CI 跑 |
 | 纯逻辑可单测 | 评审（对照 §architecture 3 的判定特征）+ `ctest` | 已达标：`app/core`、`plugins/videodl/core`、`plugins/jsonfmt/core` 均有 Qt Test 用例，见 workflow §5 |
+| `core/` 里的每个源文件都有测试 | `scripts/verify/verify_coretest.ps1`：任何 `*/core/*.cpp` 未被测试 include 即 FAIL。**行覆盖率**本机没有可用工具（VS Community 不带 Code Coverage），故这里只机械保证「测到没有」，「测得好不好」仍归评审 | 已达标：10 个 core 源文件全部被引用，已在 CI 跑 |
 | 编译警告不引入新告警 | MSVC `/W4 /permissive- /WX`（警告即错误） | 已达标：Debug 与 Release 全量重建 0 告警 |
 | 不使用已标记弃用的 API | 同一个 `/WX`：弃用告警是 `C4996`，在 `/WX` 下直接编译失败（实测确认） | 已达标 |
 | C++ 标准不超标 | 编译器约束（`CMAKE_CXX_STANDARD`） | 已达标 |
@@ -188,7 +189,7 @@
 信号槽 / 字符串字面量 / QSettings 键」「`#pragma once` / moc 位置」分别下移到了
 编译器和 `scripts/verify/` 的四个脚本，「命名前后缀」下移到了 clang-tidy，
 「缩进 / 行宽 / 大括号 / include 排序」下移到了 clang-format（先做一次性归一化，
-再用脚本锁住）。**五个脚本都已在 CI 里跑**（push / PR 时，见
+再用脚本锁住）。**七个脚本都已在 CI 里跑**（push / PR 时，见
 [workflow.md §11](./workflow.md#11-持续集成ci)），所以「本地忘了跑」不再等于「没人跑」。
 两个 clang 工具的版本策略不同，但都**钉得住**：格式化器钉精确版本（换版本会改变输出
 字节，所以必须逐字节一致），clang-tidy 钉 LLVM 22.1 线（换线才可能改变命名判定，同一

@@ -75,6 +75,11 @@ jobs:
       - name: Source file size
         run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_filesize.ps1
 
+      # workflow §5 的「core/ 必须有测试」此前只是文档里的一句话，没有任何东西在查 ——
+      # 加一个没有测试的 core 模块，所有检查照样全绿。
+      - name: Core modules have tests
+        run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_coretest.ps1
+
       - name: Docs consistency
         run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_docs.ps1
 
