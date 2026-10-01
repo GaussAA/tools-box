@@ -5,12 +5,16 @@
 # "no drift" that a script can decide.
 #
 # Rules enforced here:
-#   1. every relative link target in docs/*.md exists on disk
+#   1. every relative link target in every tracked *.md exists on disk
 #   2. every '#anchor' resolves to a heading in the target document
 #      (GitHub-flavored slug: lowercase, drop punctuation, spaces to hyphens;
 #       Chinese characters are kept as-is)
 #   3. no orphan document: every docs/*.md is linked from at least one other doc
 #      in the set, so a newly added document cannot be forgotten
+#
+# The scan covers the root README alongside docs/, because the README links into
+# docs/ and those links rot the same way. It is exempt from the orphan rule: an
+# entry point is not supposed to have an inbound link.
 #
 # NOTE: this file must keep its UTF-8 BOM. Windows PowerShell 5.1 reads a BOM-less
 # script with the system ANSI codepage (936 / GB2312 here), which mangles UTF-8 Chinese
@@ -32,8 +36,10 @@ function Check($ok, $what) {
   else     { Write-Output "FAIL: $what"; $script:failed += $what }
 }
 
-$docsRel = @(& git -C $repo ls-files "docs/*.md")
-if ($docsRel.Count -eq 0) { Write-Output "FAIL: no documents under docs/"; exit 1 }
+# git ls-files "*.md" matches at any depth, so this picks up docs/ and the root README
+# in one go. Deduplicate in case the pattern overlaps.
+$docsRel = @(& git -C $repo ls-files "*.md" | Select-Object -Unique)
+if ($docsRel.Count -eq 0) { Write-Output "FAIL: no markdown documents found"; exit 1 }
 
 # ---------- heading -> anchor, GitHub flavored ----------
 $anchorCache = @{}
@@ -107,8 +113,10 @@ Write-Output ("documents = " + $docsRel.Count + " file(s), " + $linkCount + " li
 Check ($fileMiss.Count -eq 0)  ("relative link targets exist ({0} miss)" -f $fileMiss.Count)
 Check ($anchorMiss.Count -eq 0) ("anchors resolve to headings ({0} miss)" -f $anchorMiss.Count)
 
+# The orphan rule only applies to the doc set under docs/. The root README is an entry
+# point, so nothing points at it by design.
 $orphans = @()
-foreach ($rel in $docsRel) {
+foreach ($rel in ($docsRel | Where-Object { $_ -like "docs/*" })) {
   if (-not $visited.Contains("./" + (Split-Path $rel -Leaf))) { $orphans += $rel }
 }
 Check ($orphans.Count -eq 0) ("no orphan document ({0} orphan)" -f $orphans.Count)

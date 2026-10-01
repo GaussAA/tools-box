@@ -27,7 +27,7 @@ Qt 安装相关的已知坑（历史踩过的，不要再试）：
 
 ## 2. 源码树里什么进版本控制
 
-进版本控制：`CMakeLists.txt`、`CMakePresets.json`、`docs/`、`scripts/`、
+进版本控制：`CMakeLists.txt`、`CMakePresets.json`、`README.md`、`docs/`、`scripts/`、
 `sdk/`、`app/`、`plugins/`、`tests/`、`.github/`（CI 配置），以及五份工具配置
 `.clang-format`、`.clang-tidy`、`.editorconfig`、`.gitattributes`、
 `.git-blame-ignore-revs`。
@@ -244,7 +244,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | `verify_format.ps1` | 格式：全部 C++ 源文件与 `.clang-format` 一致（`clang-format --dry-run --Werror`，只读不写）（§3.1，可纳入 CI） |
 | `verify_naming.ps1` | 命名：`m_` / `k` 前缀与大小写（clang-tidy `readability-identifier-naming`）。**需先构建**，且不钉版本的工具不当门禁，故不进 CI（§3.2） |
 | `verify_conventions.ps1` | 可机械判定的编码规范：旧式 `SIGNAL()/SLOT()`、`QString("字面量")`、跨层 include、裸字符串 QSettings 键、头文件缺 `#pragma once`、`#include "Xxx.moc"` 之后还有代码（可纳入 CI） |
-| `verify_docs.ps1` | 文档一致性：相对链接目标存在、`#锚点` 能落到标题、无孤立文档（§10 第 5 条，可纳入 CI） |
+| `verify_docs.ps1` | 文档一致性：所有纳入版本控制的 `*.md`（含根目录 `README.md`）相对链接目标存在、`#锚点` 能落到标题、`docs/` 内无孤立文档（§10 第 5 条，可纳入 CI） |
 | `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译。`-Exe` 可指向别处的构建产物，用于验收打包结果（§9） |
 | `verify_recent.ps1` | 收藏 / 最近使用 / 配置持久化 / 搜索 |
 | `verify_videodl.ps1` | 视频下载插件的界面与状态 |
@@ -341,8 +341,12 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 5. **文档之间的引用由脚本兜底**。章节会重编号、文件会挪位置，参考链接烂掉时没人会
    发现。`scripts/verify/verify_docs.ps1`（§8）机械检查三件事：相对链接的目标文件是否
    存在、`#锚点` 是否真能落到某个标题上、有没有哪份文档谁都不引用。新加文档时记得从
-   至少一处链过去，否则脚本会判它「孤立」。
-6. 文档只描述**结构、契约、规则**，不抄写代码细节，不列举会在代码里变化的清单
+   至少一处链过去，否则脚本会判它「孤立」。扫描范围包含仓库根目录的 `README.md`，
+   它同样会链接到 `docs/`；它不受「孤立」那条约束 —— 入口本来就没有人链它。
+6. **`README.md` 只做入口，不复制 `docs/` 的内容**。它回答「这是什么、怎么跑起来、
+   加工具从哪下手、文档在哪」，规则与契约一律链过去。写成第二份架构文档，就会出现
+   两处需要同步的描述，而 `docs/` 才是权威来源。
+7. 文档只描述**结构、契约、规则**，不抄写代码细节，不列举会在代码里变化的清单
    （工具数量、行数等），避免文档随代码频繁失效。
 
 ## 11. 持续集成（CI）
