@@ -21,7 +21,8 @@ namespace {
 
 QFile *g_logFile = nullptr;
 QMutex g_mutex;
-qint64 g_writtenBytes = 0; ///< 当前日志文件已写字节数（含 install 时的初始大小），用于免 stat 判定轮转
+qint64 g_writtenBytes =
+    0; ///< 当前日志文件已写字节数（含 install 时的初始大小），用于免 stat 判定轮转
 qint64 g_maxFileSize = 0;
 int g_backupCount = 0;
 LogLevel g_minLevel = LogLevel::Info;
@@ -30,11 +31,16 @@ LogLevel g_minLevel = LogLevel::Info;
 int severity(QtMsgType type)
 {
     switch (type) {
-    case QtDebugMsg:    return 0;
-    case QtInfoMsg:     return 1;
-    case QtWarningMsg:  return 2;
-    case QtCriticalMsg: return 3;
-    case QtFatalMsg:    return 4;
+    case QtDebugMsg:
+        return 0;
+    case QtInfoMsg:
+        return 1;
+    case QtWarningMsg:
+        return 2;
+    case QtCriticalMsg:
+        return 3;
+    case QtFatalMsg:
+        return 4;
     }
     return 1;
 }
@@ -42,11 +48,16 @@ int severity(QtMsgType type)
 QString levelName(QtMsgType type)
 {
     switch (type) {
-    case QtDebugMsg:    return QStringLiteral("DEBUG");
-    case QtInfoMsg:     return QStringLiteral("INFO");
-    case QtWarningMsg:  return QStringLiteral("WARN");
-    case QtCriticalMsg: return QStringLiteral("ERROR");
-    case QtFatalMsg:    return QStringLiteral("FATAL");
+    case QtDebugMsg:
+        return QStringLiteral("DEBUG");
+    case QtInfoMsg:
+        return QStringLiteral("INFO");
+    case QtWarningMsg:
+        return QStringLiteral("WARN");
+    case QtCriticalMsg:
+        return QStringLiteral("ERROR");
+    case QtFatalMsg:
+        return QStringLiteral("FATAL");
     }
     return QStringLiteral("UNKNOWN");
 }
@@ -96,8 +107,8 @@ void rotateLocked()
         }
         QFile::remove(to);
         if (!QFile::rename(from, to)) {
-            std::fprintf(stderr, "Logger: 备份重命名失败：%s -> %s\n",
-                         qPrintable(from), qPrintable(to));
+            std::fprintf(stderr, "Logger: 备份重命名失败：%s -> %s\n", qPrintable(from),
+                         qPrintable(to));
         }
     }
 
@@ -155,11 +166,12 @@ void Logger::install(const QString &logFilePath, const LoggerOptions &options)
 
     qInstallMessageHandler(&Logger::messageHandler);
 
-    info(QStringLiteral("Logger 已安装，日志文件：%1（最低级别=%2，单文件上限=%3 字节，保留 %4 份）")
-             .arg(logFilePath)
-             .arg(static_cast<int>(g_minLevel))
-             .arg(g_maxFileSize)
-             .arg(g_backupCount));
+    info(
+        QStringLiteral("Logger 已安装，日志文件：%1（最低级别=%2，单文件上限=%3 字节，保留 %4 份）")
+            .arg(logFilePath)
+            .arg(static_cast<int>(g_minLevel))
+            .arg(g_maxFileSize)
+            .arg(g_backupCount));
 }
 
 void Logger::shutdown()
@@ -181,9 +193,7 @@ void Logger::shutdown()
     s_logFilePath.clear();
 }
 
-void Logger::messageHandler(QtMsgType type,
-                            const QMessageLogContext &context,
-                            const QString &msg)
+void Logger::messageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
     // 分级过滤：低于阈值的消息直接丢弃（不入文件也不进控制台）；致命消息永不拦。
     if (type != QtFatalMsg && severity(type) < static_cast<int>(g_minLevel)) {
@@ -199,12 +209,11 @@ void Logger::messageHandler(QtMsgType type,
     QString location;
     if (context.file && context.file[0] != '\0') {
         location = QStringLiteral(" [%1:%2]")
-                       .arg(QString::fromUtf8(context.file),
-                            QString::number(context.line));
+                       .arg(QString::fromUtf8(context.file), QString::number(context.line));
     }
 
-    const QString formatted = QStringLiteral("%1 [%2] [tid %3] %4%5\n")
-                                 .arg(timestamp, level, threadId, msg, location);
+    const QString formatted =
+        QStringLiteral("%1 [%2] [tid %3] %4%5\n").arg(timestamp, level, threadId, msg, location);
 
     // 控制台（stderr）始终输出，方便实时观察。
     {
@@ -233,9 +242,21 @@ void Logger::messageHandler(QtMsgType type,
     }
 }
 
-void Logger::error(const QString &message)   { qCritical().noquote() << message; }
-void Logger::warning(const QString &message) { qWarning().noquote() << message; }
-void Logger::info(const QString &message)    { qInfo().noquote() << message; }
-void Logger::debug(const QString &message)   { qDebug().noquote() << message; }
+void Logger::error(const QString &message)
+{
+    qCritical().noquote() << message;
+}
+void Logger::warning(const QString &message)
+{
+    qWarning().noquote() << message;
+}
+void Logger::info(const QString &message)
+{
+    qInfo().noquote() << message;
+}
+void Logger::debug(const QString &message)
+{
+    qDebug().noquote() << message;
+}
 
 } // namespace toolbox

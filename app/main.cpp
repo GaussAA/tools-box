@@ -21,8 +21,7 @@ int main(int argc, char *argv[])
     // 结构化日志：把 qDebug/qInfo/qWarning/qCritical 重定向到磁盘文件 + 控制台。
     // 必须在任何业务日志之前安装；日志落在 AppData/ToolBox/toolbox.log。
     {
-        const QString logDir =
-            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        const QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
         const QString logPath = logDir + QStringLiteral("/toolbox.log");
         toolbox::Logger::install(logPath);
     }

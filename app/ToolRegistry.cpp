@@ -31,8 +31,7 @@ int ToolRegistry::rescan(const QString &dir)
 
     const QDir pluginDir(dir);
     if (!pluginDir.exists()) {
-        const QString dirError =
-            tr("插件目录不存在：%1").arg(QDir::toNativeSeparators(dir));
+        const QString dirError = tr("插件目录不存在：%1").arg(QDir::toNativeSeparators(dir));
         m_errors << dirError;
         toolbox::Logger::error(dirError);
         return 0;
@@ -92,8 +91,7 @@ int ToolRegistry::rescan(const QString &dir)
         m_entries.append(entry);
 
         toolbox::Logger::info(
-            tr("已加载插件：%1（%2 %3）")
-                .arg(file.fileName(), entry.meta.id, entry.meta.version));
+            tr("已加载插件：%1（%2 %3）").arg(file.fileName(), entry.meta.id, entry.meta.version));
     }
 
     // 按「分类 → 名称」排序，让同一类工具在导航里连续出现。

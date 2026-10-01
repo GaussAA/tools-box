@@ -4,7 +4,8 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
-class tst_Logger : public QObject {
+class tst_Logger : public QObject
+{
     Q_OBJECT
 private slots:
     void init();
@@ -138,8 +139,7 @@ void tst_Logger::rotationCreatesBackups()
     QVERIFY2(QFile::exists(logPath), "主日志文件应存在");
     QVERIFY2(QFile::exists(logPath + QStringLiteral(".1")), "应产生 .1 备份");
     QVERIFY2(QFile::exists(logPath + QStringLiteral(".2")), "应产生 .2 备份");
-    QVERIFY2(!QFile::exists(logPath + QStringLiteral(".3")),
-             "备份份数不应超过 backupCount=2");
+    QVERIFY2(!QFile::exists(logPath + QStringLiteral(".3")), "备份份数不应超过 backupCount=2");
     QVERIFY(!readAll(logPath + QStringLiteral(".1")).isEmpty());
 }
 

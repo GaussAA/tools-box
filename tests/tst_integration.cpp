@@ -9,8 +9,8 @@
 // 仅部署 base64_tool / jsonfmt_tool 两个纯 GUI 安全插件（不触发外部进程/网络），
 // 符合 tests/CMakeLists.txt「不允许依赖真实网络或真实子进程」约定。
 
-#include "ToolRegistry.h"
 #include "ToolBoxPlugin.h"
+#include "ToolRegistry.h"
 #include "core/Logger.h"
 
 #include <QApplication>

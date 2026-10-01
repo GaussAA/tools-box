@@ -29,7 +29,8 @@ struct LoggerOptions
     LogLevel minLevel = LogLevel::Info;
 };
 
-class Logger {
+class Logger
+{
 public:
     // 安装全局消息处理器并打开日志文件。幂等：重复调用只生效一次；
     // 需要以新配置重装时先调用 shutdown()。
@@ -49,8 +50,7 @@ public:
 private:
     Logger() = default;
 
-    static void messageHandler(QtMsgType type,
-                               const QMessageLogContext &context,
+    static void messageHandler(QtMsgType type, const QMessageLogContext &context,
                                const QString &msg);
 
     static bool s_installed;

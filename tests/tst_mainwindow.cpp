@@ -72,8 +72,7 @@ void TestMainWindow::switchToHomePageDoesNotCrash()
 void TestMainWindow::searchFilterDoesNotCrash()
 {
     MainWindow w;
-    QMetaObject::invokeMethod(&w, "onSearchTextChanged",
-                              Q_ARG(QString, QStringLiteral("base64")));
+    QMetaObject::invokeMethod(&w, "onSearchTextChanged", Q_ARG(QString, QStringLiteral("base64")));
     QMetaObject::invokeMethod(&w, "onSearchTextChanged", Q_ARG(QString, QString()));
 }
 
