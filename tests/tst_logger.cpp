@@ -4,13 +4,13 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
-class tst_Logger : public QObject
+class TestLogger : public QObject
 {
     Q_OBJECT
 private slots:
     void init();
     void cleanup();
-    void install_redirectsQtLogToFile();
+    void installRedirectsQtLogToFile();
     void installIsIdempotent();
     void levelFilterDropsBelowThreshold();
     void environmentOverridesLevel();
@@ -32,13 +32,13 @@ QString readAll(const QString &path)
 
 // 每个用例前后都复位 Logger 与环境变量，保证用例之间完全隔离
 // （install 幂等，必须经 shutdown 才能以新配置重装）。
-void tst_Logger::init()
+void TestLogger::init()
 {
     toolbox::Logger::shutdown();
     qunsetenv("TOOLBOX_LOG_LEVEL");
 }
 
-void tst_Logger::cleanup()
+void TestLogger::cleanup()
 {
     toolbox::Logger::shutdown();
     qunsetenv("TOOLBOX_LOG_LEVEL");
@@ -46,7 +46,7 @@ void tst_Logger::cleanup()
 
 // 验证 install() 后，经由 Qt 原生宏写出的日志被重定向到磁盘文件，且带有级别标记
 // 与内容。这是结构化日志「附加可观测层」的核心契约。
-void tst_Logger::install_redirectsQtLogToFile()
+void TestLogger::installRedirectsQtLogToFile()
 {
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
@@ -62,7 +62,7 @@ void tst_Logger::install_redirectsQtLogToFile()
 }
 
 // 验证 install() 是幂等的：重复调用不应切换到另一个文件。
-void tst_Logger::installIsIdempotent()
+void TestLogger::installIsIdempotent()
 {
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
@@ -79,7 +79,7 @@ void tst_Logger::installIsIdempotent()
 }
 
 // 分级开关：minLevel=Warning 时，Debug/Info 消息被丢弃，Warning/Critical 落盘。
-void tst_Logger::levelFilterDropsBelowThreshold()
+void TestLogger::levelFilterDropsBelowThreshold()
 {
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
@@ -102,7 +102,7 @@ void tst_Logger::levelFilterDropsBelowThreshold()
 }
 
 // 环境变量 TOOLBOX_LOG_LEVEL 优先于 options.minLevel（便于运维临时调整）。
-void tst_Logger::environmentOverridesLevel()
+void TestLogger::environmentOverridesLevel()
 {
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
@@ -119,7 +119,7 @@ void tst_Logger::environmentOverridesLevel()
 }
 
 // 轮转：小上限 + backupCount=2 时，持续写入应产生 .1/.2 且不产生 .3。
-void tst_Logger::rotationCreatesBackups()
+void TestLogger::rotationCreatesBackups()
 {
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
@@ -143,6 +143,6 @@ void tst_Logger::rotationCreatesBackups()
     QVERIFY(!readAll(logPath + QStringLiteral(".1")).isEmpty());
 }
 
-QTEST_GUILESS_MAIN(tst_Logger)
+QTEST_GUILESS_MAIN(TestLogger)
 
 #include "tst_logger.moc"

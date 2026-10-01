@@ -18,7 +18,7 @@
 | 源码编码 | UTF-8，换行 LF；`*.ps1` 必须带 BOM，其余文件不带 BOM（原因见 §3.1） | 源码含中文，必须 `/utf-8` |
 | 警告等级 | `/W4 /permissive- /WX`，**警告即错误**，Debug / Release 均须 0 告警 | 顶层 `CMakeLists.txt`；规则见 coding-standards §9 |
 | 格式化 | clang-format 22.1.3，随 Visual Studio 提供，**不必单独安装**；配置见根目录 `.clang-format` | **已强制**：全仓已归一化，`verify_format.ps1` 把关，见 §3.1 |
-| 静态检查 | clang-tidy 22.1.3，同样随 Visual Studio 提供；配置见根目录 `.clang-tidy` | 目前手动跑，不接入构建，见 §3.2 |
+| 静态检查 | clang-tidy（**LLVM 22.1 线**：本机用 VS 自带的 22.1.3，CI 装 PyPI 的 22.1.8）；配置见根目录 `.clang-tidy` | **已强制**：`verify_naming.ps1` 把关，已进 CI（排在构建之后），见 §3.2 |
 
 Qt 安装相关的已知坑（历史踩过的，不要再试）：
 - **不要**用清华镜像、华为云 `repo.huaweicloud.com/qt`、阿里云镜像安装 Qt：
@@ -116,22 +116,21 @@ powershell -ExecutionPolicy Bypass -File scripts\verify\verify_format.ps1
    **今后任何纯格式提交都要这样登记**；一旦某个提交同时改了语义，登记它就会掩盖
    真实改动，所以这条规则只适用于「只动格式」的提交。
 
-### 3.2 命名检查（clang-tidy，手动跑）
+### 3.2 命名检查（clang-tidy）
 
 [clang-format 管不了命名](#31-代码风格检查)，命名规则（[coding-standards.md §1](./coding-standards.md#1-命名)）
 靠根目录 `.clang-tidy` + clang-tidy 的 `readability-identifier-naming` 检查。clang-tidy
-同样随 Visual Studio 提供，**不必单独安装**（`...\VC\Tools\Llvm\x64\bin\clang-tidy.exe`）。
+随 Visual Studio 提供（`...\VC\Tools\Llvm\x64\bin\clang-tidy.exe`），本机不必单独安装。
 
 `CMakePresets.json` 已打开 `CMAKE_EXPORT_COMPILE_COMMANDS`，所以**不需要额外配置任何
-目录**，平时那个构建目录里就有 `compile_commands.json`。只需先构建过一次，然后：
+目录**，平时那个构建目录里就有 `compile_commands.json`。**先构建 Debug**，然后跑：
 
 ```powershell
-cmake --build --preset debug
-& "<VS 的 clang-tidy 路径>" -p build (git ls-files "*.cpp")
+powershell -ExecutionPolicy Bypass -File scripts\verify\verify_naming.ps1
 ```
 
 **先构建**这条不能省：`#include "Xxx.moc"` 指向构建期由 AUTOMOC 生成的文件，没构建过
-它们就不存在，缺这些文件的 7 个源文件（2 个插件入口 + 5 个测试）会被跳过分析，结果
+它们就不存在，缺这些文件的 12 个源文件（2 个插件入口 + 10 个测试）会被跳过分析，结果
 看着「全绿」其实是没查。`compile_commands.json` 里每个文件有 Debug/Release 两条，
 clang-tidy 取第一条（Debug），所以构建 Debug 即够。
 
@@ -139,28 +138,29 @@ clang-tidy 取第一条（Debug），所以构建 Debug 即够。
 出来的裸指针必须赋给 `gsl::owner<>`，与本项目（及 Qt 整体惯例）用父子对象树表达所有权
 的写法正面冲突，全仓实跑 61 条命中**全是误报**。所有权一条继续靠评审。
 
-**结论（P3）**：命名规则**当前全仓 0 命中** —— 16 个 `.cpp` 加上 `HeaderFilterRegex`
-覆盖的头文件，没有任何一处违反 §1。这条结论做过反向验证：手工把
-`ToolCatalog.cpp` 里的一个局部变量改成 `HasVisibleChild_XX`，检查立刻报出
-`invalid case style for local variable`。
-
-上面那串命令已包成 `scripts/verify/verify_naming.ps1`，用法与其余脚本一致：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\verify\verify_naming.ps1
-```
-
 脚本除了方便，还堵一个**会假通过**的坑：`Xxx.moc` 缺失时 clang-tidy 会直接跳过
 那几个翻译单元，输出看上去全绿、其实什么都没查。所以脚本把
 `clang-diagnostic-error` 当成硬失败并打印修复命令。这条做过反向验证：删掉构建目录里
-的 14 个 `.moc` 再跑，7 个翻译单元被点出来并返回 1。
+的 `.moc` 再跑，上面那 12 个源文件被逐一点出来并返回 1。
 
-**它不进 CI**，与 `verify_format.ps1` 不同。理由是版本钉不住：clang-tidy 在 PyPI 上
-没有 22.1.3（只有 22.1.0 / 22.1.7 / 22.1.8），唯一能拿到精确 22.1.3 的地方是 LLVM 的
-`clang+llvm-22.1.3-x86_64-pc-windows-msvc` 归档，**821 MB** —— 为一条当前零违规的
-规则付这个代价不划算。而改用 runner 上随镜像滚动的那个版本，就会掉回
-`verify_format` 刻意避开的「结果取决于镜像」的坑。**结论：钉不住版本的工具不拿去
-当门禁**；将来 LLVM 出更小的分发或 PyPI 补上该版本，可以重新评估。
+**结论（P3）**：命名规则**当前全仓 0 命中** —— 23 个 `.cpp` 加上 `HeaderFilterRegex`
+覆盖的头文件，没有任何一处违反 §1。这条结论也做过反向验证：手工把 `ToolCatalog.cpp`
+里的一个局部变量改成 `HasVisibleChild_XX`，检查立刻报出
+`invalid case style for local variable`。
+
+**版本策略：钉发行线，不钉精确版本**（与 `verify_format.ps1` 的精确钉不同，别照着改）：
+
+- 格式化器钉**精确版本** 22.1.3，因为输出逐字节敏感 —— 另一个补丁版可能把代码排成
+  别的样子。这个精确版本恰好等于 Visual Studio 自带的那份，所以本机不用额外装东西。
+- clang-tidy 没有这种「本机现成」的精确版本：VS 18 自带 22.1.3，而 PyPI 上只有
+  22.1.0 / 22.1.0.1 / 22.1.7 / 22.1.8，精确的 22.1.3 只能从 LLVM 的
+  `clang+llvm-22.1.3-x86_64-pc-windows-msvc` 归档（**821 MB**）里拿。若钉精确版本，
+  每个开发者都要为跑一条检查单独装一份。
+- 所以钉的是 **LLVM 22.1 这条线**：命名判定不会在同一条线的补丁版之间变，而 VS 升级
+  到新线（22.2、23.x）会**当场 FAIL**，不会悄悄换一套判定。
+
+版本不符合预期时脚本直接 FAIL、绝不给绿 —— 这就是「检查结果不随环境摇摆」的可执行
+定义。CI 里照此跑（装 PyPI 的 `clang-tidy==22.1.8`），排在构建之后，见 §11。
 
 ### 3.3 界面语言与翻译
 
@@ -190,12 +190,17 @@ powershell -ExecutionPolicy Bypass -File scripts\verify\verify_shell.ps1 -Lang e
 
 维护译文时要留意的三件事：
 
-1. **`.ts` 目前是手工维护的**。本机这份 Qt 没装 `qtdeclarative`，而 `lupdate` 依赖
-   `Qt6Qml.dll`，所以 `update_translations` 目标在这里跑不起来（`lrelease` 不受影响，
-   构建照常）。有完整 Qt 的机器上可以跑
-   `cmake --build build --target update_translations` 刷新 `.ts` 骨架，但**译文仍要
-   人来补**。所以：**改了 `tr()` 里的字面量之后，必须手动同步 `.ts` 里的
-   `<source>`**，否则运行期按「上下文 + 源字符串」查不到译文，会静默退回中文。
+1. **骨架可以自动刷新，译文仍要人来定**。`lupdate` 现在跑得起来（Qt 6.12 这份安装里
+   有 `Qt6Qml.dll`，实测 `lupdate version 6.12.0`），刷新骨架走：
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts\lupdate_ts.ps1
+   ```
+
+   它调 `update_translations` 目标（脚本自己拼 MSVC 环境并把 Qt 的 `bin` 放进 `PATH`，
+   日志落在 `scripts/lupdate.log`）。但 `lupdate` 只同步 `<source>` 与位置，**新译文的
+   英文要人来写** —— 所以规矩不变：**改了 `tr()` 里的字面量之后，必须让 `.ts` 里的
+   `<source>` 同步**，否则运行期按「上下文 + 源字符串」查不到译文，会静默退回中文。
    顺带一提：`<location>` 里的行号只是给 Linguist 跳转用的提示，会随代码改动漂移，
    不影响译文生效，不必手工维护。
 2. **同一个源字符串只能有一个译文**。「收藏」既做导航分区标题（英文要 Favorites）
@@ -247,14 +252,22 @@ ctest --test-dir build -C Debug --output-on-failure
 | `tst_douyinsupport` | [videodl/core/DouyinSupport.*](../plugins/videodl/core/DouyinSupport.h)：站点判定、画质档位、DOM 字段提取 |
 | `tst_cookiefile` | [videodl/core/CookieFile.*](../plugins/videodl/core/CookieFile.h)：cookies 规范化与各失败分支 |
 | `tst_enginelocator` | [videodl/core/EngineLocator.*](../plugins/videodl/core/EngineLocator.h)：内核定位顺序 |
+| `tst_pluginmeta` | [sdk/ToolBoxPlugin.h](../sdk/ToolBoxPlugin.h)：静态元数据的 IID 门禁，以及 `toolMetaFromMetaData()` 的两层取值（`MetaData` → `toolbox`） |
+| `tst_logger` | [app/core/Logger.*](../app/core/Logger.h)：重定向到文件、install 幂等、级别过滤、环境变量覆盖级别、轮转与备份份数 |
+| `tst_mainwindow` | 外壳在**无插件**环境下的四条主路径：构造、扫描不存在目录、切页、搜索（不装载任何真实插件） |
+| `tst_integration` | 跨 DLL 真链路：把 base64 / jsonfmt 部署到专属目录，验证 `rescan` → `qobject_cast` → `createPage` 全程可用 |
 
 新增用例：在 `tests/` 下加一个 `tst_<模块名>.cpp`，用
 `toolbox_add_test(tst_<模块名> <被测静态库>)` 注册，并同步本表。
 
 约定：
 
-- 只用 `QTEST_APPLESS_MAIN`（`QCoreApplication` 级），**不允许**依赖 `QApplication`。
-  一旦发现非要后者不可，说明逻辑还挂在控件上，应先把逻辑挪进 `core/`。
+- 默认用 `QTEST_APPLESS_MAIN` / `QTEST_GUILESS_MAIN`（无 `QApplication`），`*/core/` 的
+  用例一律如此。**例外**：确实要装配真实控件的用例（`tst_mainwindow`、`tst_integration`）
+  可以用 `QTEST_MAIN` 级的 `QApplication`，但必须在自己的 `main()` 里、**构造
+  `QApplication` 之前**设 `QT_QPA_PLATFORM=offscreen`，且只验证「构造与装载不崩」。
+  例外不能成为借口：**逻辑**若因为「挂了控件所以不好测」，第一选择仍是把逻辑挪进
+  `core/` 再测，而不是加一个 GUI 用例糊过去。
 - **不允许**依赖真实网络与真实子进程；需要文件系统时用 `QTemporaryDir`，不留残留。
 - 测试可执行文件落在 `build/tests/<Config>/`，不混进要分发的 `bin/<Config>/`；
   测试进程的 `PATH` 由 `tests/CMakeLists.txt` 前置 Qt 的 `bin` 目录，
@@ -289,7 +302,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | --- | --- |
 | `verify_whitespace.ps1` | 空白与编码：全仓 LF、末尾换行、无行尾空白、源码无制表符、`*.ps1` 带 BOM（§3.1，可纳入 CI） |
 | `verify_format.ps1` | 格式：全部 C++ 源文件与 `.clang-format` 一致（`clang-format --dry-run --Werror`，只读不写）（§3.1，可纳入 CI） |
-| `verify_naming.ps1` | 命名：`m_` / `k` 前缀与大小写（clang-tidy `readability-identifier-naming`）。**需先构建**，且不钉版本的工具不当门禁，故不进 CI（§3.2） |
+| `verify_naming.ps1` | 命名：`m_` / `s_` / `g_` / `k` 前缀与大小写（clang-tidy `readability-identifier-naming`，工具钉在 LLVM 22.1 线上）。**需先构建**，所以在 CI 里排在构建之后（§3.2） |
 | `verify_conventions.ps1` | 可机械判定的编码规范：旧式 `SIGNAL()/SLOT()`、`QString("字面量")`、跨层 include、裸字符串 QSettings 键、头文件缺 `#pragma once`、`#include "Xxx.moc"` 之后还有代码（可纳入 CI） |
 | `verify_docs.ps1` | 文档一致性：所有纳入版本控制的 `*.md`（含根目录 `README.md`）相对链接目标存在、`#锚点` 能落到标题、`docs/` 内无孤立文档（§10 第 5 条，可纳入 CI） |
 | `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译。`-Exe` 可指向别处的构建产物（验收打包结果，§9）；`-Lang en\|zh` 断言对应语言的界面（§3.3） |
@@ -303,6 +316,10 @@ ctest --test-dir build -C Debug --output-on-failure
 | `verify_videodl_status.ps1` | 状态栏与进度反馈 |
 | `verify_videodl_logread.ps1` | 日志解析与输出读取 |
 
+`scripts/` 下还有两个不按「验证目标」命名的辅助脚本，一并记在这里免得找不到：
+`build_verify.ps1`（本机全量：清构建目录 → 配置 → 双配置构建 → 双配置 `ctest`，是
+「CI 那套」的本地等价物）与 `lupdate_ts.ps1`（刷新译文骨架，见 §3.3）。
+
 `fixtures/` 只放固定样本（各类分享文案、地址样例）。脚本运行时的截图与下载产物落在
 `build/shots/`、`build/` 下的临时目录 —— 那是可再生成的东西，不进版本控制，跑完随手清掉。
 
@@ -310,18 +327,21 @@ ctest --test-dir build -C Debug --output-on-failure
 
 交付形态是一个「解压即用」的 zip，由 CPack 产生。**顺序不能颠倒**：
 
-> 第 1 步的三件事与构建、打包，CI 都会在干净机器上跑一遍（[§11](#11-持续集成ci)）。
-> 但 CI **不覆盖**第 7 步的冒烟，也不覆盖界面与真实下载链路 —— 那几项只能靠人。
+> 第 1、2 步的检查、构建与测试，加上打包，CI 都会在干净机器上跑一遍
+> （[§11](#11-持续集成ci)）。但 CI **不覆盖**第 7 步的冒烟，也不覆盖界面与真实下载
+> 链路 —— 那几项只能靠人。
 
 ```powershell
-# 1) 四个不依赖界面、秒级的检查，都返回 0 才继续
+# 1) 四个不依赖构建、秒级的检查，都返回 0 才继续
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_whitespace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_format.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_conventions.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_docs.ps1
+#    命名检查要 build/compile_commands.json，所以只能排在构建之后
 
 # 2) 构建 + 把 Qt 运行时收进输出目录（Qt 的 DLL 靠这一步产生，缺了就打不出可用的包）
 cmake --build --preset release
+powershell -ExecutionPolicy Bypass -File scripts\verify\verify_naming.ps1
 cmake --build build --config Release --target deploy
 
 # 3) 打包
@@ -330,9 +350,8 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 
 完整清单：
 
-1. 跑上面第 1 步的四个脚本；命名检查（[§3.2](#32-命名检查clang-tidy手动跑)）
-   单独跑（`scripts\verify\verify_naming.ps1`），不拦在发版路径上，
-   但改动过命名相关的代码后应当跑一次；
+1. 跑上面第 1 步的四个脚本，构建之后再补跑命名检查
+   （[§3.2](#32-命名检查clang-tidy)）：五个都返回 0 才继续；
 2. 按 §6 确认版本号单一来源 —— 打包配置里没有再写一份版本号，
    `CPACK_PACKAGE_VERSION` 取的就是顶层 `project(... VERSION ...)`；
 3. 构建 + `deploy`（见上面第 2 步）；
@@ -423,14 +442,16 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 在 push 到 `main`、推 `v*` 标签、开 PR、以及手动触发时各跑一遍。**打标签也跑**，
 是为了让发布用的产物来自 CI 对该标签的构建，而不是把手边的 zip 碰巧发出去。
 
-**它跑的就是本文档里那一套，不是另写一份。** 顺序是「快检 → 构建 → 打包」，
-快检只要几秒，失败得最快，能省掉后面几分钟的构建：
+**它跑的就是本文档里那一套，不是另写一份。** 顺序是「快检 → 构建 → 测试 → 命名 →
+打包」：快检只要几秒，失败得最快，能省掉后面几分钟的构建；命名检查反过来，必须等
+构建产出 `compile_commands.json`。
 
 | 阶段 | 内容 | 本地等价命令 |
 | --- | --- | --- |
-| 快检 | §3.1 / §8 的四个脚本，外加一个钉版 clang-format | `verify_whitespace` / `verify_format` / `verify_conventions` / `verify_docs` |
+| 快检 | §3.1 / §8 的四个脚本，外加钉版的 clang-format 与 clang-tidy | `verify_whitespace` / `verify_format` / `verify_conventions` / `verify_docs` |
 | 构建 | `cmake --preset default` + Debug / Release 双配置 | §3 的同一套 |
-| 测试 | `ctest -C Debug` | §5 |
+| 测试 | `ctest -C Debug` **与** `-C Release` | §5 |
+| 命名 | `verify_naming.ps1`（排在构建之后，见下） | §3.2 |
 | 打包 | `deploy` + `cpack`，产物作为 artifact 上传（保留 14 天） | §9 第 2、3 步 |
 
 几个刻意的决定，改动 CI 前先读：
@@ -438,10 +459,12 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 - **快检显式用 Windows PowerShell 5.1**（`powershell` 而不是 runner 默认的 pwsh 7）。
   脚本是按 5.1 的脾气写的（§3.1 的 BOM 约定），用较老的解析器验，覆盖更严。
 - **Qt 用官方源，不开 mirror**。本项目吃过镜像的亏（§1 的三条禁令），CI 里也不要开。
-- **格式检查装钉死的 clang-format**（`pip install clang-format==22.1.3`），不用
-  runner 上 VS 自带那个：镜像里的版本会滚动，而格式化输出随版本变，检查会从
-  「确定」变成「碰运气」。这个版本号必须与 `verify_format.ps1` 里的
-  `$expectedVersion` 一致。
+- **两个 clang 工具都用 pip 装钉死的版本**（`clang-format==22.1.3` 与
+  `clang-tidy==22.1.8`），不用 runner 上 VS 自带那个：镜像里的版本会滚动，检查会从
+  「确定」变成「碰运气」。两者的钉法不同，理由见 §3.2 —— clang-format 必须与
+  `verify_format.ps1` 的 `$expectedVersion` **精确**一致（输出逐字节敏感），
+  clang-tidy 钉的是 LLVM 22.1 这条**线**（本机 VS 自带的 22.1.3 同样通过），
+  由脚本自己校验，版本不在线上直接 FAIL。
 - **复用 `CMakePresets.json`**，不在 workflow 里重复一份构建配置。命令行 `-D` 会
   覆盖 preset 的 `cacheVariables`（实测确认），所以 Qt 路径按 runner 的实际情况传，
   preset 里那份本机绝对路径保持不动。
@@ -458,8 +481,9 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
   代价是这段要自己维护，换来少一个第三方依赖、且不再有运行时弃用告警。
 - **界面与真实下载链路不进 CI**。它们靠 UI 自动化驱动真实窗口和真实网络，属于
   手工回归（§5），不是单元测试的替代品。
-- **命名检查（`verify_naming.ps1`）不进 CI**：clang-tidy 在这里钉不到与本地相同的
-  版本，而钉不住版本的工具当门禁只会让结果随环境摇摆。理由与数据见 §3.2。
+- **命名检查排在构建之后**，不混在快检里：它读 `build/compile_commands.json` 和
+  AUTOMOC 生成的 `.moc`，在未构建的干净机器上跑会缺文件；脚本把这种情况当硬失败，
+  所以放错位置是「红」，而不是悄悄给个绿。
 
 CI 覆盖不到的部分，仍然只能靠人：§8 里那些界面 / 下载链路的脚本、以及 §9 第 7 步
 「解压产物跑一次冒烟」。**CI 绿不等于可以发布。**

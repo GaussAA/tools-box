@@ -1,7 +1,9 @@
 # 单元测试。用 Qt Test + CTest 跑，命令与约定见 docs/workflow.md §5。
 #
-# 这些测试不允许依赖 QApplication、真实网络或真实子进程 —— 被测的都是从界面
-# 和进程里抽出来的纯逻辑（app/core、plugins/videodl/core）。
+# 被测对象是抽出来的纯逻辑（app/core、plugins/videodl/core），一律不依赖真实网络与
+# 真实子进程。个别确实要装配真实控件的用例（tst_mainwindow / tst_integration）使用
+# offscreen 平台的 QApplication，它们只验证「构造与跨 DLL 装载不崩」，不模拟用户操作
+# ——界面交互仍归 scripts/verify/ 下的手工回归脚本（workflow §5）。
 
 # 测试 exe 落在 build/tests/<Config>/，和主程序不在同一层，按默认搜索路径找不到
 # Qt 的 DLL。这里把 Qt 的 bin 目录前置进 PATH，免得依赖用户机器上的环境变量。

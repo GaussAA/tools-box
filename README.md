@@ -59,7 +59,7 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 | --- | --- |
 | [architecture-analysis-report.md](docs/architecture-analysis-report.md) | 架构与代码结构分析（实现层速览：类职责、信号槽、依赖图） |
 | [best-practices-assessment.md](docs/best-practices-assessment.md) | Qt 最佳实践符合性评估（P0–P3 清单与落地记录） |
-| [version-migration-audit.md](docs/version-migration-audit.md) | Qt 6.12 迁移深度审计（8 处问题与 CI 结果） |
+| [version-migration-audit.md](docs/version-migration-audit.md) | Qt 6.12 迁移深度审计（8 处问题、CI 结果与后续勘误） |
 
 ## 几条硬约束
 
@@ -69,7 +69,7 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 - **警告即错误**：MSVC `/W4 /permissive- /WX`，Debug 与 Release 都必须 0 告警。
 - **纯逻辑必须能被单元测试覆盖**：凡是能脱离 `QWidget` 表达的逻辑都放进 `*/core/`，
   编成只链接 `Qt6::Core` 的静态库 —— 误用界面类会**直接编译失败**，不需要靠 grep 兜底。
-- **格式与空白由脚本强制**：全仓已用 clang-format 归一化并锁住，`scripts/verify/` 下
-  的脚本负责把关。
-- **CI 在每次 push / PR 跑**：四个秒级快检 + Debug/Release 双配置构建 + `ctest` +
-  打包，产物作为 artifact 上传。
+- **格式、空白与命名由脚本强制**：全仓已用 clang-format 归一化并锁住，`scripts/verify/`
+  下的五个脚本负责把关（格式与命名各钉一个工具版本，版本不符直接失败，不给假绿）。
+- **CI 在每次 push / PR 跑**：四个秒级快检 + Debug/Release 双配置构建 + 双配置 `ctest` +
+  命名检查 + 打包，产物作为 artifact 上传。

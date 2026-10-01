@@ -34,10 +34,10 @@ tools-box/
 ├── scripts/verify/         开发期验证脚本（powershell：格式/空白/命名/跨层依赖/外壳验收）
 ├── sdk/                    契约层：纯头文件 INTERFACE 库（无二进制）
 │   └── ToolBoxPlugin.h     唯一跨模块契约：ToolMeta / ToolSettings / IToolPage / IToolPlugin
-├── app/                    外壳层：主程序
-│   ├── main.cpp            应用元信息 + 入口 + 语言/翻译器安装
+├── app/                    外壳层：主程序（ToolBox.exe → ToolBoxApp → ToolBoxCore / ToolBox::Sdk）
+│   ├── main.cpp            应用元信息 + 入口 + 语言/翻译器安装 + 结构化日志安装
 │   ├── MainWindow.*        窗口装配、导航渲染、配置持久化（View）
-│   ├── ToolRegistry.*      插件扫描与装载（Service）
+│   ├── ToolRegistry.*      插件扫描与装载（Service）；与 MainWindow 一起编成静态库 ToolBoxApp
 │   └── core/               外壳纯逻辑（无 QWidget 依赖）→ 静态库 ToolBoxCore
 │       ├── ToolCatalog.*   导航过滤、收藏/最近使用维护
 │       └── LanguageChoice.* 界面语言解析
@@ -177,7 +177,7 @@ tools-box/
   - 顶层整目录 `install()` + CPack ZIP；两条 `install(CODE)` 拦截「非 Release」与「未 deploy」。
 - **各子目录 target-based 写法**：
   - `sdk` → `ToolBoxSdk` INTERFACE（仅暴露头文件 + 链接 `Qt6::Widgets`）。
-  - `app` → `ToolBoxCore` STATIC（只链 `Qt6::Core`）+ `ToolBox` WIN32 可执行（链 `ToolBox::Sdk ToolBoxCore`）；自定义 `deploy` 目标用 `windeployqt` + app-local VC 运行时。
+  - `app` → `ToolBoxCore` STATIC（只链 `Qt6::Core`）+ `ToolBoxApp` STATIC（`MainWindow.*` + `ToolRegistry.*`，链 `ToolBox::Sdk ToolBoxCore Qt6::Widgets`）+ `ToolBox` WIN32 可执行（只含 `main.cpp`，链 `ToolBoxApp`）；自定义 `deploy` 目标用 `windeployqt --no-opengl-sw --no-compiler-runtime` + app-local VC 运行时（跳过 17.9 MB 的 `vc_redist` 安装器，改拷约 1.6 MB 的 CRT DLL）。
   - `plugins/<x>` → `<x>_tool` MODULE（链 `ToolBox::Sdk`，DLL 落 `tools/`）；带纯逻辑的再编 `<x>_core` STATIC。videodl 额外链 `Qt6::Network`。图标经 `qt_add_resources` 编进 DLL。
   - `tests` → `toolbox_add_test()` 函数，链接 `Qt6::Test` + 被测 `*_core`，`RUNTIME_OUTPUT_DIRECTORY` 指向 `build/tests/<Config>`（避免混进交付目录），并前置 Qt bin 目录进 PATH。
 - **约定**：`install()` 只出现在顶层；子目录不写 `install(TARGETS)`（保持交付描述单一、新增插件无需改顶层）。
@@ -194,7 +194,7 @@ tools-box/
 | MSVC 工具集                                             | x64（VS2022 及以上；本机 VS18/v144） | 编译/链接；`/W4 /permissive- /WX` 锁零告警  |
 | Ninja                                                   | Multi-Config                         | 构建后端                                    |
 | CMake                                                   | ≥ 3.25                               | 构建系统（Qt 6.12 要求）                    |
-| clang-format / clang-tidy                               | 本地（版本钉不住，手动跑）           | 格式与命名保证（`verify_*.ps1`）            |
+| clang-format / clang-tidy                               | 钉版：clang-format 22.1.3 精确 / clang-tidy 22.1 发行线（CI 用 pip 装，本地可用 VS 自带） | 格式与命名保证（`verify_format` / `verify_naming`） |
 | CPack                                                   | 随 CMake                             | ZIP 打包                                    |
 | PowerShell                                              | 系统（含 BOM 脚本）                  | `Expand-Archive` 解压 ffmpeg、验证脚本      |
 
@@ -216,9 +216,9 @@ tools-box/
 
 ## 6. 测试与质量门禁
 
-- **单测**：`tests/` 下 10 个目标——`ToolCatalog`（过滤/去重/最近使用）、`LanguageChoice`（语言解析）、`OutputParsing`/`DouyinSupport`/`CookieFile`/`EngineLocator`（解析与定位规则）、`PluginMeta`（静态元数据门禁）、`Logger`（日志重定向/分级/轮转），外加 `MainWindow`（GUI 烟雾）与跨 DLL 端到端集成。均由 `ctest` 驱动，`CI` 在 push/PR 跑四个快检 + Debug/Release 双配置构建 + `ctest` + 打包。
-- **保证手段优先级**：编译器（`/WX`、弃用 API 直接失败）> 脚本（`verify_format/whitespace/conventions.ps1`，已进 CI）> 评审（tr 完备性、对象所有权需语义判断）。命名检查（clang-tidy）因版本钉不住，**不进 CI**，手动跑。
-- **CI 未覆盖**：界面与下载链路、命名检查仍属手工回归。
+- **单测**：`tests/` 下 10 个目标——`ToolCatalog`（过滤/去重/最近使用）、`LanguageChoice`（语言解析）、`OutputParsing`/`DouyinSupport`/`CookieFile`/`EngineLocator`（解析与定位规则）、`PluginMeta`（静态元数据门禁）、`Logger`（日志重定向/分级/轮转），外加 `MainWindow`（GUI 烟雾）与跨 DLL 端到端集成。均由 `ctest` 驱动；`CI` 在 push/PR 跑四个快检 + Debug/Release 双配置构建 + 双配置 `ctest` + 命名检查 + 打包。
+- **保证手段优先级**：编译器（`/WX`、弃用 API 直接失败）> 脚本（五个 `verify_*.ps1` 全部已进 CI）> 评审（tr 完备性、对象所有权需语义判断）。命名检查（clang-tidy）钉 **LLVM 22.1 发行线**：精确版本在 PyPI 上没有、在 Visual Studio 里有，两边无法同时精确满足，所以钉线而非钉点（版本不符直接 FAIL，不会悄悄给绿），见 workflow §3.2。
+- **CI 未覆盖**：界面与下载链路仍属手工回归。
 
 ---
 

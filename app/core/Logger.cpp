@@ -15,14 +15,13 @@
 namespace toolbox {
 
 bool Logger::s_installed = false;
-QString Logger::s_logFilePath;
 
 namespace {
 
 QFile *g_logFile = nullptr;
 QMutex g_mutex;
 qint64 g_writtenBytes =
-    0; ///< 当前日志文件已写字节数（含 install 时的初始大小），用于免 stat 判定轮转
+    0; ///< 已落盘的 UTF-8 字节数（含 install 时的初始大小），用于免 stat 判定轮转
 qint64 g_maxFileSize = 0;
 int g_backupCount = 0;
 LogLevel g_minLevel = LogLevel::Info;
@@ -121,7 +120,7 @@ void rotateLocked()
     }
 
     // 重新打开（可能失败，退化为仅控制台）。
-    if (!g_logFile->open(QIODevice::Append | QIODevice::Text | QIODevice::WriteOnly)) {
+    if (!g_logFile->open(QIODevice::Append | QIODevice::WriteOnly)) {
         delete g_logFile;
         g_logFile = nullptr;
     }
@@ -136,7 +135,6 @@ void Logger::install(const QString &logFilePath, const LoggerOptions &options)
         return;
     }
     s_installed = true;
-    s_logFilePath = logFilePath;
 
     const QFileInfo fi(logFilePath);
     const QDir dir = fi.dir();
@@ -155,7 +153,7 @@ void Logger::install(const QString &logFilePath, const LoggerOptions &options)
     }
 
     g_logFile = new QFile(logFilePath);
-    if (g_logFile->open(QIODevice::Append | QIODevice::Text | QIODevice::WriteOnly)) {
+    if (g_logFile->open(QIODevice::Append | QIODevice::WriteOnly)) {
         g_writtenBytes = g_logFile->size();
     } else {
         // 日志文件打不开时退化为仅控制台输出，不致命。
@@ -190,7 +188,6 @@ void Logger::shutdown()
     // 先关闭文件、再摘除 handler，避免 handler 访问已释放的 g_logFile。
     qInstallMessageHandler(nullptr);
     s_installed = false;
-    s_logFilePath.clear();
 }
 
 void Logger::messageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
@@ -223,17 +220,25 @@ void Logger::messageHandler(QtMsgType type, const QMessageLogContext &context, c
     }
 
     // 文件写出加锁，避免多线程日志交错；轮转判定同样在锁内完成。
+    //
+    // 记账要按**实际落盘字节数**：QString::size() 是 UTF-16 码元数，而写出去的是
+    // UTF-8，日志里中文越多偏得越远，轮转会远晚于 maxFileSize。这里直接 QFile::write()
+    // 写 UTF-8，写多少字节就记多少字节；顺带绕开 QIODevice::Text 把 '\n' 改写成 CRLF
+    // 的副作用 —— 日志文件因此保持 LF，与全仓换行符约定一致。
+    const QByteArray encoded = formatted.toUtf8();
+
     QMutexLocker locker(&g_mutex);
     if (g_logFile && g_logFile->isOpen()) {
         if (g_maxFileSize > 0 && g_backupCount > 0
-            && g_writtenBytes + formatted.size() > g_maxFileSize) {
+            && g_writtenBytes + encoded.size() > g_maxFileSize) {
             rotateLocked();
         }
         if (g_logFile && g_logFile->isOpen()) {
-            QTextStream out(g_logFile);
-            out << formatted;
-            out.flush();
-            g_writtenBytes += formatted.size();
+            const qint64 written = g_logFile->write(encoded);
+            if (written > 0) {
+                g_writtenBytes += written;
+            }
+            g_logFile->flush();
         }
     }
 

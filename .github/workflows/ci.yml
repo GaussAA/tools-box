@@ -1,7 +1,8 @@
 name: CI
 
 # 干净机器上的完整回归：四个不依赖构建的快检 → 配置 → Debug/Release 双配置构建 →
-# ctest → 打包。清单与依据见 docs/workflow.md，本地怎么跑同一套见 §9。
+# 双配置 ctest → 命名检查（要 compile_commands.json，所以排在构建之后）→ 打包。
+# 清单与依据见 docs/workflow.md，本地怎么跑同一套见 §9。
 #
 # 有意**不做**的事：界面与真实下载链路（verify_shell.ps1 等）不进 CI。它们要靠
 # UI 自动化驱动真实窗口与真实网络，属于手工回归，不是单元测试的替代品 —— 这条
@@ -11,9 +12,11 @@ name: CI
 # 钉在旧大版本上迟早会红（第一次跑就收到过 Node.js 20 的弃用告警）。升级前先确认
 # inputs 没改名（用 gh api 读它的 action.yml，比猜可靠）。
 #
-# 现在整个 workflow 只剩三个 GitHub 官方 Action 加一个第三方（install-qt-action）。
+# 现在整个 workflow 只剩三个 GitHub 官方 Action（checkout / setup-python /
+# upload-artifact），没有第三方 Action —— Qt 由 pip 装的 aqtinstall 直接安装（原因见
+# 下面 Install Qt），MSVC 环境由 vswhere + DevShell 模块自己搭（原因见 Set up MSVC）。
 # 原先后端还需要 ilammy/msvc-dev-cmd，但它的 action.yml 声明 `using: node20` 且没有
-# v2，那条弃用告警只能靠「不用它」来消除 —— 详见下面 Set up MSVC 那一步的注释。
+# v2，那条弃用告警只能靠「不用它」来消除。
 
 on:
   push:
@@ -47,16 +50,19 @@ jobs:
       - name: Whitespace and encoding
         run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_whitespace.ps1
 
-      # 格式检查依赖格式化器版本，output 会随版本变。用 PyPI 的 wheel 装一个钉死的
-      # 版本，而不是用 runner 上 VS 自带那个（版本随镜像滚动，检查会变成不确定）。
-      # 版本号必须与 scripts/verify/verify_format.ps1 里的 $expectedVersion 一致。
+      # 两个 clang 工具都依赖版本：格式化器的 output 会随版本变，clang-tidy 的判定也会
+      # 随 LLVM 线变。都用 PyPI 的 wheel 装钉死的版本，而不是用 runner 上 VS 自带那个
+      # （版本随镜像滚动，检查会变成不确定）。
+      #   * clang-format 必须与 verify_format.ps1 的 $expectedVersion 精确一致（22.1.3）；
+      #   * clang-tidy 钉的是 22.1 这一条 LLVM 线（本机 VS 自带的 22.1.3 同样可用），
+      #     理由写在 verify_naming.ps1 头部。
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: '3.x'
 
-      - name: Install pinned clang-format
-        run: python -m pip install clang-format==22.1.3
+      - name: Install pinned clang-format and clang-tidy
+        run: python -m pip install clang-format==22.1.3 clang-tidy==22.1.8
 
       - name: Formatting
         run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_format.ps1
@@ -155,8 +161,18 @@ jobs:
         run: cmake --build --preset release
 
       # /W4 /permissive- /WX 已开，告警即错误，所以「构建通过」本身就等于 0 告警。
-      - name: Unit tests
+      - name: Unit tests (Debug)
         run: ctest --test-dir build -C Debug --output-on-failure
+
+      # 两个配置都跑：Release 开优化并定义 NDEBUG，只跑 Debug 会漏掉只在 Release 显形的
+      # 缺陷（未初始化读、优化相关行为差异、断言掩盖的逻辑）。
+      - name: Unit tests (Release)
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      # 命名检查需要 build 下的 compile_commands.json 与 AUTOMOC 产物，所以排在构建之后。
+      # 它检查的是源码本身，与配置无关，跑一次即可；脚本自己校验工具版本落在 22.1 线上。
+      - name: Naming
+        run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_naming.ps1
 
       # ── 打包：顺带验证发布链路在干净机器上也能走通 ──
 

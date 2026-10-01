@@ -31,9 +31,9 @@
 ## 3. 验证结果
 
 - **构建**：Qt 6.12.0 + Ninja Multi-Config（cmake 4.3.1 / ninja 1.13.2 / MSVC 19.51）——配置成功、Debug + Release 双配置构建通过、**双 `ctest` 各 10/10**、`lrelease` **161/161**。
-- **规范门禁**：`verify_whitespace` / `verify_docs` / `verify_conventions` / `verify_naming` 全部 **ALL PASS**。
+- **规范门禁**：`verify_whitespace` / `verify_docs` / `verify_conventions` / `verify_naming` 全部 **ALL PASS**（命名检查这一条是**补验**的，见 §6 勘误 —— 首次撰写本报告时它其实有 13 条命中）。
 - **Qt API**：无弃用用法（`QLibraryInfo::path()` 已是 Qt 6 现代 API）。
-- **CI（GitHub Actions，干净机器）**：**全绿**（run `36868739998`）——whitespace / format / conventions / docs 四道快检、Qt 6.12.0 安装、MSVC 环境、Debug + Release 双配置构建、`ctest`、`windeployqt`、打包与上传全部通过。
+- **CI（GitHub Actions，干净机器）**：**全绿**（run `36868739998`）——whitespace / format / conventions / docs 四道快检、Qt 6.12.0 安装、MSVC 环境、Debug + Release 双配置构建、`ctest`、`windeployqt`、打包与上传全部通过。**注意**：该 run 跑的是「命名检查不进 CI」的旧 workflow；此后给 CI 增加了命名检查（装 PyPI 的 `clang-tidy==22.1.8`）与 Release 配置的 `ctest`，**需要一次新的 run 才算验证过**，见 §6 勘误。
 
 ## 4. 结论
 
@@ -46,3 +46,30 @@
 - `verify_shell.ps1` / `verify_recent.ps1` 在**同一 PowerShell 进程内连续执行多个脚本**时会因重复 `Add-Type` 报错（类型已存在）；CI 中每个脚本独立进程，不受影响——这是本机批量执行方式的副作用，非项目缺陷。
 - `scripts/build_verify_nmake.ps1` 为 NMake 单配置兜底通道（ninja 不可用时使用），**有意保留**；主验收通道为 `scripts/build_verify.ps1`（Ninja Multi-Config）。
 - **CI 安装 Qt 的方式**：`aqtinstall` 最新发布版（3.3.0）**尚不支持 Qt 6.11+**——该支持只在其 CHANGELOG 的「Unreleased」段（"Support Qt 6.11+ for Windows X64" #1000），因此用 `jurplel/install-qt-action@v4` 装 6.12.0 会报 `Failed to locate XML data for Qt version '6.12.0'`。故 `.github/workflows/ci.yml` 改为**直接安装 aqtinstall 主干**并手动调用 `aqt install-qt`；待含该支持的正式版发布后，可改回 `install-qt-action`。
+
+## 6. 勘误（2026-10-01 复核）
+
+本报告是「能力核实」的一次快照，其中两处结论**在写下时并不成立**。核对文档诚实性时被发现，
+在此更正并保留痕迹 —— 报告可以改，但不能装作没写过。
+
+| 原述 | 实际情况 | 处置 |
+| --- | --- | --- |
+| §3「`verify_naming.ps1` 全部 ALL PASS」 | 实跑 **13 条**命中：`tests/tst_pluginmeta.cpp` / `tests/tst_logger.cpp` 的类名与下划线方法名（应为 `TestXxx` + 小驼峰），以及 `app/core/Logger.cpp` 匿名命名空间里的 6 个 `g_` 全局（`.clang-tidy` 缺 `GlobalVariablePrefix`）。根因是**编码规范没覆盖「文件级可变状态」与「类静态数据成员」**这两个场景 | 已修：测试类名与方法名按约定改名；`.clang-tidy` 增加 `GlobalVariablePrefix: 'g_'`；[coding-standards.md §1](./coding-standards.md#1-命名) 补上 `s_` / `g_` 两行与硬规则。**教训：结论必须来自当次实跑，不能由「刚才还是绿的」推得。** |
+| §3 CI「全绿（run `36868739998`）」 | 该 run 跑的是「命名检查不进 CI」的旧 workflow。此后 CI 增加了命名检查（PyPI `clang-tidy==22.1.8`，钉 LLVM 22.1 线）与 Release 配置的 `ctest` | 需要一次**新的 run** 才能断言全绿；在那之前，本报告的 CI 结论只对旧 workflow 成立 |
+
+同一轮复核还发现了三处**本报告未覆盖**的代码问题，均已修复：
+
+1. **`toolbox::toolMetaFromMetaData()` 恒返回空结构**（真缺陷）。`QPluginLoader::metaData()`
+   把 `metadata.json` 的内容放在 `MetaData` 键下，而本工程的 `metadata.json` 顶层还有一个
+   `toolbox` 对象 —— 取值**必须读两层**。旧实现只读一层，而配套测试构造的是**扁平** JSON
+   （根键直接是 `toolbox`），于是「函数取不到 + 测试照过」同时成立，缺陷一直是绿的。现已修
+   函数与测试（测试改为构造 `MetaData` → `toolbox` 两级，并加一条「少一层应取不到」的反例），
+   形状本身写进 [sdk/ToolBoxPlugin.h](../sdk/ToolBoxPlugin.h) 的注释。
+2. **日志轮转记账不准**：增量用 `QString::size()`（UTF-16 码元数）计，而实际落盘是 UTF-8，
+   日志含中文时轮转会远晚于 `maxFileSize`（仍受 `backupCount` 约束，非无界）。现改为按
+   `QFile::write()` 返回的字节数记账，同时去掉 `QIODevice::Text`（不再把 `\n` 改写成 CRLF，
+   日志保持 LF）。
+3. **`tests/tst_mainwindow.cpp` 用了 `QMetaObject::invokeMethod` 的字符串重载**，与
+   [coding-standards.md §4](./coding-standards.md#4-信号槽) 的硬规则正面冲突。现改为驱动真实
+   控件（`QListWidget::setCurrentRow` / `QLineEdit::setText`）让信号自己发出来，顺带把「连接
+   是否接上」也纳入验证。

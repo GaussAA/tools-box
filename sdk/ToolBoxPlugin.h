@@ -175,10 +175,23 @@ inline bool isCompatiblePluginMetaData(const QJsonObject &metaData)
 
 /// 从插件的静态元数据里取 ToolMeta 的纯数据字段（不含 icon）。
 ///
-/// 用于「不加载即可建目录/搜索」的快速路径；icon 仍需运行时 meta() 提供。
+/// **取值得分两层，少一层就永远拿到空结构**：`QPluginLoader::metaData()` 返回的对象
+/// 里，`MetaData` 这个键才是 `Q_PLUGIN_METADATA(... FILE "metadata.json")` 所指文件的
+/// 内容，而本工程的 metadata.json 顶层又有一个 `toolbox` 对象。
+///
+/// 这个坑曾经真实存在：本函数只读了一层 `toolbox`，于是恒返回空结构；而测试构造了
+/// 一份**假的扁平 JSON**（根键直接是 `toolbox`）去「验证」它，所以一直显示绿色。
+/// 现在测试构造的是与 Qt 真实输出一致的形状（`MetaData` → `toolbox`）。
+///
+/// 目前只被测试使用：外壳的快速枚举路径尚未接入（`ToolRegistry::rescan` 只用 IID 门禁）。
+/// 将来接入前要注意，metadata.json 里的 name/category/description 是**硬编码中文、
+/// 不经过 `tr()`**，直接拿它渲染界面会让英文界面下显示中文（见 workflow §3.3）。
 inline ToolMeta toolMetaFromMetaData(const QJsonObject &metaData)
 {
-    const QJsonObject tb = metaData.value(QStringLiteral("toolbox")).toObject();
+    const QJsonObject tb = metaData.value(QStringLiteral("MetaData"))
+                               .toObject()
+                               .value(QString::fromLatin1(kPluginMetaKey))
+                               .toObject();
     ToolMeta m;
     m.id = tb.value(QStringLiteral("id")).toString();
     m.name = tb.value(QStringLiteral("name")).toString();

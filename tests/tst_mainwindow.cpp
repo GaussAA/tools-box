@@ -6,6 +6,10 @@
 //   3. 切到首页（pageIndex 0）不崩；
 //   4. 搜索过滤（输入关键字 + 清空）不崩。
 //
+// 两个用例都**通过真实控件的信号**驱动（QListWidget::currentRowChanged /
+// QLineEdit::textChanged），而不是 `QMetaObject::invokeMethod` 的字符串重载 ——
+// 后者被 coding-standards §4 明令禁止，而且只调槽、不验证连接是否接上了。
+//
 // 不部署真实插件 DLL：videodl 的 createPage 可能启动外部子进程/网络，
 // 与 tests/CMakeLists.txt「不允许依赖真实网络或真实子进程」的约定冲突，
 // 端到端加载留给集成测试。
@@ -16,9 +20,10 @@
 
 #include <QApplication>
 #include <QDir>
+#include <QLineEdit>
 #include <QListWidget>
-#include <QMetaObject>
 #include <QSettings>
+#include <QSignalSpy>
 #include <QStackedWidget>
 #include <QTest>
 
@@ -60,20 +65,39 @@ void TestMainWindow::rescanMissingDirReportsErrorAndZero()
 }
 
 // 切到首页（pageIndex 0）不应崩溃；首页是 homePage 占位 QLabel。
+// 改变导航的当前行，让 QListWidget 自己发出 currentRowChanged 驱动私有槽。
 void TestMainWindow::switchToHomePageDoesNotCrash()
 {
     MainWindow w;
-    // onNavRowChanged 是私有槽，借元对象系统调用（仍在 moc 注册范围）。
-    const bool ok = QMetaObject::invokeMethod(&w, "onNavRowChanged", Q_ARG(int, 0));
-    QVERIFY(ok);
+    auto *nav = w.findChild<QListWidget *>();
+    auto *stack = w.findChild<QStackedWidget *>();
+    QVERIFY2(nav != nullptr, "导航 QListWidget 未创建");
+    QVERIFY2(stack != nullptr, "QStackedWidget 未创建");
+
+    QSignalSpy rowSpy(nav, &QListWidget::currentRowChanged);
+    QVERIFY(rowSpy.isValid());
+
+    nav->setCurrentRow(-1); // 先离开首页，保证下面这次一定发生变化
+    nav->setCurrentRow(0);  // 再切回首页
+    QVERIFY2(rowSpy.count() >= 1, "currentRowChanged 未发出，槽可能没接上");
+    QCOMPARE(stack->currentIndex(), 0);
 }
 
 // 搜索过滤：先输入关键字，再清空，两次都不应崩溃。
+// 写真实输入框，让 QLineEdit 发出 textChanged 驱动私有槽。
 void TestMainWindow::searchFilterDoesNotCrash()
 {
     MainWindow w;
-    QMetaObject::invokeMethod(&w, "onSearchTextChanged", Q_ARG(QString, QStringLiteral("base64")));
-    QMetaObject::invokeMethod(&w, "onSearchTextChanged", Q_ARG(QString, QString()));
+    auto *search = w.findChild<QLineEdit *>();
+    QVERIFY2(search != nullptr, "搜索框 QLineEdit 未创建");
+
+    QSignalSpy textSpy(search, &QLineEdit::textChanged);
+    QVERIFY(textSpy.isValid());
+
+    search->setText(QStringLiteral("base64"));
+    QVERIFY2(textSpy.count() >= 1, "textChanged 未发出，槽可能没接上");
+    search->clear();
+    QVERIFY2(textSpy.count() >= 2, "清空未走同一路径");
 }
 
 int main(int argc, char *argv[])

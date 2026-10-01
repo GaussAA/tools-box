@@ -31,9 +31,9 @@ tools-box/
 │   └── ToolBoxPlugin.h     唯一契约：ToolMeta / ToolSettings / IToolPage / IToolPlugin
 ├── app/                    外壳层：主程序
 │   ├── main.cpp            应用元信息（组织名/应用名/版本）与入口
-│   ├── core/               外壳的纯逻辑（无 QWidget 依赖），编成 ToolBoxCore
+│   ├── core/               外壳的纯逻辑（无 QWidget 依赖），编成静态库 ToolBoxCore
 │   ├── MainWindow.*        窗口装配、导航渲染、配置持久化
-│   └── ToolRegistry.*      插件扫描与装载
+│   └── ToolRegistry.*      插件扫描与装载（与 MainWindow 一起编成静态库 ToolBoxApp）
 ├── plugins/<工具名>/        工具层：一个工具 = 一个 MODULE 库（DLL）
 │   └── core/               该工具的纯逻辑（无 QWidget 依赖），编成 <工具名>_core
 └── tests/                  Qt Test 用例，一个测试一个目标，由 CTest 驱动
@@ -53,6 +53,13 @@ tools-box/
 
 **依赖方向不可违反**：`plugins → sdk ← app`。插件只能通过 `sdk/ToolBoxPlugin.h`
 认识外壳，外壳只能通过 `IToolPlugin` / `IToolPage` 认识插件。
+
+`app/` 内部也分了边界，测试按同一刀切开：`ToolBoxCore` 是 `core/` 的静态库且
+**只链接 `Qt6::Core`**，`ToolBoxApp` 是 `MainWindow.*` + `ToolRegistry.*` 的静态库
+（链接 `ToolBox::Sdk` + `ToolBoxCore` + `Qt6::Widgets`），可执行文件 `ToolBox` 里
+只剩 `main.cpp`。依赖链是 `ToolBox → ToolBoxApp → {Sdk, ToolBoxCore, Qt6::Widgets}`。
+「`ToolBoxCore` 只链 `Qt6::Core`」是条硬约束，也是「`core/` 里不许出现界面」这条规矩的
+**编译器级**保证：往 `core/` 里 include 任何界面头文件会直接编译失败（§10 D1 验收标准 1）。
 
 ## 3. MVP 落地约定
 
@@ -149,6 +156,12 @@ tools-box/
 - 持久化数据必须能在工具消失后自愈：外壳在每次装载后剔除指向已不存在工具的 id。
 - 缓存/临时文件只放系统临时目录，且必须在任务结束与页面析构时清理；
   含登录凭据的文件（如 cookies 副本）不得长期驻留。
+- 唯一的持久化**文件**是结构化日志：`<AppDataLocation>/ToolBox/toolbox.log`，
+  由 `app/main.cpp` 在任何业务日志之前安装
+  （[app/core/Logger.*](../app/core/Logger.h)）。它按大小轮转、份数有上限
+  （默认单文件 5 MiB、留 3 份），最低级别可被 `TOOLBOX_LOG_LEVEL` 临时覆盖 ——
+  属于「有界、可预期」的落盘，因此不受上一条「临时文件只放临时目录」约束；
+  除它之外，程序不留任何持久文件。
 
 ## 7. 错误处理与用户反馈
 
@@ -183,13 +196,13 @@ tools-box/
 | --- | --- | --- | --- | --- | --- |
 | 9.1 | 导航的领域逻辑曾写在窗口里 | [MainWindow.cpp](../app/MainWindow.cpp) | 功能逐步叠加，规模尚小 | **已收敛（P1）**：过滤与列表维护规则已抽到 [ToolCatalog.cpp](../app/core/ToolCatalog.cpp)，窗口只留控件装配与渲染 | 剩余的 `ui/NavPanel`、`IconFactory` 表现层拆分主动放弃，理由见 §10 D1 |
 | 9.2 | 单个页面类曾承担界面、进程、网络、解压、解析、平台适配 | [videodl/VideoDlPlugin.cpp](../plugins/videodl/VideoDlPlugin.cpp) | 抖音适配与内核下载为后期追加 | **已收敛（P1）**：解析规则抽到 `plugins/videodl/core/` 并编成 `videodl_core`，页面只留界面、进程与网络 | 剩余的 `DownloadService`、`DouyinResolver` 拆分暂缓，理由见 §10 D2 |
-| 9.3 | ~~无自动化测试，纯逻辑靠手工脚本验证~~ | 全项目 | 一直以手工验证推进 | **已消除（P1）**：`tests/` 下 5 个 Qt Test 目标，`ctest` 全绿 | 新增 `*/core/` 模块必须同步补用例（workflow §5） |
+| 9.3 | ~~无自动化测试，纯逻辑靠手工脚本验证~~ | 全项目 | 一直以手工验证推进 | **已消除（P1）**：`tests/` 下 10 个 Qt Test 目标（含两个外壳装配 / 跨 DLL 的集成用例），双配置 `ctest` 全绿 | 新增 `*/core/` 模块必须同步补用例（workflow §5） |
 | 9.4 | ~~验证脚本混在可再生成的 `build/` 目录内~~ | `build/*.ps1` | 顺手放置 | **已消除（P0）**：脚本迁至 `scripts/verify/`，固定样本在 `scripts/verify/fixtures/` | 脚本运行时的截图/下载产物仍落在 `build/` —— 那些是可再生成物，属于正确位置 |
 | 9.5 | ~~版本号硬编码两处~~ | [CMakeLists.txt](../CMakeLists.txt)、[main.cpp](../app/main.cpp) | — | **已消除（P2）**：版本号只留顶层 `project(... VERSION ...)`，由 `app/CMakeLists.txt` 的 `TOOLBOX_VERSION` 编译定义传给 `main.cpp` | 无 |
 | 9.6 | ~~部署使用 `--no-translations`，Qt 自带对话框按钮为英文~~ | [app/CMakeLists.txt](../app/CMakeLists.txt)、[main.cpp](../app/main.cpp) | 早期为避免拷贝多余文件 | **已消除（P2）**：deploy 改为 `--translations zh_CN`，并在 `main.cpp` 里安装 `QTranslator`（只拷文件不装翻译器无效） | 无 |
 | 9.7 | 插件 `CMakeLists.txt` 样板重复 | `plugins/*/CMakeLists.txt` | 复制目录即建新插件的模板 | 接受 | 出现第 5 个插件时抽取 `toolbox_add_plugin()` |
 | 9.8 | ~~排序比较器中反复调用 `plugin->meta()`~~ | [ToolRegistry.cpp](../app/ToolRegistry.cpp) | — | **已消除（P2）**：装载时取一次存进 `Entry::meta`，比较器只读缓存；`meta()` 的无副作用契约见 §4.3 | 无 |
-| ~~9.9~~ | ~~静态检查未接入 CI~~ | 根目录 `.clang-format` / `.clang-tidy`、`.git-blame-ignore-revs`、`scripts/verify/verify_format.ps1`、`.github/workflows/ci.yml` | 格式曾无法强制：归一化前 `.clang-format` 会让 15 个文件 / 328 行发生改动（clang-format 没有「保留手工换行」的选项，且只有一个全局 `AfterEnum` 开关） | **已消除（P3）**：格式在 73b1e4a 一次性归一化（字符多重集比对确认只动空格与换行），此后由 `verify_format.ps1` 强制、提交登记进 `.git-blame-ignore-revs`；CI 已接入 GitHub，push / PR 时在干净机器上跑四个快检 + 双配置构建 + `ctest` + 打包。命名检查（`verify_naming.ps1`）刻意**不进 CI**：clang-tidy 钉不到同一版本（PyPI 无 22.1.3，精确版本只在 LLVM 821 MB 归档里），**钉不住版本的工具不当门禁**，见 [workflow.md §3.2](./workflow.md#32-命名检查clang-tidy手动跑) | 无。CI 覆盖不到的界面与下载链路、以及命名检查，仍属手工回归（[workflow.md §11](./workflow.md#11-持续集成ci)） |
+| ~~9.9~~ | ~~静态检查未接入 CI~~ | 根目录 `.clang-format` / `.clang-tidy`、`.git-blame-ignore-revs`、`scripts/verify/verify_format.ps1`、`.github/workflows/ci.yml` | 格式曾无法强制：归一化前 `.clang-format` 会让 15 个文件 / 328 行发生改动（clang-format 没有「保留手工换行」的选项，且只有一个全局 `AfterEnum` 开关） | **已消除（P3）**：格式在 73b1e4a 一次性归一化（字符多重集比对确认只动空格与换行），此后由 `verify_format.ps1` 强制、提交登记进 `.git-blame-ignore-revs`；CI 已接入 GitHub，push / PR 时在干净机器上跑四个快检 + 双配置构建 + 双配置 `ctest` + 命名检查 + 打包。命名检查（`verify_naming.ps1`）的工具版本钉在 **LLVM 22.1 这条线**上 —— CI 装 PyPI 的 `clang-tidy==22.1.8`，本机 VS 自带的 22.1.3 同样通过，版本不在线上脚本直接 FAIL；钉发行线而不是精确版本的理由见 [workflow.md §3.2](./workflow.md#32-命名检查clang-tidy) | 无。CI 覆盖不到的界面与下载链路仍属手工回归（[workflow.md §11](./workflow.md#11-持续集成ci)） |
 | 9.10 | ~~无 `install()` / CPack 打包规则，交付靠手工拷贝 `bin/`~~ | 顶层 [CMakeLists.txt](../CMakeLists.txt) | 交付频次低 | **已消除（P3）**：顶层整目录 `install()` + CPack 出 zip，版本号仍只有 `project(... VERSION ...)` 一个来源；两条 `install(CODE)` 保护会拦下「打错配置」与「忘了 deploy」，实测都会报错停下 | 发布流程见 [workflow.md §9](./workflow.md#9-发布)；`verify_shell.ps1 -Exe` 用于验收解压后的产物 |
 
 ## 10. 目标架构与迁移计划

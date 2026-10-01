@@ -16,6 +16,8 @@
 | 类 / 结构体 / 枚举 / 枚举值 | 大驼峰 | `MainWindow` `ToolMeta` `FetchKind::YtDlp` |
 | 抽象接口 | `I` + 大驼峰 | `IToolPlugin` `IToolPage` |
 | 成员变量 | `m_` + 小驼峰 | `m_registry` `m_fetchPartPath` |
+| 类的静态数据成员 | `s_` + 小驼峰 | `s_installed` |
+| 文件级可变状态（匿名命名空间里的全局） | `g_` + 小驼峰 | `g_logFile` `g_writtenBytes` |
 | 文件级 / 静态常量 | `k` + 大驼峰 | `kNavPanelWidth` `kMaxFetchAttempts` |
 | 函数 / 方法 | 小驼峰，动词开头 | `rescan()` `normalizeCookies()` `refreshEngineStatus()` |
 | 槽函数 | `on` + 事件名 | `onNavRowChanged()` `onProcessFinished()` |
@@ -30,6 +32,9 @@
 
 硬规则：
 - 成员变量必须有 `m_` 前缀；所有用户可见的界面文案由 §7 约束。
+- 状态按「属于谁」选前缀，不许混用：类的静态数据成员用 `s_`，`.cpp` 匿名命名空间里的
+  可变全局用 `g_`。`g_` 只出现在 `.cpp` 的匿名命名空间里，绝不出现在头文件（那会是
+  跨翻译单元的可变全局，违反 §2 的「头文件只放声明」）。
 - 一个名字在项目内只表达一个含义；缩写一律按上表统一，不允许 `ytDlp` / `ytDLP`
   这类大小写漂移。
 - 命名要「见名知意」：不出现 `tmp`、`data2`、`doIt()`、`handle()` 这类名字。
@@ -168,7 +173,7 @@
 | 头文件 `#pragma once` | `verify_conventions.ps1` 查每个 `.h` 的前三行 | 已达标 |
 | `#include "Xxx.moc"` 必须在文件末尾 | `verify_conventions.ps1` 查该 include 之后是否还有代码 | 已达标 |
 | 父子对象树与所有权 | 评审。clang-tidy 的 `cppcoreguidelines-owning-memory` 已评估并**排除**（与 Qt 父子对象树惯用法冲突，全仓 61 条全是误报），见 workflow §3.2 | 已达标 |
-| `m_` / `k` 前缀、命名一致 | `scripts/verify/verify_naming.ps1`（clang-tidy `readability-identifier-naming`，配置见根目录 `.clang-tidy`） | 已达标：全仓 0 命中，且已做注入式反向验证。**手动跑**：工具版本钉不住，不进 CI，理由见 workflow §3.2 |
+| `m_` / `s_` / `g_` / `k` 前缀、命名一致 | `scripts/verify/verify_naming.ps1`（clang-tidy `readability-identifier-naming`，配置见根目录 `.clang-tidy`） | 已达标：全仓 0 命中，且已做注入式反向验证。**已在 CI 中跑**：工具钉在 LLVM 22.1 线上（CI 装 PyPI 的 `clang-tidy==22.1.8`，本机 VS 自带的 22.1.3 同样通过），版本不符即 FAIL 而不是悄悄给绿，见 workflow §3.2 |
 | 纯逻辑可单测 | 评审（对照 §architecture 3 的判定特征）+ `ctest` | 已达标：`app/core`、`plugins/videodl/core` 均有 Qt Test 用例，见 workflow §5 |
 | 编译警告不引入新告警 | MSVC `/W4 /permissive- /WX`（警告即错误） | 已达标：Debug 与 Release 全量重建 0 告警 |
 | 不使用已标记弃用的 API | 同一个 `/WX`：弃用告警是 `C4996`，在 `/WX` 下直接编译失败（实测确认） | 已达标 |
@@ -179,10 +184,11 @@
 信号槽 / 字符串字面量 / QSettings 键」「`#pragma once` / moc 位置」分别下移到了
 编译器和 `scripts/verify/` 的四个脚本，「命名前后缀」下移到了 clang-tidy，
 「缩进 / 行宽 / 大括号 / include 排序」下移到了 clang-format（先做一次性归一化，
-再用脚本锁住）。**四个脚本已在 CI 里跑**（push / PR 时，见
-[workflow.md §11](./workflow.md#11-持续集成ci)），所以「本地忘了跑」不再等于「没人跑」；
-命名检查与 clang-tidy 那一步仍要手动跑（workflow §3.2），因为它的工具版本钉不住 ——
-**钉不住版本的工具不当门禁**，否则检查结果会随环境摇摆。剩下仍靠评审的两条
+再用脚本锁住）。**五个脚本都已在 CI 里跑**（push / PR 时，见
+[workflow.md §11](./workflow.md#11-持续集成ci)），所以「本地忘了跑」不再等于「没人跑」。
+两个 clang 工具的版本策略不同，但都**钉得住**：格式化器钉精确版本（换版本会改变输出
+字节，所以必须逐字节一致），clang-tidy 钉 LLVM 22.1 线（换线才可能改变命名判定，同一
+线的补丁版不会）——两边版本不符都直接 FAIL，不会悄悄给个绿。剩下仍靠评审的两条
 （`tr()` 完备性、对象所有权）都需要语义分析：前者要判断字符串是否真的面向用户，
 后者要判断裸指针的持有者是谁，两者都不是「看名字」能定的。
 

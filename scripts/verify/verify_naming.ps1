@@ -2,14 +2,20 @@
 # This is the mechanical half of docs/coding-standards.md section 1; the section 12
 # table points here.
 #
-# Why it is NOT wired into CI (unlike its sibling verify_format.ps1): the check is only
-# trustworthy if the tool version is pinned, and clang-tidy cannot be pinned here.
-#    * PyPI has no 22.1.3 wheel (the format checker's pin) - only 22.1.0 / 22.1.7 / 22.1.8;
-#    * the only exact 22.1.3 source is LLVM's clang+llvm-22.1.3-x86_64-pc-windows-msvc
-#      archive, which is 821 MB - disproportionate for a rule with zero violations today.
-# Using the runner's rolling Visual Studio copy instead would make results depend on the
-# image, which is the same trap verify_format.ps1 avoids by pinning. So: run it by hand,
-# and revisit if LLVM ships something smaller or PyPI gains the version.
+# Version policy - why this pin differs from verify_format.ps1's, and why that is safe:
+#   * The formatter pins an EXACT version (22.1.3) because its output is byte-sensitive:
+#     another patch release can reformat lines the pinned one accepts. That exact pin is
+#     satisfiable anywhere by luck - it matches the copy Visual Studio ships.
+#   * clang-tidy has no satisfiable exact pin: Visual Studio 18 ships 22.1.3, while PyPI
+#     carries only 22.1.0 / 22.1.0.1 / 22.1.7 / 22.1.8 (an exact 22.1.3 would have to come
+#     from LLVM's 821 MB clang+llvm archive). Pinning exactly would force every developer
+#     to install a private copy just to run a check.
+#   * So this check pins the RELEASE LINE instead - LLVM 22.1.x, on the runner and locally.
+#     Identifier-naming verdicts do not shift between patch releases of one line, and a
+#     Visual Studio upgrade that lands on a newer line (22.2, 23.x) still fails loudly
+#     right below rather than silently changing the verdicts.
+# CI installs clang-tidy==22.1.8 from PyPI; locally Visual Studio's copy works as-is.
+# An untrustworthy run must never look green, so a version outside the line stops the check.
 #
 # The guard that matters: "#include "Xxx.moc"" points at a file AUTOMOC generates during
 # the build. If those do not exist, clang-tidy silently skips those translation units and
@@ -68,6 +74,19 @@ if (-not $ct) {
 }
 Write-Output ("clang-tidy = " + $ct)
 Write-Output ("version    = " + $verText)
+
+# ---------- pin the release line ----------
+# See the header: the exact version cannot be pinned (Visual Studio 22.1.3 vs PyPI 22.1.8),
+# so the line is. Never let a run from another line report PASS.
+$expectedLine = "22.1."
+if ($verText -notmatch [regex]::Escape("LLVM version $expectedLine")) {
+  Write-Output ("FAIL: expected clang-tidy on the LLVM " + $expectedLine + "x line, found something else")
+  Write-Output "      A checker from another LLVM line can judge identifiers differently, so the check stops here."
+  Write-Output "      Install the pinned build: python -m pip install clang-tidy==22.1.8"
+  Write-Output "      (uv users: uv tool install clang-tidy==22.1.8)"
+  Write-Output ("DONE(FAILED 1): clang-tidy version mismatch (want " + $expectedLine + "x)")
+  exit 1
+}
 
 # ---------- compile database ----------
 # CMakePresets.json sets CMAKE_EXPORT_COMPILE_COMMANDS, so the normal build directory

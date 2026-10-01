@@ -54,7 +54,6 @@ private:
                                const QString &msg);
 
     static bool s_installed;
-    static QString s_logFilePath;
 };
 
 } // namespace toolbox
