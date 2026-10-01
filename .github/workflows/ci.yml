@@ -11,6 +11,11 @@ name: CI
 # 「Node.js 20 is deprecated」的告警 —— Action 自带运行时会被 GitHub 淘汰，
 # 钉在旧大版本上迟早会红。升级前先确认 inputs 没改名（用 gh api 读它的
 # action.yml，比猜可靠）。
+#
+# 升到 v7 之后告警只剩 ilammy/msvc-dev-cmd@v1 一条，而 v1 已经是它的最新大版本，
+# 没有更高的可以升。GitHub 会把它强制跑在 Node 24 上，属于上游待修，暂时留着。
+# 它的作用不可省：GitHub 每个 run 步骤是独立 shell，MSVC 的环境变量得靠它写进
+# GITHUB_ENV 才能跨步骤生效（自己动手导出环境变量要脆得多）。
 
 on:
   push:

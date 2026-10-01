@@ -160,7 +160,7 @@
 | 头文件 `#pragma once` | `verify_conventions.ps1` 查每个 `.h` 的前三行 | 已达标 |
 | `#include "Xxx.moc"` 必须在文件末尾 | `verify_conventions.ps1` 查该 include 之后是否还有代码 | 已达标 |
 | 父子对象树与所有权 | 评审。clang-tidy 的 `cppcoreguidelines-owning-memory` 已评估并**排除**（与 Qt 父子对象树惯用法冲突，全仓 61 条全是误报），见 workflow §3.2 | 已达标 |
-| `m_` / `k` 前缀、命名一致 | clang-tidy 的 `readability-identifier-naming`，配置见根目录 `.clang-tidy`（手动跑，见 workflow §3.2） | 已达标：全仓 0 命中 |
+| `m_` / `k` 前缀、命名一致 | `scripts/verify/verify_naming.ps1`（clang-tidy `readability-identifier-naming`，配置见根目录 `.clang-tidy`） | 已达标：全仓 0 命中，且已做注入式反向验证。**手动跑**：工具版本钉不住，不进 CI，理由见 workflow §3.2 |
 | 纯逻辑可单测 | 评审（对照 §architecture 3 的判定特征）+ `ctest` | 已达标：`app/core`、`plugins/videodl/core` 均有 Qt Test 用例，见 workflow §5 |
 | 编译警告不引入新告警 | MSVC `/W4 /permissive- /WX`（警告即错误） | 已达标：Debug 与 Release 全量重建 0 告警 |
 | 不使用已标记弃用的 API | 同一个 `/WX`：弃用告警是 `C4996`，在 `/WX` 下直接编译失败（实测确认） | 已达标 |
@@ -171,9 +171,12 @@
 信号槽 / 字符串字面量 / QSettings 键」「`#pragma once` / moc 位置」分别下移到了
 编译器和 `scripts/verify/` 的四个脚本，「命名前后缀」下移到了 clang-tidy，
 「缩进 / 行宽 / 大括号 / include 排序」下移到了 clang-format（先做一次性归一化，
-再用脚本锁住）。剩下仍靠评审的两条（`tr()` 完备性、对象所有权）都需要语义分析：
-前者要判断字符串是否真的面向用户，后者要判断裸指针的持有者是谁，两者都不是
-「看名字」能定的。
+再用脚本锁住）。**四个脚本已在 CI 里跑**（push / PR 时，见
+[workflow.md §11](./workflow.md#11-持续集成ci)），所以「本地忘了跑」不再等于「没人跑」；
+命名检查与 clang-tidy 那一步仍要手动跑（workflow §3.2），因为它的工具版本钉不住 ——
+**钉不住版本的工具不当门禁**，否则检查结果会随环境摇摆。剩下仍靠评审的两条
+（`tr()` 完备性、对象所有权）都需要语义分析：前者要判断字符串是否真的面向用户，
+后者要判断裸指针的持有者是谁，两者都不是「看名字」能定的。
 
 ## 相关文档
 
