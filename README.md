@@ -42,14 +42,24 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 
 ## 文档
 
-**代码与文档不一致时，以文档为准。** 每份文档各有分工，这里不放它们的副本：
+**代码与文档不一致时，以文档为准。** 文档分两类，这里只列索引（不放副本）。
+**权威规范**是项目长期有效的「宪法」；**分析与报告**是某次评估／迁移的记录，供追溯，规范一律以权威规范为准。
+
+### 权威规范
 
 | 文档 | 负责什么 |
 | --- | --- |
 | [architecture.md](docs/architecture.md) | 分层、职责边界、插件契约、偏差台账。**架构的唯一权威来源** |
 | [coding-standards.md](docs/coding-standards.md) | 命名、内存、信号槽、字符串、CMake 等编码规则，以及每条规则靠什么保证 |
 | [workflow.md](docs/workflow.md) | 构建、测试、加插件、发布、CI、文档变更流程 |
-| [best-practices-assessment.md](docs/best-practices-assessment.md) | 架构的 Qt 最佳实践符合性评估与版本迁移记录 |
+
+### 分析与报告
+
+| 文档 | 内容 |
+| --- | --- |
+| [architecture-analysis-report.md](docs/architecture-analysis-report.md) | 架构与代码结构分析（实现层速览：类职责、信号槽、依赖图） |
+| [best-practices-assessment.md](docs/best-practices-assessment.md) | Qt 最佳实践符合性评估（P0–P3 清单与落地记录） |
+| [version-migration-audit.md](docs/version-migration-audit.md) | Qt 6.12 迁移深度审计（8 处问题与 CI 结果） |
 
 ## 几条硬约束
 

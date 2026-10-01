@@ -9,7 +9,7 @@
 
 ## 1. 总体结论
 
-**架构大体符合 Qt 最佳实践，且明显优于多数自研工具；唯一真正偏离「最推荐范式」之处在插件发现机制（全量加载枚举）。**
+**架构大体符合 Qt 最佳实践，且明显优于多数自研工具；唯一真正偏离「最推荐范式」之处在插件发现机制（全量加载枚举）——该点已于 2026-10-01 修复，详见 §3.1。**
 
 其余与「最推荐」之间的差异，多为产品路线的刻意权衡（如 Widgets 而非 QML、ABI 锁定单一工具链），并非架构缺陷。范式本身（插件契约 + 分层 + 现代构建）稳健，可长期演进。
 
@@ -89,7 +89,7 @@ Qt 官方对「新 UI」长期推荐 Qt Quick/QML。但对**密集小工具箱**
 
 | 项 | 现状 | 建议 |
 |---|---|---|
-| UI 层自动化测试 | 10 个 Qt Test：8 个覆盖 `core/` 纯逻辑、静态元数据门禁与 `Logger`；**`MainWindow` 烟雾测试已实施并验证（2026-10-01）**：采用「抽 `ToolBoxApp` 静态库」方案（`MainWindow`/`ToolRegistry` 从可执行抽出，`qt_add_library` 自动 moc，主 exe 仅留 `main.cpp`），测试链接该库，offscreen 平台下验证构造/`reloadTools`/切首页/搜索过滤四类主路径不崩溃；**端到端集成测试已实施并验证（2026-10-01）**：`tests/tst_integration.cpp` 经 CMake POST_BUILD 部署 base64/jsonfmt 两个纯 GUI 安全插件到测试专属目录 `integration_tools/`，验证 `ToolRegistry` 跨 DLL 扫描 + `qobject_cast` 识别 `IToolPlugin` + `createPage()` 跨 DLL 返回 `QWidget*` + 跨 DLL 析构安全（offline 平台、QSettings 引到临时 ini） |
+| UI 层自动化测试 | 10 个 Qt Test：8 个覆盖 `core/` 纯逻辑、静态元数据门禁与 `Logger`；**`MainWindow` 烟雾测试已实施并验证（2026-10-01）**：采用「抽 `ToolBoxApp` 静态库」方案（`MainWindow`/`ToolRegistry` 从可执行抽出，`qt_add_library` 自动 moc，主 exe 仅留 `main.cpp`），测试链接该库，offscreen 平台下验证构造/`reloadTools`/切首页/搜索过滤四类主路径不崩溃；**端到端集成测试已实施并验证（2026-10-01）**：`tests/tst_integration.cpp` 经 CMake POST_BUILD 部署 base64/jsonfmt 两个纯 GUI 安全插件到测试专属目录 `integration_tools/`，验证 `ToolRegistry` 跨 DLL 扫描 + `qobject_cast` 识别 `IToolPlugin` + `createPage()` 跨 DLL 返回 `QWidget*` + 跨 DLL 析构安全（offscreen 平台、QSettings 引到临时 ini） |
 | 错误收集 | 仅字符串列表 `m_errors` | **已实施并验证（2026-10-01）**：新增 `app/core/Logger.{h,cpp}`（`toolbox::Logger`），在 `main` 早期 `install()` 将 `qDebug/qInfo/qWarning/qCritical` 重定向到 `AppData/ToolBox/toolbox.log` + 控制台（时间戳/级别/线程/源码位置），`ToolRegistry` 各错误与成功路径同步落结构化日志；`m_errors`（UI 展示）保持不变，二者互补。**并含分级开关与轮转（2026-10-01 增强）**：`LoggerOptions{maxFileSize=5MiB, backupCount=3, minLevel=Info}`，超限自动轮转 `log → log.1 … log.N`，低于 `minLevel` 的消息被丢弃，环境变量 `TOOLBOX_LOG_LEVEL` 可覆盖级别；新增 `shutdown()` 支持受控重装（兼作测试隔离）。`tests/tst_logger.cpp` 5 用例覆盖重定向/幂等/分级过滤/环境变量覆盖/轮转 |
 | 翻译覆盖 | `translations/toolbox_en.ts`（英文），i18n 管道 `qt_add_translations` 已就位 | **已实施并验证（2026-10-01）**：`ToolRegistry` 新增 2 条 `tr()` 词条（IID 不兼容跳过、已加载插件）此前未抽取，已同步补入 `.ts` 并给英文译文；构建 `lrelease` 报告 **161 finished / 0 unfinished**，`.qm` 经 `rcc` 编入可执行资源。后续新增/改动 `tr()` 时，在工具链完整环境跑 `cmake --build build --target update_translations`（脚本 `scripts/lupdate_ts.ps1`）刷新 `.ts`（本机 lupdate.exe 因缺 MSVC 运行时 DLL 报 `0xC0000135` 未能运行，故本次手工同步；`<location>` 行号为元数据、不影响翻译生效） |
 

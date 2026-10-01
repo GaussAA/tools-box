@@ -280,5 +280,9 @@ plugins/videodl/
 
 - [coding-standards.md](./coding-standards.md) —— 命名、内存、信号槽等编码规则
 - [workflow.md](./workflow.md) —— 构建、测试、加插件、发布与文档变更流程
-- [best-practices-assessment.md](./best-practices-assessment.md) —— Qt 最佳实践符合性评估与版本迁移记录
+
+以下为一次性分析／报告（记录某次评估或迁移，可追溯；规范一律以本文与上述两份为准）：
+
+- [architecture-analysis-report.md](./architecture-analysis-report.md) —— 架构与代码结构分析（实现层速览）
+- [best-practices-assessment.md](./best-practices-assessment.md) —— Qt 最佳实践符合性评估与落地记录
 - [version-migration-audit.md](./version-migration-audit.md) —— Qt 6.12 版本迁移的深度完整性审计报告
