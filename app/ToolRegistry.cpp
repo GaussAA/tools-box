@@ -11,8 +11,7 @@
 
 ToolRegistry::ToolRegistry(QObject *parent)
     : QObject(parent)
-{
-}
+{}
 
 ToolRegistry::~ToolRegistry()
 {
@@ -34,7 +33,8 @@ int ToolRegistry::rescan(const QString &dir)
         return 0;
     }
 
-    const QStringList filters{QStringLiteral("*.dll"), QStringLiteral("*.so"), QStringLiteral("*.dylib")};
+    const QStringList filters{QStringLiteral("*.dll"), QStringLiteral("*.so"),
+                              QStringLiteral("*.dylib")};
     const QFileInfoList files = pluginDir.entryInfoList(filters, QDir::Files, QDir::Name);
 
     for (const QFileInfo &file : files) {
@@ -48,8 +48,7 @@ int ToolRegistry::rescan(const QString &dir)
         QObject *root = loader->instance();
         auto *plugin = root ? qobject_cast<toolbox::IToolPlugin *>(root) : nullptr;
         if (!plugin) {
-            m_errors << tr("%1：不是有效的工具箱插件（未实现 IToolPlugin）。")
-                            .arg(file.fileName());
+            m_errors << tr("%1：不是有效的工具箱插件（未实现 IToolPlugin）。").arg(file.fileName());
             loader->unload();
             delete loader;
             continue;

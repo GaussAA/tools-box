@@ -46,8 +46,7 @@ ProgressInfo parseProgress(const QString &line);
 
 /// 输出行的阶段标记。yt-dlp 在合并、转码这些阶段不吐百分比，界面据此把进度条
 /// 切成不确定态，否则会一直停在 100% 看着像卡死。
-enum class OutputStage
-{
+enum class OutputStage {
     None,
     DownloadStarting, ///< [download] Destination: 刚落到磁盘
     Merging,          ///< [Merger] 合并音视频

@@ -59,9 +59,8 @@ QString normalizeCookies(const QString &source, const QString &target, int *fixe
         }
 
         // 第 2 列必须与前导「.」自洽，否则 cookiejar 断言失败。
-        const QString want = fields.at(0).startsWith(QLatin1Char('.'))
-                                 ? QStringLiteral("TRUE")
-                                 : QStringLiteral("FALSE");
+        const QString want = fields.at(0).startsWith(QLatin1Char('.')) ? QStringLiteral("TRUE")
+                                                                       : QStringLiteral("FALSE");
         if (fields.at(1) != want) {
             fields[1] = want;
             ++fixed;

@@ -55,21 +55,17 @@ QWidget *JsonFormatPlugin::createPage(QWidget *parent)
             QJsonDocument::fromJson(source->toPlainText().toUtf8(), &error);
         if (error.error != QJsonParseError::NoError) {
             result->clear();
-            hint->setText(tr("解析失败：偏移 %1 —— %2")
-                              .arg(error.offset)
-                              .arg(error.errorString()));
+            hint->setText(tr("解析失败：偏移 %1 —— %2").arg(error.offset).arg(error.errorString()));
             return;
         }
         hint->clear();
         result->setPlainText(QString::fromUtf8(document.toJson(format)));
     };
 
-    connect(beautifyButton, &QPushButton::clicked, page, [convert] {
-        convert(QJsonDocument::Indented);
-    });
-    connect(compactButton, &QPushButton::clicked, page, [convert] {
-        convert(QJsonDocument::Compact);
-    });
+    connect(beautifyButton, &QPushButton::clicked, page,
+            [convert] { convert(QJsonDocument::Indented); });
+    connect(compactButton, &QPushButton::clicked, page,
+            [convert] { convert(QJsonDocument::Compact); });
     connect(clearButton, &QPushButton::clicked, page, [source, result, hint] {
         source->clear();
         result->clear();

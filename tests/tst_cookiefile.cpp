@@ -48,14 +48,13 @@ void TestCookieFile::normalizeFixesSubdomainFlagAndDropsMalformedRows()
     QTemporaryDir temp;
     QVERIFY(temp.isValid());
 
-    const QByteArray source =
-        "# Netscape HTTP Cookie File\n"
-        "# 原文件的注释应该被丢掉\n"
-        ".bilibili.com\tFALSE\t/\tFALSE\t0\tSESSDATA\tabc\n"
-        "#HttpOnly_.bilibili.com\tFALSE\t/\tFALSE\t0\tbili_jct\tdef\n"
-        "bogus-line\n"
-        "www.example.com\tTRUE\t/\tFALSE\t0\tname\tvalue\n"
-        "\n";
+    const QByteArray source = "# Netscape HTTP Cookie File\n"
+                              "# 原文件的注释应该被丢掉\n"
+                              ".bilibili.com\tFALSE\t/\tFALSE\t0\tSESSDATA\tabc\n"
+                              "#HttpOnly_.bilibili.com\tFALSE\t/\tFALSE\t0\tbili_jct\tdef\n"
+                              "bogus-line\n"
+                              "www.example.com\tTRUE\t/\tFALSE\t0\tname\tvalue\n"
+                              "\n";
     const QString sourcePath = writeSource(temp.path(), source);
     QVERIFY(!sourcePath.isEmpty());
 
@@ -73,8 +72,7 @@ void TestCookieFile::normalizeFixesSubdomainFlagAndDropsMalformedRows()
     QCOMPARE(lines.first(), QStringLiteral("# Netscape HTTP Cookie File"));
     QVERIFY(lines.contains(
         QStringLiteral("#HttpOnly_.bilibili.com\tTRUE\t/\tFALSE\t0\tbili_jct\tdef")));
-    QVERIFY(lines.contains(
-        QStringLiteral("www.example.com\tFALSE\t/\tFALSE\t0\tname\tvalue")));
+    QVERIFY(lines.contains(QStringLiteral("www.example.com\tFALSE\t/\tFALSE\t0\tname\tvalue")));
 
     const QString joined = lines.join(QLatin1Char('\n'));
     QVERIFY(!joined.contains(QStringLiteral("原文件的注释")));
@@ -110,9 +108,8 @@ void TestCookieFile::normalizeFailsWhenTargetIsUnwritable()
 
     // 目标目录不存在，写不进去；此时不能报成功，否则调用方会拿着一个假路径
     // 去喂 yt-dlp。
-    QVERIFY(videodl::normalizeCookies(sourcePath,
-                                      temp.path() + QStringLiteral("/missing-dir/out.txt"),
-                                      &fixed, &dropped)
+    QVERIFY(videodl::normalizeCookies(
+                sourcePath, temp.path() + QStringLiteral("/missing-dir/out.txt"), &fixed, &dropped)
                 .isEmpty());
 }
 

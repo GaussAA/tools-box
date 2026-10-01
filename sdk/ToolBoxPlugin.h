@@ -10,9 +10,9 @@
 #include <QObject>
 #include <QSettings>
 #include <QString>
-#include <QtPlugin>
 #include <QVariant>
 #include <QWidget>
+#include <QtPlugin>
 
 namespace toolbox {
 
@@ -51,8 +51,7 @@ class ToolSettings
 public:
     explicit ToolSettings(QString toolId)
         : m_prefix(QStringLiteral("plugin/") + toolId + QLatin1Char('/'))
-    {
-    }
+    {}
 
     QVariant value(const QString &key, const QVariant &defaultValue = QVariant()) const
     {

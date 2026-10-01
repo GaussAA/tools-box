@@ -19,9 +19,10 @@ int main(int argc, char *argv[])
     // 放到 <exe 目录>/translations/；直接跑构建产物时该目录还不存在，回退到 Qt
     // 安装目录，两种情况都能用（见偏差 9.6）。
     QTranslator qtTranslator;
-    const QString deployedDir = QCoreApplication::applicationDirPath() + QStringLiteral("/translations");
-    const bool translationsLoaded
-        = qtTranslator.load(QLocale(), QStringLiteral("qt"), QStringLiteral("_"), deployedDir)
+    const QString deployedDir =
+        QCoreApplication::applicationDirPath() + QStringLiteral("/translations");
+    const bool translationsLoaded =
+        qtTranslator.load(QLocale(), QStringLiteral("qt"), QStringLiteral("_"), deployedDir)
         || qtTranslator.load(QLocale(), QStringLiteral("qt"), QStringLiteral("_"),
                              QLibraryInfo::path(QLibraryInfo::TranslationsPath));
     if (translationsLoaded) {

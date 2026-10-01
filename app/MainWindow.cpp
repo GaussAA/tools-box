@@ -75,8 +75,7 @@ QIcon fallbackToolIcon(const QString &name)
     font.setBold(true);
     painter.setFont(font);
     painter.setPen(Qt::white);
-    painter.drawText(pixmap.rect(),
-                     Qt::AlignCenter,
+    painter.drawText(pixmap.rect(), Qt::AlignCenter,
                      name.isEmpty() ? QStringLiteral("?") : name.left(1).toUpper());
 
     return QIcon(pixmap);
@@ -202,8 +201,8 @@ void MainWindow::reloadTools()
         tool.name = meta.name;
         tool.category = category;
         tool.description = meta.description;
-        tool.searchText = QStringList{meta.name, category, meta.description, meta.id}
-                              .join(QLatin1Char(' '));
+        tool.searchText =
+            QStringList{meta.name, category, meta.description, meta.id}.join(QLatin1Char(' '));
         tool.icon = meta.icon;
         tool.pageIndex = pageIndex;
         m_tools.append(tool);
@@ -461,8 +460,7 @@ void MainWindow::onNavContextMenu(const QPoint &pos)
     }
 
     QMenu menu(this);
-    QAction *toggle =
-        menu.addAction(m_favorites.contains(toolId) ? tr("取消收藏") : tr("收藏"));
+    QAction *toggle = menu.addAction(m_favorites.contains(toolId) ? tr("取消收藏") : tr("收藏"));
     if (menu.exec(m_nav->viewport()->mapToGlobal(pos)) == toggle) {
         toggleFavorite(toolId);
     }
@@ -506,10 +504,10 @@ void MainWindow::updateHomePage(int toolCount)
 
 void MainWindow::showAbout()
 {
-    QMessageBox::about(this,
-                       tr("关于工具箱"),
-                       tr("<b>工具箱</b> %1<br><br>"
-                          "基于 Qt %2 构建的插件式桌面工具箱。<br>"
-                          "每个工具都是一个独立 DLL 插件，放进 tools 目录即可生效。")
-                           .arg(QApplication::applicationVersion(), QStringLiteral(QT_VERSION_STR)));
+    QMessageBox::about(
+        this, tr("关于工具箱"),
+        tr("<b>工具箱</b> %1<br><br>"
+           "基于 Qt %2 构建的插件式桌面工具箱。<br>"
+           "每个工具都是一个独立 DLL 插件，放进 tools 目录即可生效。")
+            .arg(QApplication::applicationVersion(), QStringLiteral(QT_VERSION_STR)));
 }

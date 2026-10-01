@@ -75,8 +75,7 @@ void TestOutputParsing::extractUrlStopsAtNonAsciiCharacters()
 void TestOutputParsing::extractUrlReturnsInputWhenNothingFound()
 {
     // 抽不到地址时原样返回，交给下游去报「地址无效」。
-    QCOMPARE(videodl::extractUrl(QStringLiteral("BV1GJ411x7h7")),
-             QStringLiteral("BV1GJ411x7h7"));
+    QCOMPARE(videodl::extractUrl(QStringLiteral("BV1GJ411x7h7")), QStringLiteral("BV1GJ411x7h7"));
 }
 
 void TestOutputParsing::parseProgressReadsPercentSpeedAndEta()
@@ -104,8 +103,8 @@ void TestOutputParsing::parseProgressWithoutSpeedOrEta()
 void TestOutputParsing::parseProgressIgnoresOtherLines()
 {
     QVERIFY(!videodl::parseProgress(QStringLiteral("[download] Destination: a.mp4")).matched);
-    QVERIFY(!videodl::parseProgress(QStringLiteral("[Merger] Merging formats into \"a.mp4\""))
-                 .matched);
+    QVERIFY(
+        !videodl::parseProgress(QStringLiteral("[Merger] Merging formats into \"a.mp4\"")).matched);
 }
 
 void TestOutputParsing::classifyStageRecognisesStages()
@@ -118,25 +117,23 @@ void TestOutputParsing::classifyStageRecognisesStages()
              videodl::OutputStage::ExtractingAudio);
     QCOMPARE(videodl::classifyStage(QStringLiteral("[ffmpeg] Adding thumbnail")),
              videodl::OutputStage::ExtractingAudio);
-    QCOMPARE(videodl::classifyStage(QStringLiteral("some other line")),
-             videodl::OutputStage::None);
+    QCOMPARE(videodl::classifyStage(QStringLiteral("some other line")), videodl::OutputStage::None);
 }
 
 void TestOutputParsing::parseDestinationReadsFinalArtifact()
 {
     QCOMPARE(videodl::parseDestination(QStringLiteral("[download] Destination: C:\\v\\a.mp4")),
              QStringLiteral("C:\\v\\a.mp4"));
-    QCOMPARE(videodl::parseDestination(
-                 QStringLiteral("[Merger] Merging formats into \"C:\\v\\a.mp4\"")),
-             QStringLiteral("C:\\v\\a.mp4"));
+    QCOMPARE(
+        videodl::parseDestination(QStringLiteral("[Merger] Merging formats into \"C:\\v\\a.mp4\"")),
+        QStringLiteral("C:\\v\\a.mp4"));
     QCOMPARE(videodl::parseDestination(QStringLiteral("[ExtractAudio] Destination: out.mp3")),
              QStringLiteral("out.mp3"));
 }
 
 void TestOutputParsing::parseDestinationIgnoresOtherLines()
 {
-    QVERIFY(
-        videodl::parseDestination(QStringLiteral("[download]  45.3% of 10.00MiB")).isEmpty());
+    QVERIFY(videodl::parseDestination(QStringLiteral("[download]  45.3% of 10.00MiB")).isEmpty());
 }
 
 QTEST_APPLESS_MAIN(TestOutputParsing)

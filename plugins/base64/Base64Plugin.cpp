@@ -69,13 +69,12 @@ Base64Page::Base64Page(QWidget *parent)
 
     // 所有连接都以 this 作为上下文对象，页面销毁时连接自动断开。
     connect(encodeButton, &QPushButton::clicked, this, [this] {
-        const QByteArray encoded =
-            m_source->toPlainText().toUtf8().toBase64(currentOptions());
+        const QByteArray encoded = m_source->toPlainText().toUtf8().toBase64(currentOptions());
         m_result->setPlainText(QString::fromUtf8(encoded));
     });
     connect(decodeButton, &QPushButton::clicked, this, [this] {
-        const QByteArray decoded = QByteArray::fromBase64(
-            m_source->toPlainText().trimmed().toUtf8(), currentOptions());
+        const QByteArray decoded =
+            QByteArray::fromBase64(m_source->toPlainText().trimmed().toUtf8(), currentOptions());
         m_result->setPlainText(QString::fromUtf8(decoded));
     });
     connect(swapButton, &QPushButton::clicked, this, [this] {

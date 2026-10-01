@@ -358,8 +358,8 @@ void VideoDlPage::buildUi()
     layout->addWidget(m_log, 1);
 
     connect(m_browseDir, &QPushButton::clicked, this, [this] {
-        const QString dir = QFileDialog::getExistingDirectory(
-            this, tr("选择保存目录"), m_dir->text());
+        const QString dir =
+            QFileDialog::getExistingDirectory(this, tr("选择保存目录"), m_dir->text());
         if (!dir.isEmpty()) {
             m_dir->setText(QDir::toNativeSeparators(dir));
         }
@@ -412,12 +412,10 @@ void VideoDlPage::refreshEngineStatus()
     const QString ytDlp = resolvedYtDlp();
     const QString ffmpeg = resolvedFfmpeg();
 
-    const QString ytDlpText = ytDlp.isEmpty()
-        ? tr("未找到 —— 点下面的按钮下载，或手动指定路径")
-        : QDir::toNativeSeparators(ytDlp);
-    const QString ffmpegText = ffmpeg.isEmpty()
-        ? tr("未找到 —— 高画质合并与「仅音频」将不可用")
-        : QDir::toNativeSeparators(ffmpeg);
+    const QString ytDlpText = ytDlp.isEmpty() ? tr("未找到 —— 点下面的按钮下载，或手动指定路径")
+                                              : QDir::toNativeSeparators(ytDlp);
+    const QString ffmpegText = ffmpeg.isEmpty() ? tr("未找到 —— 高画质合并与「仅音频」将不可用")
+                                                : QDir::toNativeSeparators(ffmpeg);
 
     m_engineStatus->setText(tr("yt-dlp：%1\nffmpeg：%2").arg(ytDlpText, ffmpegText));
 
@@ -451,8 +449,7 @@ void VideoDlPage::fetchYtDlp()
         setStatus(tr("无法创建内核目录：%1").arg(QDir::toNativeSeparators(engineDir())));
         return;
     }
-    startFetch(FetchKind::YtDlp, kYtDlpDownloadUrl,
-               engineDir() + QStringLiteral("/yt-dlp.exe"));
+    startFetch(FetchKind::YtDlp, kYtDlpDownloadUrl, engineDir() + QStringLiteral("/yt-dlp.exe"));
 }
 
 void VideoDlPage::fetchFfmpeg()
@@ -543,9 +540,7 @@ void VideoDlPage::beginFetchTransfer()
             m_fetchFile->write(reply->readAll());
         }
     });
-    connect(reply, &QNetworkReply::finished, this, [this, reply] {
-        onFetchFinished(reply);
-    });
+    connect(reply, &QNetworkReply::finished, this, [this, reply] { onFetchFinished(reply); });
 }
 
 void VideoDlPage::scheduleFetchRetry()
@@ -677,79 +672,79 @@ void VideoDlPage::extractFfmpeg(const QString &zipPath)
     appendLog(tr("正在解压 ffmpeg …"));
 
     auto *ps = new QProcess(this);
-    connect(ps, &QProcess::finished, this,
-            [this, ps, tmpDir, zipPath](int exitCode, QProcess::ExitStatus) {
-                const QString err = videodl::decodeOutput(ps->readAllStandardError()).trimmed();
-                ps->deleteLater();
+    connect(
+        ps, &QProcess::finished, this,
+        [this, ps, tmpDir, zipPath](int exitCode, QProcess::ExitStatus) {
+            const QString err = videodl::decodeOutput(ps->readAllStandardError()).trimmed();
+            ps->deleteLater();
 
-                QString result;
-                if (exitCode != 0) {
-                    appendLog(tr("解压失败：%1").arg(err.isEmpty() ? tr("未知错误") : err));
-                    result = tr("ffmpeg 安装失败：解压出错。");
-                } else {
-                    // 压缩包里有多个同名文件（bin/ 与 doc/），优先挑 bin/ 下的那个。
-                    QDirIterator it(tmpDir, QStringList{QStringLiteral("ffmpeg.exe")},
-                                    QDir::Files, QDirIterator::Subdirectories);
-                    QString found;
-                    QString fallback;
-                    while (it.hasNext()) {
-                        const QString path = it.next();
-                        if (QFileInfo(path).dir().dirName().compare(QStringLiteral("bin"),
-                                                                    Qt::CaseInsensitive) == 0) {
-                            found = path;
-                            break;
-                        }
-                        if (fallback.isEmpty()) {
-                            fallback = path;
-                        }
+            QString result;
+            if (exitCode != 0) {
+                appendLog(tr("解压失败：%1").arg(err.isEmpty() ? tr("未知错误") : err));
+                result = tr("ffmpeg 安装失败：解压出错。");
+            } else {
+                // 压缩包里有多个同名文件（bin/ 与 doc/），优先挑 bin/ 下的那个。
+                QDirIterator it(tmpDir, QStringList{QStringLiteral("ffmpeg.exe")}, QDir::Files,
+                                QDirIterator::Subdirectories);
+                QString found;
+                QString fallback;
+                while (it.hasNext()) {
+                    const QString path = it.next();
+                    if (QFileInfo(path).dir().dirName().compare(QStringLiteral("bin"),
+                                                                Qt::CaseInsensitive)
+                        == 0) {
+                        found = path;
+                        break;
                     }
-                    if (found.isEmpty()) {
-                        found = fallback;
-                    }
-
-                    if (found.isEmpty()) {
-                        appendLog(tr("解压后没找到 ffmpeg.exe。"));
-                        result = tr("ffmpeg 安装失败：压缩包里没有 ffmpeg.exe。");
-                    } else {
-                        const QString target = engineDir() + QStringLiteral("/ffmpeg.exe");
-                        QFile::remove(target);
-                        if (QFile::copy(found, target)) {
-                            appendLog(tr("ffmpeg 已就绪：%1")
-                                          .arg(QDir::toNativeSeparators(target)));
-                            result = tr("ffmpeg 已就绪。");
-                        } else {
-                            appendLog(tr("复制 ffmpeg 失败：%1")
-                                          .arg(QDir::toNativeSeparators(target)));
-                            result = tr("ffmpeg 安装失败：无法写入目标目录。");
-                        }
+                    if (fallback.isEmpty()) {
+                        fallback = path;
                     }
                 }
+                if (found.isEmpty()) {
+                    found = fallback;
+                }
 
+                if (found.isEmpty()) {
+                    appendLog(tr("解压后没找到 ffmpeg.exe。"));
+                    result = tr("ffmpeg 安装失败：压缩包里没有 ffmpeg.exe。");
+                } else {
+                    const QString target = engineDir() + QStringLiteral("/ffmpeg.exe");
+                    QFile::remove(target);
+                    if (QFile::copy(found, target)) {
+                        appendLog(tr("ffmpeg 已就绪：%1").arg(QDir::toNativeSeparators(target)));
+                        result = tr("ffmpeg 已就绪。");
+                    } else {
+                        appendLog(tr("复制 ffmpeg 失败：%1").arg(QDir::toNativeSeparators(target)));
+                        result = tr("ffmpeg 安装失败：无法写入目标目录。");
+                    }
+                }
+            }
+
+            QDir(tmpDir).removeRecursively();
+            QFile::remove(zipPath);
+
+            m_fetchKind = FetchKind::None;
+            m_progress->setRange(0, 100);
+            m_progress->setValue(0);
+            setStatus(result);
+            refreshEngineStatus();
+        });
+    connect(ps, &QProcess::errorOccurred, this,
+            [this, ps, tmpDir, zipPath](QProcess::ProcessError) {
+                appendLog(tr("无法调用 PowerShell 解压，请手动指定 ffmpeg 路径。"));
+                ps->deleteLater();
                 QDir(tmpDir).removeRecursively();
                 QFile::remove(zipPath);
-
                 m_fetchKind = FetchKind::None;
                 m_progress->setRange(0, 100);
                 m_progress->setValue(0);
-                setStatus(result);
+                setStatus(tr("ffmpeg 安装失败：无法解压。"));
                 refreshEngineStatus();
             });
-    connect(ps, &QProcess::errorOccurred, this, [this, ps, tmpDir, zipPath](QProcess::ProcessError) {
-        appendLog(tr("无法调用 PowerShell 解压，请手动指定 ffmpeg 路径。"));
-        ps->deleteLater();
-        QDir(tmpDir).removeRecursively();
-        QFile::remove(zipPath);
-        m_fetchKind = FetchKind::None;
-        m_progress->setRange(0, 100);
-        m_progress->setValue(0);
-        setStatus(tr("ffmpeg 安装失败：无法解压。"));
-        refreshEngineStatus();
-    });
 
     // 用系统自带的 Expand-Archive，省得为解压一个 zip 引入第三方库。
     ps->start(QStringLiteral("powershell.exe"),
-              {QStringLiteral("-NoProfile"),
-               QStringLiteral("-NonInteractive"),
+              {QStringLiteral("-NoProfile"), QStringLiteral("-NonInteractive"),
                QStringLiteral("-Command"),
                QStringLiteral("Expand-Archive -LiteralPath '%1' -DestinationPath '%2' -Force")
                    .arg(QDir::toNativeSeparators(zipPath), QDir::toNativeSeparators(tmpDir))});
@@ -757,9 +752,8 @@ void VideoDlPage::extractFfmpeg(const QString &zipPath)
 
 void VideoDlPage::pickYtDlp()
 {
-    const QString file = QFileDialog::getOpenFileName(
-        this, tr("选择 yt-dlp 可执行文件"), QString(),
-        tr("可执行文件 (*.exe);;所有文件 (*)"));
+    const QString file = QFileDialog::getOpenFileName(this, tr("选择 yt-dlp 可执行文件"), QString(),
+                                                      tr("可执行文件 (*.exe);;所有文件 (*)"));
     if (file.isEmpty()) {
         return;
     }
@@ -770,9 +764,8 @@ void VideoDlPage::pickYtDlp()
 
 void VideoDlPage::pickFfmpeg()
 {
-    const QString file = QFileDialog::getOpenFileName(
-        this, tr("选择 ffmpeg 可执行文件"), QString(),
-        tr("可执行文件 (*.exe);;所有文件 (*)"));
+    const QString file = QFileDialog::getOpenFileName(this, tr("选择 ffmpeg 可执行文件"), QString(),
+                                                      tr("可执行文件 (*.exe);;所有文件 (*)"));
     if (file.isEmpty()) {
         return;
     }
@@ -783,9 +776,8 @@ void VideoDlPage::pickFfmpeg()
 
 void VideoDlPage::pickCookies()
 {
-    const QString file = QFileDialog::getOpenFileName(
-        this, tr("选择 cookies.txt"), QString(),
-        tr("Cookie 文件 (*.txt);;所有文件 (*)"));
+    const QString file = QFileDialog::getOpenFileName(this, tr("选择 cookies.txt"), QString(),
+                                                      tr("Cookie 文件 (*.txt);;所有文件 (*)"));
     if (file.isEmpty()) {
         return;
     }
@@ -818,8 +810,7 @@ void VideoDlPage::startDownload()
 
     const QString dir = m_dir->text().trimmed();
     if (dir.isEmpty() || !QDir().mkpath(dir)) {
-        QMessageBox::warning(this, tr("保存目录无效"),
-                             tr("请选择一个可写入的保存目录。"));
+        QMessageBox::warning(this, tr("保存目录无效"), tr("请选择一个可写入的保存目录。"));
         return;
     }
 
@@ -848,14 +839,13 @@ void VideoDlPage::startDownload()
 }
 
 void VideoDlPage::launchDownload(const QString &target, const QString &titleHint,
-                                 const QString &dir, int quality, bool audioOnly,
-                                 bool needsReferer)
+                                 const QString &dir, int quality, bool audioOnly, bool needsReferer)
 {
     const QString ytDlp = resolvedYtDlp();
     const QString ffmpeg = resolvedFfmpeg();
 
     QStringList args;
-    args << QStringLiteral("--newline")     // 让进度按行刷新，才好解析
+    args << QStringLiteral("--newline") // 让进度按行刷新，才好解析
          << QStringLiteral("--no-playlist") // 只下载当前这一个视频
          << QStringLiteral("-P") << dir;
 
@@ -864,8 +854,8 @@ void VideoDlPage::launchDownload(const QString &target, const QString &titleHint
     } else {
         // 抖音那条路拿到的是直链，generic extractor 只会把文件叫成 video.mp4，
         // 只好把页面标题直接写进输出模板。百分号在模板里有含义，先转义掉。
-        const QString safeTitle = QString(titleHint).replace(QLatin1Char('%'),
-                                                             QStringLiteral("%%"));
+        const QString safeTitle =
+            QString(titleHint).replace(QLatin1Char('%'), QStringLiteral("%%"));
         args << QStringLiteral("-o") << (safeTitle + QStringLiteral(".%(ext)s"));
     }
 
@@ -906,16 +896,13 @@ void VideoDlPage::launchDownload(const QString &target, const QString &titleHint
         args << QStringLiteral("--merge-output-format") << QStringLiteral("mp4");
         switch (quality) {
         case 1:
-            args << QStringLiteral("-f")
-                 << QStringLiteral("bv*[height<=1080]+ba/b[height<=1080]");
+            args << QStringLiteral("-f") << QStringLiteral("bv*[height<=1080]+ba/b[height<=1080]");
             break;
         case 2:
-            args << QStringLiteral("-f")
-                 << QStringLiteral("bv*[height<=720]+ba/b[height<=720]");
+            args << QStringLiteral("-f") << QStringLiteral("bv*[height<=720]+ba/b[height<=720]");
             break;
         case 3:
-            args << QStringLiteral("-f")
-                 << QStringLiteral("bv*[height<=480]+ba/b[height<=480]");
+            args << QStringLiteral("-f") << QStringLiteral("bv*[height<=480]+ba/b[height<=480]");
             break;
         default:
             args << QStringLiteral("-f") << QStringLiteral("bv*+ba/b");
@@ -936,8 +923,7 @@ void VideoDlPage::launchDownload(const QString &target, const QString &titleHint
     // 等第一行 [download] xx% 出来再切回确定态。
     m_progress->setRange(0, 0);
     setStatus(tr("正在解析视频信息…"));
-    appendLog(tr("执行：%1 %2")
-                  .arg(QDir::toNativeSeparators(ytDlp), args.join(QLatin1Char(' '))));
+    appendLog(tr("执行：%1 %2").arg(QDir::toNativeSeparators(ytDlp), args.join(QLatin1Char(' '))));
 
     if (ffmpeg.isEmpty()) {
         appendLog(tr("提示：未检测到 ffmpeg，已降级为单文件下载，清晰度可能受限。"));
@@ -1057,13 +1043,11 @@ void VideoDlPage::onRenderFinished(int exitCode, QProcess::ExitStatus status)
         return;
     }
     if (timedOut) {
-        giveUp(tr("渲染超时：抖音页面没能在 60 秒内就绪。"),
-               tr("抖音页面渲染超时。"));
+        giveUp(tr("渲染超时：抖音页面没能在 60 秒内就绪。"), tr("抖音页面渲染超时。"));
         return;
     }
     if (status != QProcess::NormalExit || exitCode != 0) {
-        giveUp(tr("浏览器渲染失败（退出码 %1）。").arg(exitCode),
-               tr("抖音页面渲染失败。"));
+        giveUp(tr("浏览器渲染失败（退出码 %1）。").arg(exitCode), tr("抖音页面渲染失败。"));
         return;
     }
 
@@ -1082,9 +1066,9 @@ void VideoDlPage::onRenderFinished(int exitCode, QProcess::ExitStatus status)
         appendLog(tr("标题：%1").arg(title));
     }
 
-    const QString playUrl = QStringLiteral(
-        "https://www.douyin.com/aweme/v1/play/?video_id=%1&ratio=%2&line=0")
-        .arg(videoId, videodl::douyinRatio(m_renderQuality));
+    const QString playUrl =
+        QStringLiteral("https://www.douyin.com/aweme/v1/play/?video_id=%1&ratio=%2&line=0")
+            .arg(videoId, videodl::douyinRatio(m_renderQuality));
     appendLog(tr("播放地址接口：%1").arg(playUrl));
 
     launchDownload(playUrl, title, m_renderDir, m_renderQuality, m_renderAudioOnly, true);
@@ -1140,9 +1124,8 @@ void VideoDlPage::handleOutputLine(const QString &line)
         const QString hint = progress.eta.isEmpty()
             ? progress.speed
             : tr("%1，剩余 %2").arg(progress.speed, progress.eta);
-        setStatus(hint.isEmpty()
-                      ? tr("正在下载… %1%").arg(progress.percent)
-                      : tr("正在下载… %1%（%2）").arg(progress.percent).arg(hint));
+        setStatus(hint.isEmpty() ? tr("正在下载… %1%").arg(progress.percent)
+                                 : tr("正在下载… %1%（%2）").arg(progress.percent).arg(hint));
     } else {
         switch (videodl::classifyStage(line)) {
         case videodl::OutputStage::DownloadStarting:
@@ -1249,8 +1232,8 @@ toolbox::ToolMeta VideoDlPlugin::meta() const
     info.name = QStringLiteral("视频下载");
     info.category = QStringLiteral("媒体工具");
     info.version = QStringLiteral("0.1.0");
-    info.description = QStringLiteral(
-        "粘贴 B站 / YouTube / 抖音 等视频地址，按画质下载到本地（内核为 yt-dlp）。");
+    info.description =
+        QStringLiteral("粘贴 B站 / YouTube / 抖音 等视频地址，按画质下载到本地（内核为 yt-dlp）。");
     info.icon = QIcon(QStringLiteral(":/icons/videodl.svg"));
     return info;
 }

@@ -18,14 +18,13 @@ private slots:
 
 void TestDouyinSupport::isDouyinUrlCoversShareDomains()
 {
-    QVERIFY(videodl::isDouyinUrl(
-        QStringLiteral("https://www.douyin.com/video/7123456789012345678")));
+    QVERIFY(
+        videodl::isDouyinUrl(QStringLiteral("https://www.douyin.com/video/7123456789012345678")));
     // App 里分享出来的是短链，域名不一样。
     QVERIFY(videodl::isDouyinUrl(QStringLiteral("https://v.douyin.com/iRNBho6u/")));
     QVERIFY(videodl::isDouyinUrl(QStringLiteral("https://WWW.DOUYIN.COM/video/1")));
 
-    QVERIFY(!videodl::isDouyinUrl(
-        QStringLiteral("https://www.bilibili.com/video/BV1GJ411x7h7")));
+    QVERIFY(!videodl::isDouyinUrl(QStringLiteral("https://www.bilibili.com/video/BV1GJ411x7h7")));
 }
 
 void TestDouyinSupport::douyinRatioMapsQualityIndex()
@@ -57,8 +56,8 @@ void TestDouyinSupport::parseDouyinVideoIdNeedsEnoughCharacters()
 
 void TestDouyinSupport::parseDouyinTitleDropsSiteSuffix()
 {
-    const QString dom = QStringLiteral(
-        "<html><head><title>  一条视频的标题 - 抖音 </title></head></html>");
+    const QString dom =
+        QStringLiteral("<html><head><title>  一条视频的标题 - 抖音 </title></head></html>");
 
     QCOMPARE(videodl::parseDouyinTitle(dom), QStringLiteral("一条视频的标题"));
 }

@@ -23,7 +23,6 @@ QString engineDir(const QString &appDir);
 ///
 /// baseDir 传 engineDir() 的结果。返回空串表示没找到，调用方据此提示用户
 /// 或降级（例如没有 ffmpeg 时退回单文件下载）。
-QString resolveExecutable(const QString &manual, const QString &fileName,
-                          const QString &baseDir);
+QString resolveExecutable(const QString &manual, const QString &fileName, const QString &baseDir);
 
 } // namespace videodl

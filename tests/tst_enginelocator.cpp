@@ -67,8 +67,8 @@ void TestEngineLocator::resolveFallsBackToBundledDirectory()
     QVERIFY(touch(bundled));
 
     // 手动路径指向一个并不存在的文件，应当被忽略而不是原样返回。
-    const QString resolved = videodl::resolveExecutable(
-        dir.path() + QStringLiteral("/ghost.exe"), QStringLiteral("ffmpeg.exe"), dir.path());
+    const QString resolved = videodl::resolveExecutable(dir.path() + QStringLiteral("/ghost.exe"),
+                                                        QStringLiteral("ffmpeg.exe"), dir.path());
 
     QCOMPARE(QFileInfo(resolved).canonicalFilePath(), QFileInfo(bundled).canonicalFilePath());
 }

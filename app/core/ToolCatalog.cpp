@@ -15,8 +15,7 @@ NavFilterResult filterNavRows(const QList<NavRow> &rows, const QString &needle)
             continue;
         }
 
-        const bool hit =
-            needle.isEmpty() || entry.searchText.contains(needle, Qt::CaseInsensitive);
+        const bool hit = needle.isEmpty() || entry.searchText.contains(needle, Qt::CaseInsensitive);
         result.visible[row] = hit;
 
         // 首页没有工具 id，不计入工具数。
