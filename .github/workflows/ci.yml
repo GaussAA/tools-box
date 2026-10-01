@@ -72,12 +72,22 @@ jobs:
       # 官方源，**不要**开 mirror。本项目吃过镜像的亏：清华源的 Qt 包已损坏会报
       # ArchiveChecksumError，华为云/阿里云镜像定位不到 XML。这条踩坑记录在
       # docs/workflow.md §1，别在 CI 里重新踩一遍。
+      #
+      # 为何不直接用 jurplel/install-qt-action：它调用的 aqtinstall 最新发布版
+      # （3.3.0）尚不支持 Qt 6.11+ —— 该支持只在其 CHANGELOG 的「Unreleased」段
+      # （"Support Qt 6.11+ for Windows X64" #1000），因此装 6.12.0 会报
+      # "Failed to locate XML data for Qt version '6.12.0'"。此处直接装 aqtinstall
+      # 主干并手动安装；待含该支持的正式版发布后，可改回 install-qt-action。
       - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: '6.12.0'
-          arch: 'win64_msvc2022_64'
-          cache: true
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          python -m pip install --upgrade --disable-pip-version-check "aqtinstall @ git+https://github.com/miurahr/aqtinstall.git"
+          $qtRoot = "$env:GITHUB_WORKSPACE\Qt\6.12.0\msvc2022_64"
+          python -m aqt install-qt windows desktop 6.12.0 win64_msvc2022_64 --outputdir "$env:GITHUB_WORKSPACE\Qt"
+          if (-not (Test-Path "$qtRoot\bin\qmake.exe")) { throw "Qt 6.12.0 did not install to $qtRoot" }
+          "QT_ROOT_DIR=$qtRoot" | Add-Content -Path $env:GITHUB_ENV
+          "$qtRoot\bin"         | Add-Content -Path $env:GITHUB_PATH
 
       # Ninja 需要 cl.exe 在 PATH 上。GitHub 的每个 run 步骤是独立 shell，所以环境
       # 变量得写进 GITHUB_ENV 才能跨步骤生效。
