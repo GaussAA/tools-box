@@ -30,24 +30,59 @@ function Check($ok, $what) {
 }
 
 # ---------- locate clang-format ----------
+# Path first (CI installs a pinned copy there), then any Visual Studio install on this
+# machine. Two traps this has to survive:
+#   * the VS layout differs per year/edition, so glob instead of hardcoding;
+#   * the Llvm folder also carries builds for other architectures, and the glob picks
+#     ARM64 before x64 (alphabetically). Such a binary sits on disk happily but fails
+#     to execute, so existence is not enough - every candidate is actually run.
+$candidates = @()
 $fromPath = Get-Command clang-format -ErrorAction SilentlyContinue
-$vsPaths = @(
-  "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\Llvm\x64\bin\clang-format.exe",
-  "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\Llvm\bin\clang-format.exe",
-  "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\Llvm\x64\bin\clang-format.exe"
-)
-$cf = $null
-if ($fromPath) { $cf = $fromPath.Source }
-if (-not $cf) { foreach ($p in $vsPaths) { if (Test-Path $p) { $cf = $p; break } } }
+if ($fromPath) { $candidates += $fromPath.Source }
+$vsRoot = "C:\Program Files\Microsoft Visual Studio\*\*\VC\Tools\Llvm"
+foreach ($p in @("$vsRoot\x64\bin\clang-format.exe", "$vsRoot\bin\clang-format.exe", "$vsRoot\*\bin\clang-format.exe")) {
+  $candidates += @(Get-ChildItem -Path $p -ErrorAction SilentlyContinue |
+                   Sort-Object FullName | ForEach-Object { $_.FullName })
+}
 
 Write-Output ("repo         = " + $repo)
+
+$cf = $null
+$verText = ""
+foreach ($c in ($candidates | Select-Object -Unique)) {
+  $prevEap = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try { $out = ((& $c --version) 2>&1) -join " " } catch { $out = "" }
+  $ok = ($LASTEXITCODE -eq 0) -and ($out -match 'clang-format version')
+  $ErrorActionPreference = $prevEap
+  if ($ok) { $cf = $c; $verText = $out; break }
+  Write-Output ("skipped (not runnable here): " + $c)
+}
+
 if (-not $cf) {
-  Write-Output "FAIL: clang-format not found (looked on PATH and in the Visual Studio LLVM dirs)"
+  Write-Output "FAIL: no runnable clang-format found (looked on PATH and under any Visual Studio install)"
   Write-Output "DONE(FAILED 1): clang-format not found"
   exit 1
 }
 Write-Output ("clang-format = " + $cf)
-Write-Output ("version      = " + ((& $cf --version) 2>&1))
+
+# ---------- pin the version ----------
+# Formatting output is version dependent: a different clang-format can reformat code
+# the pinned one is happy with, which would make this check flaky instead of wrong.
+# CI installs exactly this version (pip install clang-format==<expected>); locally it
+# comes from Visual Studio. To move to a newer clang-format: re-normalize the tree in
+# a commit that does nothing else, register it in .git-blame-ignore-revs, then bump
+# this constant - in that order.
+$expectedVersion = "22.1.3"
+Write-Output ("version      = " + $verText)
+if ($verText -notmatch [regex]::Escape("version $expectedVersion")) {
+  Write-Output ("FAIL: expected clang-format $expectedVersion, found something else")
+  Write-Output "      A mismatched formatter gives untrustworthy results, so the check stops here."
+  Write-Output "      Install the pinned version (pip install clang-format==$expectedVersion) or update"
+  Write-Output "      the pin the way the comment above describes."
+  Write-Output ("DONE(FAILED 1): clang-format version mismatch (want $expectedVersion)")
+  exit 1
+}
 
 $files = @(& git -C $repo ls-files "*.cpp" "*.h" "*.hpp")
 Write-Output ("scope        = " + $files.Count + " C++ file(s)")
