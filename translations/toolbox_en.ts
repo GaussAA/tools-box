@@ -64,6 +64,128 @@
     </message>
 </context>
 <context>
+    <name>DouyinResolver</name>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="83"/>
+        <source>抖音要靠浏览器渲染页面才能取到播放地址，但这台机器上没找到 Edge 或 Chrome。</source>
+        <translation>Douyin needs a browser to render the page before the play URL appears, but neither Edge nor Chrome was found on this machine.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="85"/>
+        <source>未找到可用的浏览器。</source>
+        <translation>No usable browser was found.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="113"/>
+        <source>抖音的播放地址要等页面脚本跑完才出现，正在用浏览器渲染…</source>
+        <translation>Douyin’s play URL only appears after the page scripts run; rendering it in a browser…</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="114"/>
+        <source>渲染器：%1</source>
+        <translation>Renderer: %1</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="116"/>
+        <source>正在渲染抖音页面…</source>
+        <translation>Rendering the Douyin page…</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="168"/>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="168"/>
+        <source>已取消。</source>
+        <translation>Cancelled.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="174"/>
+        <source>无法启动浏览器：%1</source>
+        <translation>Could not start the browser: %1</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="174"/>
+        <source>无法启动浏览器。</source>
+        <translation>Could not launch the browser.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="178"/>
+        <source>渲染超时：抖音页面没能在 60 秒内就绪。</source>
+        <translation>Render timed out: the Douyin page did not become ready within 60 seconds.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="178"/>
+        <source>抖音页面渲染超时。</source>
+        <translation>Timed out rendering the Douyin page.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="182"/>
+        <source>浏览器渲染失败（退出码 %1）。</source>
+        <translation>Browser rendering failed (exit code %1).</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="182"/>
+        <source>抖音页面渲染失败。</source>
+        <translation>Failed to render the Douyin page.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="191"/>
+        <source>页面渲染完了，但里面没有 video_id —— 多半是抖音又改版了。</source>
+        <translation>The page rendered but contains no video_id — Douyin most likely changed its site again.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="192"/>
+        <source>没能从抖音页面里取到播放地址。</source>
+        <translation>Could not extract the play URL from the Douyin page.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="196"/>
+        <source>已取到 video_id：%1</source>
+        <translation>Got video_id: %1</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="198"/>
+        <source>标题：%1</source>
+        <translation>Title: %1</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DouyinResolver.cpp" line="204"/>
+        <source>播放地址接口：%1</source>
+        <translation>Play URL endpoint: %1</translation>
+    </message>
+</context>
+<context>
+    <name>DownloadRunner</name>
+    <message>
+        <location filename="../plugins/videodl/DownloadRunner.cpp" line="84"/>
+        <source>%1，剩余 %2</source>
+        <translation>%1, %2 remaining</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DownloadRunner.cpp" line="85"/>
+        <source>正在下载… %1%</source>
+        <translation>Downloading… %1%</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DownloadRunner.cpp" line="86"/>
+        <source>正在下载… %1%（%2）</source>
+        <translation>Downloading… %1% (%2)</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DownloadRunner.cpp" line="90"/>
+        <source>正在下载…</source>
+        <translation>Downloading…</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DownloadRunner.cpp" line="96"/>
+        <source>正在合并音视频…</source>
+        <translation>Merging audio and video…</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/DownloadRunner.cpp" line="100"/>
+        <source>正在提取音频…</source>
+        <translation>Extracting audio…</translation>
+    </message>
+</context>
+<context>
     <name>EngineFetcher</name>
     <message>
         <location filename="../plugins/videodl/EngineFetcher.cpp" line="67"/>
@@ -426,138 +548,136 @@
 <context>
     <name>VideoDlPage</name>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="200"/>
         <source>无法启动下载内核，请检查 yt-dlp 路径是否有效。</source>
-        <translation>Could not start the download engine. Check that the yt-dlp path is valid.</translation>
+        <translation type="vanished">Could not start the download engine. Check that the yt-dlp path is valid.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="203"/>
         <source>无法启动下载内核。</source>
-        <translation>Could not start the download engine.</translation>
+        <translation type="vanished">Could not start the download engine.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="245"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="181"/>
         <source>粘贴视频地址（支持 B站 / YouTube / 抖音 等站点），选好画质后点「开始下载」。</source>
         <translation>Paste a video link (Bilibili / YouTube / Douyin and others), pick a quality, then click Start download.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="248"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="184"/>
         <source>https://…（视频页面地址）</source>
         <translation>https://… (video page URL)</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="252"/>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="279"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="188"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="215"/>
         <source>浏览…</source>
         <translation>Browse…</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="253"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="189"/>
         <source>打开保存目录</source>
         <translation>Open save folder</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="256"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="192"/>
         <source>保存到</source>
         <translation>Save to</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="262"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="198"/>
         <source>最高画质（自动合并为 mp4）</source>
         <translation>Best quality (merged into mp4)</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="263"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="199"/>
         <source>1080p 及以下</source>
         <translation>1080p or lower</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="264"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="200"/>
         <source>720p 及以下</source>
         <translation>720p or lower</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="265"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="201"/>
         <source>480p 及以下</source>
         <translation>480p or lower</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="266"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="202"/>
         <source>仅音频（mp3）</source>
         <translation>Audio only (mp3)</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="269"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="205"/>
         <source>画质</source>
         <translation>Quality</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="277"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="213"/>
         <source>可选：浏览器导出的 cookies.txt（B站 会员内容等需要）</source>
         <translation>Optional: cookies.txt exported from your browser (needed for members-only content on Bilibili)</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="282"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="218"/>
         <source>Cookie 文件</source>
         <translation>Cookie file</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="286"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="222"/>
         <source>视频地址</source>
         <translation>Video URL</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="293"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="229"/>
         <source>下载内核（yt-dlp / ffmpeg）</source>
         <translation>Download engines (yt-dlp / ffmpeg)</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="300"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="236"/>
         <source>下载 / 更新 yt-dlp</source>
         <translation>Download / update yt-dlp</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="301"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="237"/>
         <source>下载 ffmpeg</source>
         <translation>Download ffmpeg</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="302"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="238"/>
         <source>手动指定 yt-dlp…</source>
         <translation>Choose yt-dlp manually…</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="303"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="239"/>
         <source>手动指定 ffmpeg…</source>
         <translation>Choose ffmpeg manually…</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="317"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="253"/>
         <source>开始下载</source>
         <translation>Start download</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="318"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="254"/>
         <source>取消</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="325"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="261"/>
         <source>就绪。</source>
         <translation>Ready.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="341"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="277"/>
         <source>下载日志会显示在这里</source>
         <translation>The download log shows up here</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="344"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="280"/>
         <source>日志</source>
         <translation>Log</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="349"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="285"/>
         <source>选择保存目录</source>
         <translation>Choose save folder</translation>
     </message>
@@ -570,29 +690,29 @@
         <translation type="vanished">yt-dlp</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="397"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="333"/>
         <source>未找到 —— 点下面的按钮下载，或手动指定路径</source>
         <translation>Not found — use the button below to download it, or point to a path manually</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="399"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="335"/>
         <source>未找到 —— 高画质合并与「仅音频」将不可用</source>
         <translation>Not found — high-quality merging and “audio only” will be unavailable</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="402"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="338"/>
         <source>yt-dlp：%1
 ffmpeg：%2</source>
         <translation>yt-dlp: %1
 ffmpeg: %2</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="432"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="368"/>
         <source>无法创建目录：%1</source>
         <translation>Could not create the folder: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="433"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="369"/>
         <source>无法创建内核目录：%1</source>
         <translation>Could not create the engine folder: %1</translation>
     </message>
@@ -701,108 +821,108 @@ ffmpeg: %2</translation>
         <translation type="vanished">ffmpeg install failed: cannot extract the archive.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="471"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="407"/>
         <source>选择 yt-dlp 可执行文件</source>
         <translation>Choose the yt-dlp executable</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="472"/>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="484"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="408"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="420"/>
         <source>可执行文件 (*.exe);;所有文件 (*)</source>
         <translation>Executables (*.exe);;All files (*)</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="477"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="413"/>
         <source>已指定 yt-dlp：%1</source>
         <translation>yt-dlp set to %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="483"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="419"/>
         <source>选择 ffmpeg 可执行文件</source>
         <translation>Choose the ffmpeg executable</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="489"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="425"/>
         <source>已指定 ffmpeg：%1</source>
         <translation>ffmpeg set to %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="495"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="431"/>
         <source>选择 cookies.txt</source>
         <translation>Choose cookies.txt</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="496"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="432"/>
         <source>Cookie 文件 (*.txt);;所有文件 (*)</source>
         <translation>Cookie files (*.txt);;All files (*)</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="501"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="437"/>
         <source>已指定 cookies 文件：%1</source>
         <translation>Cookies file set to %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="510"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="446"/>
         <source>缺少地址</source>
         <translation>Missing URL</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="510"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="446"/>
         <source>请先粘贴视频地址。</source>
         <translation>Paste a video URL first.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="521"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="457"/>
         <source>缺少下载内核</source>
         <translation>Missing download engine</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="522"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="458"/>
         <source>还没有可用的 yt-dlp。请点「下载 / 更新 yt-dlp」，或手动指定一个 yt-dlp.exe 路径。</source>
         <translation>There is no usable yt-dlp yet. Click “Download / update yt-dlp”, or point to a yt-dlp.exe manually.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="529"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="465"/>
         <source>保存目录无效</source>
         <translation>Invalid save folder</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="529"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="465"/>
         <source>请选择一个可写入的保存目录。</source>
         <translation>Choose a save folder that can be written to.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="538"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="474"/>
         <source>缺少 ffmpeg</source>
         <translation>ffmpeg missing</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="539"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="475"/>
         <source>「仅音频」需要用 ffmpeg 转成 mp3。请先点「下载 ffmpeg」，或改选其它画质。</source>
         <translation>“Audio only” needs ffmpeg to produce an mp3. Click “Download ffmpeg” first, or pick another quality.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="546"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="482"/>
         <source>已从粘贴内容中识别出地址：%1</source>
         <translation>Recognised a URL in the pasted text: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="580"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="521"/>
         <source>视频标题无法用作文件名，已改用默认命名。</source>
         <translation>The video title cannot be used as a file name; falling back to the default name.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="605"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="537"/>
         <source>cookies 文件读不出来，本次下载不使用它：%1</source>
         <translation>The cookies file could not be read, so this download will not use it: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="610"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="542"/>
         <source>cookies 文件格式不合规，已自动修正 %1 行、丢弃 %2 行畸形记录。</source>
         <translation>The cookies file was malformed: fixed %1 line(s) and discarded %2 bad row(s).</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="653"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="560"/>
         <source>正在解析视频信息…</source>
         <translation>Reading video info…</translation>
     </message>
@@ -811,174 +931,150 @@ ffmpeg: %2</translation>
         <translation type="vanished">Running: %1 %2</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="659"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="554"/>
         <source>提示：未检测到 ffmpeg，已降级为单文件下载，清晰度可能受限。</source>
         <translation>Note: ffmpeg was not found, so this falls back to a single-file download and quality may be limited.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="687"/>
         <source>抖音要靠浏览器渲染页面才能取到播放地址，但这台机器上没找到 Edge 或 Chrome。</source>
-        <translation>Douyin needs a browser to render the page before the play URL appears, but neither Edge nor Chrome was found on this machine.</translation>
+        <translation type="vanished">Douyin needs a browser to render the page before the play URL appears, but neither Edge nor Chrome was found on this machine.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="689"/>
         <source>未找到可用的浏览器。</source>
-        <translation>No usable browser was found.</translation>
+        <translation type="vanished">No usable browser was found.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="719"/>
         <source>抖音的播放地址要等页面脚本跑完才出现，正在用浏览器渲染…</source>
-        <translation>Douyin’s play URL only appears after the page scripts run; rendering it in a browser…</translation>
+        <translation type="vanished">Douyin’s play URL only appears after the page scripts run; rendering it in a browser…</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="720"/>
         <source>渲染器：%1</source>
-        <translation>Renderer: %1</translation>
+        <translation type="vanished">Renderer: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="722"/>
         <source>正在渲染抖音页面…</source>
-        <translation>Rendering the Douyin page…</translation>
+        <translation type="vanished">Rendering the Douyin page…</translation>
     </message>
     <message>
         <source>浏览器启动失败：%1</source>
         <translation type="vanished">Could not launch the browser: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="779"/>
         <source>无法启动浏览器。</source>
-        <translation>Could not launch the browser.</translation>
+        <translation type="vanished">Could not launch the browser.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="773"/>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="773"/>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="918"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="579"/>
         <source>已取消。</source>
         <translation>Cancelled.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="656"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="552"/>
         <source>执行：%1</source>
         <translation>Running: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="779"/>
         <source>无法启动浏览器：%1</source>
-        <translation>Could not start the browser: %1</translation>
+        <translation type="vanished">Could not start the browser: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="783"/>
         <source>渲染超时：抖音页面没能在 60 秒内就绪。</source>
-        <translation>Render timed out: the Douyin page did not become ready within 60 seconds.</translation>
+        <translation type="vanished">Render timed out: the Douyin page did not become ready within 60 seconds.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="783"/>
         <source>抖音页面渲染超时。</source>
-        <translation>Timed out rendering the Douyin page.</translation>
+        <translation type="vanished">Timed out rendering the Douyin page.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="787"/>
         <source>浏览器渲染失败（退出码 %1）。</source>
-        <translation>Browser rendering failed (exit code %1).</translation>
+        <translation type="vanished">Browser rendering failed (exit code %1).</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="787"/>
         <source>抖音页面渲染失败。</source>
-        <translation>Failed to render the Douyin page.</translation>
+        <translation type="vanished">Failed to render the Douyin page.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="796"/>
         <source>页面渲染完了，但里面没有 video_id —— 多半是抖音又改版了。</source>
-        <translation>The page rendered but contains no video_id — Douyin most likely changed its site again.</translation>
+        <translation type="vanished">The page rendered but contains no video_id — Douyin most likely changed its site again.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="797"/>
         <source>没能从抖音页面里取到播放地址。</source>
-        <translation>Could not extract the play URL from the Douyin page.</translation>
+        <translation type="vanished">Could not extract the play URL from the Douyin page.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="801"/>
         <source>已取到 video_id：%1</source>
-        <translation>Got video_id: %1</translation>
+        <translation type="vanished">Got video_id: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="803"/>
         <source>标题：%1</source>
-        <translation>Title: %1</translation>
+        <translation type="vanished">Title: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="809"/>
         <source>播放地址接口：%1</source>
-        <translation>Play URL endpoint: %1</translation>
+        <translation type="vanished">Play URL endpoint: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="818"/>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="819"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="603"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="604"/>
         <source>已取消内核下载。</source>
         <translation>Engine download cancelled.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="827"/>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="828"/>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="837"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="612"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="613"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="622"/>
         <source>正在取消…</source>
         <translation>Cancelling…</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="836"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="621"/>
         <source>正在取消…（已下载的临时文件可能残留在保存目录）</source>
         <translation>Cancelling… (partial files may be left behind in the save folder)</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="872"/>
         <source>%1，剩余 %2</source>
-        <translation>%1, %2 remaining</translation>
+        <translation type="vanished">%1, %2 remaining</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="873"/>
         <source>正在下载… %1%</source>
-        <translation>Downloading… %1%</translation>
+        <translation type="vanished">Downloading… %1%</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="874"/>
         <source>正在下载… %1%（%2）</source>
-        <translation>Downloading… %1% (%2)</translation>
+        <translation type="vanished">Downloading… %1% (%2)</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="878"/>
         <source>正在下载…</source>
-        <translation>Downloading…</translation>
+        <translation type="vanished">Downloading…</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="884"/>
         <source>正在合并音视频…</source>
-        <translation>Merging audio and video…</translation>
+        <translation type="vanished">Merging audio and video…</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="888"/>
         <source>正在提取音频…</source>
-        <translation>Extracting audio…</translation>
+        <translation type="vanished">Extracting audio…</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="915"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="577"/>
         <source>下载已取消或进程异常退出。</source>
         <translation>The download was cancelled, or the process exited unexpectedly.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="923"/>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="924"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="583"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="584"/>
         <source>下载完成。</source>
         <translation>Download complete.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="926"/>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="928"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="586"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="588"/>
         <source>下载完成：%1</source>
         <translation>Download complete: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="931"/>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="934"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="591"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="593"/>
         <source>下载失败（退出码 %1）。</source>
         <translation>Download failed (exit code %1).</translation>
     </message>
@@ -986,17 +1082,17 @@ ffmpeg: %2</translation>
 <context>
     <name>VideoDlPlugin</name>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="978"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="664"/>
         <source>视频下载</source>
         <translation>Video Downloader</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="979"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="665"/>
         <source>媒体工具</source>
         <translation>Media tools</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="982"/>
+        <location filename="../plugins/videodl/VideoDlPlugin.cpp" line="668"/>
         <source>粘贴 B站 / YouTube / 抖音 等视频地址，按画质下载到本地（内核为 yt-dlp）。</source>
         <translation>Paste a Bilibili / YouTube / Douyin link and download it locally at the quality you pick (powered by yt-dlp).</translation>
     </message>
