@@ -33,6 +33,7 @@
 - **构建**：Qt 6.12.0 + Ninja Multi-Config（cmake 4.3.1 / ninja 1.13.2 / MSVC 19.51）——配置成功、Debug + Release 双配置构建通过、**双 `ctest` 各 10/10**、`lrelease` **161/161**。
 - **规范门禁**：`verify_whitespace` / `verify_docs` / `verify_conventions` / `verify_naming` 全部 **ALL PASS**。
 - **Qt API**：无弃用用法（`QLibraryInfo::path()` 已是 Qt 6 现代 API）。
+- **CI（GitHub Actions，干净机器）**：**全绿**（run `36868739998`）——whitespace / format / conventions / docs 四道快检、Qt 6.12.0 安装、MSVC 环境、Debug + Release 双配置构建、`ctest`、`windeployqt`、打包与上传全部通过。
 
 ## 4. 结论
 
@@ -44,3 +45,4 @@
 
 - `verify_shell.ps1` / `verify_recent.ps1` 在**同一 PowerShell 进程内连续执行多个脚本**时会因重复 `Add-Type` 报错（类型已存在）；CI 中每个脚本独立进程，不受影响——这是本机批量执行方式的副作用，非项目缺陷。
 - `scripts/build_verify_nmake.ps1` 为 NMake 单配置兜底通道（ninja 不可用时使用），**有意保留**；主验收通道为 `scripts/build_verify.ps1`（Ninja Multi-Config）。
+- **CI 安装 Qt 的方式**：`aqtinstall` 最新发布版（3.3.0）**尚不支持 Qt 6.11+**——该支持只在其 CHANGELOG 的「Unreleased」段（"Support Qt 6.11+ for Windows X64" #1000），因此用 `jurplel/install-qt-action@v4` 装 6.12.0 会报 `Failed to locate XML data for Qt version '6.12.0'`。故 `.github/workflows/ci.yml` 改为**直接安装 aqtinstall 主干**并手动调用 `aqt install-qt`；待含该支持的正式版发布后，可改回 `install-qt-action`。
