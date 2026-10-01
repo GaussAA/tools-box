@@ -6,6 +6,11 @@ name: CI
 # 有意**不做**的事：界面与真实下载链路（verify_shell.ps1 等）不进 CI。它们要靠
 # UI 自动化驱动真实窗口与真实网络，属于手工回归，不是单元测试的替代品 —— 这条
 # 分工写在 docs/workflow.md §5。
+#
+# 维护提醒：这些 Action 保持在大版本号的最新档。第一次跑就收到
+# 「Node.js 20 is deprecated」的告警 —— Action 自带运行时会被 GitHub 淘汰，
+# 钉在旧大版本上迟早会红。升级前先确认 inputs 没改名（用 gh api 读它的
+# action.yml，比猜可靠）。
 
 on:
   push:
@@ -26,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # ── 快检先跑：它们只需几秒，失败得最快，能省掉后面几分钟的构建 ──
 
@@ -40,7 +45,7 @@ jobs:
       # 版本，而不是用 runner 上 VS 自带那个（版本随镜像滚动，检查会变成不确定）。
       # 版本号必须与 scripts/verify/verify_format.ps1 里的 $expectedVersion 一致。
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.x'
 
@@ -109,7 +114,7 @@ jobs:
         run: cpack --config build\CPackConfig.cmake -C Release -B build\package
 
       - name: Upload package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ToolBox-${{ github.sha }}-win64
           path: build/package/*.zip
