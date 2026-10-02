@@ -172,12 +172,12 @@ jobs:
 
       # /W4 /permissive- /WX 已开，告警即错误，所以「构建通过」本身就等于 0 告警。
       - name: Unit tests (Debug)
-        run: ctest --test-dir build -C Debug --output-on-failure
+        run: ctest --test-dir build -C Debug -j --output-on-failure
 
       # 两个配置都跑：Release 开优化并定义 NDEBUG，只跑 Debug 会漏掉只在 Release 显形的
       # 缺陷（未初始化读、优化相关行为差异、断言掩盖的逻辑）。
       - name: Unit tests (Release)
-        run: ctest --test-dir build -C Release --output-on-failure
+        run: ctest --test-dir build -C Release -j --output-on-failure
 
       # 命名检查需要 build 下的 compile_commands.json 与 AUTOMOC 产物，所以排在构建之后。
       # 它检查的是源码本身，与配置无关，跑一次即可；脚本自己校验工具版本落在 22.1 线上。

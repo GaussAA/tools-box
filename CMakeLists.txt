@@ -27,6 +27,35 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "构建类型" FORCE)
 endif()
 
+# ── 编译加速：装了 ccache 就自动接上 ─────────────────────────────────────────
+# 没装则静默跳过，构建行为完全不变 —— 所以 CI（不装 ccache）与本机（装了）
+# 都能直接跑，不需要两套配置。
+#
+# 关键点：**必须同时把 Debug 的调试信息格式切成 Embedded（/Z7）**。
+# MSVC 默认 /Zi 走共享 PDB，命令行里带着 `/Fd<构建目录>\`，而 ccache 一见调试信息
+# 相关 flag 就把当前工作目录算进哈希 —— 换个构建目录（「清空 build 重配」是最常见的
+# 姿势）就全部 miss。实测本机：不切 /Z7 时跨目录命中率直接归零。
+#
+# 实测收益（本机 i5-12500H，41 个 TU，Debug，touch 全部源文件后重编）：
+#   不接 ccache  55.3 s
+#   接了 ccache  25.1 s（命中 36/39 = 92%）
+# 首次（缓存为空）反而略慢，因为要写缓存；收益从第二次全量重建开始显现。
+# 关掉它：-DTOOLBOX_USE_CCACHE=OFF。
+option(TOOLBOX_USE_CCACHE "用 ccache 加速编译（未安装则自动忽略）" ON)
+if(TOOLBOX_USE_CCACHE AND MSVC)
+    find_program(TOOLBOX_CCACHE_EXECUTABLE NAMES ccache)
+    if(TOOLBOX_CCACHE_EXECUTABLE)
+        set(CMAKE_C_COMPILER_LAUNCHER "${TOOLBOX_CCACHE_EXECUTABLE}")
+        set(CMAKE_CXX_COMPILER_LAUNCHER "${TOOLBOX_CCACHE_EXECUTABLE}")
+        # /Z7：调试信息进各自的 .obj，不引用构建目录专属的 PDB 路径。
+        # 调试体验不受影响（VS 照样能断点），代价是 .obj 变大、链接稍慢。
+        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
+        message(STATUS "ccache: 已接入 ${TOOLBOX_CCACHE_EXECUTABLE}（Debug 调试信息改用 /Z7）")
+    else()
+        message(STATUS "ccache: 未找到，跳过（编译不受影响）")
+    endif()
+endif()
+
 # 统一输出布局，主程序靠这个布局去 tools/ 里找插件：
 #   bin/<Config>/ToolBox.exe
 #   bin/<Config>/tools/*.dll

@@ -56,12 +56,15 @@ emit "=== build Release ==="
 & $cmake --build "$src\build" --config Release 2>&1 | ForEach-Object { emit $_ }
 if ($LASTEXITCODE -ne 0) { emit "BUILD RELEASE FAILED ($LASTEXITCODE)"; Pop-Location; exit 2 }
 
-emit "=== ctest Debug ==="
-& $ctest --test-dir "$src\build" -C Debug --output-on-failure 2>&1 | ForEach-Object { emit $_ }
+# -j：让 CTest 并行跑各测试可执行文件。测试之间是隔离的（各自 exe、各自的临时目录），
+# 所以并行安全。本项目的测试一共只要几秒，收益本来就小 —— 之所以还是加上，是因为
+# 「串行跑」是没人特意想过的那一侧：并行是默认正确的做法，串行才需要理由。
+emit "=== ctest Debug (parallel) ==="
+& $ctest --test-dir "$src\build" -C Debug -j --output-on-failure 2>&1 | ForEach-Object { emit $_ }
 $dbg = $LASTEXITCODE
 
-emit "=== ctest Release ==="
-& $ctest --test-dir "$src\build" -C Release --output-on-failure 2>&1 | ForEach-Object { emit $_ }
+emit "=== ctest Release (parallel) ==="
+& $ctest --test-dir "$src\build" -C Release -j --output-on-failure 2>&1 | ForEach-Object { emit $_ }
 $rel = $LASTEXITCODE
 
 Pop-Location
