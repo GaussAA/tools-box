@@ -57,6 +57,7 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 
 | 文档 | 内容 |
 | --- | --- |
+| [error_ledger.md](docs/error_ledger.md) | **持续维护**的错误台账：症状隔得很远的顽固问题，`[现象]→[根因]→[正解]→[守住]` 四段式，每条必须指明防止复发的手段 |
 | [architecture-analysis-report.md](docs/architecture-analysis-report.md) | 架构与代码结构分析（实现层速览：类职责、信号槽、依赖图） |
 | [best-practices-assessment.md](docs/best-practices-assessment.md) | Qt 最佳实践符合性评估（P0–P3 清单与落地记录） |
 | [version-migration-audit.md](docs/version-migration-audit.md) | Qt 6.12 迁移深度审计（8 处问题、CI 结果与后续勘误） |

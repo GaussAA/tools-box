@@ -214,7 +214,7 @@ tools-box/
 | --- | --- | --- | --- | --- | --- |
 | 9.1 | 导航的领域逻辑曾写在窗口里 | [MainWindow.cpp](../app/MainWindow.cpp) | 功能逐步叠加，规模尚小 | **已收敛（P1）**：过滤与列表维护规则已抽到 [ToolCatalog.cpp](../app/core/ToolCatalog.cpp)，窗口只留控件装配与渲染 | 剩余的 `ui/NavPanel`、`IconFactory` 表现层拆分主动放弃，理由见 §10 D1 |
 | 9.2 | 单个页面类承担界面、进程、网络、解压、解析、平台适配 | [videodl/VideoDlPlugin.cpp](../plugins/videodl/VideoDlPlugin.cpp) | 抖音适配与内核下载为后期追加 | **已收敛（P1，2026-10-02）**：解析规则在 `plugins/videodl/core/`（可单测），内核下载在 `EngineFetcher`，下载进程在 `DownloadRunner`，抖音渲染在 `DouyinResolver`，命令行构造在 `core/DownloadArgs`；页面 678 行，**不再持有任何 `QProcess` / `QNetworkAccessManager`** | 文件规模由 `scripts/verify/verify_filesize.ps1` 按 800 行上限盯住，超了就 FAIL（本次拆分即由它触发） |
-| 9.3 | ~~无自动化测试，纯逻辑靠手工脚本验证~~ | 全项目 | 一直以手工验证推进 | **已消除（P1）**：`tests/` 下 10 个 Qt Test 目标（含两个外壳装配 / 跨 DLL 的集成用例），双配置 `ctest` 全绿 | 新增 `*/core/` 模块必须同步补用例（workflow §5） |
+| 9.3 | ~~无自动化测试，纯逻辑靠手工脚本验证~~ | 全项目 | 一直以手工验证推进 | **已消除（P1）**：`tests/` 下 13 个 Qt Test 目标（含外壳装配 / 跨 DLL 的集成用例，以及「对**真实产物**启动并点击」的 GUI 冒烟 `verify_shell.ps1`），双配置 `ctest` 全绿 | 新增 `*/core/` 模块必须同步补用例（workflow §5），并由 `verify_coretest.ps1` 机械检查 |
 | 9.4 | ~~验证脚本混在可再生成的 `build/` 目录内~~ | `build/*.ps1` | 顺手放置 | **已消除（P0）**：脚本迁至 `scripts/verify/`，固定样本在 `scripts/verify/fixtures/` | 脚本运行时的截图/下载产物仍落在 `build/` —— 那些是可再生成物，属于正确位置 |
 | 9.5 | ~~版本号硬编码两处~~ | [CMakeLists.txt](../CMakeLists.txt)、[main.cpp](../app/main.cpp) | — | **已消除（P2）**：版本号只留顶层 `project(... VERSION ...)`，由 `app/CMakeLists.txt` 的 `TOOLBOX_VERSION` 编译定义传给 `main.cpp` | 无 |
 | 9.6 | ~~部署使用 `--no-translations`，Qt 自带对话框按钮为英文~~ | [app/CMakeLists.txt](../app/CMakeLists.txt)、[main.cpp](../app/main.cpp) | 早期为避免拷贝多余文件 | **已消除（P2）**：deploy 改为 `--translations zh_CN`，并在 `main.cpp` 里安装 `QTranslator`（只拷文件不装翻译器无效） | 无 |
@@ -331,8 +331,9 @@ plugins/videodl/
 - [coding-standards.md](./coding-standards.md) —— 命名、内存、信号槽等编码规则
 - [workflow.md](./workflow.md) —— 构建、测试、加插件、发布与文档变更流程
 
-以下为一次性分析／报告（记录某次评估或迁移，可追溯；规范一律以本文与上述两份为准）：
+以下为持续维护的记录与分析报告（记录某次评估或迁移，可追溯；规范一律以本文与上述两份为准）：
 
+- [error_ledger.md](./error_ledger.md) —— **持续维护**的错误台账：症状隔得很远的顽固问题，每条带防止复发的手段
 - [architecture-analysis-report.md](./architecture-analysis-report.md) —— 架构与代码结构分析（实现层速览）
 - [best-practices-assessment.md](./best-practices-assessment.md) —— Qt 最佳实践符合性评估与落地记录
 - [version-migration-audit.md](./version-migration-audit.md) —— Qt 6.12 版本迁移的深度完整性审计报告

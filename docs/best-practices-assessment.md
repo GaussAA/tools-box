@@ -121,4 +121,22 @@ Qt 官方对「新 UI」长期推荐 Qt Quick/QML。但对**密集小工具箱**
 
 > **本评估清单至此全部完成（P0 + P2 + P3）**，均已通过本机编译与 10/10 ctest 验证。
 
+### 2026-10-02 后续落地（本轮审计，测试数 10 → 13）
+
+评估之后又过了一轮全面审计与落地，与本清单直接相关的进展：
+
+| 项 | 与本评估的关系 | 现状 |
+| --- | --- | --- |
+| **GUI 冒烟真跑** | §3.4 的两类测试都不启动真程序 —— 本轮 `verify_shell.ps1`（启动真实产物 + 截图 + UIAutomation 断言）首次在本地跑通，**立刻挖出 3 个所有测试都看不见的 bug**（Qt 6.12 翻译空壳、`zh` 缺地区、非标准 Qt 路径致回退失效），Debug/Release 两套产物均 ALL PASS | 已常态化：Debug/Release 双产物冒烟通过 |
+| **单文件规模门禁** | 评估建议「评审盯」的 600 行规则 → 落成 `verify_filesize.ps1`（>600 须登记豁免，带理由 + 上限） | 已入 CI；**它随后真的拦住了 1358 行的页面**，触发 D2 拆分 |
+| **core 必须有测试的门禁** | §2.4「core 可单测」从评审约定 → `verify_coretest.ps1` 机械检查（行覆盖率本机无工具，此为可验证下限） | 已入 CI，10 个 core 源全被引用 |
+| **D2 拆分完成** | `VideoDlPage` 1358 行 → **678 行**，不再持有任何 `QProcess`/网络对象；命令行构造抽成 `core/DownloadArgs`（可单测） | 偏差 9.2 改记「已收敛」，豁免上限收紧到 800 |
+| **ABI 门禁（真）** | 评估 §3.1 静态元数据发现只解决了「启动时加载」—— 本轮补上 metadata 构建期指纹（Qt 版本 + 编译器 + 工具集），挡住「IID 对、工具链不对」的 DLL | `metadata.json.in` + `PluginScanPolicy`（id/abi/重复 id 三道门禁） |
+| **ccache 接入** | 构建加速：热重编 55.3s → 25.1s（命中 92%）；Debug 调试信息改 `/Z7`（ccache 生效前提） | 自动检测，无 ccache 的环境（CI）静默跳过 |
+| **ctest 并行** | `-j`：4.97s → 2.84s | 本机脚本与 CI 均已加 |
+
+教训（已写进迁移审计第 4 条与 [error_ledger.md](./error_ledger.md)）：**「测试全绿」与
+「程序正确」之间隔着「程序得先能启动」—— 不启动真程序的验证体系，对启动期、部署期、
+原生对话框这一整类问题都是盲的。**
+
 > 本评估为书面记录。3.1、P2 结构化日志、P2 `MainWindow` 烟雾测试、P2 端到端集成测试、P3 翻译词条补齐均已于 2026-10-01 经大帅准奏、实施并通过本机编译与 10/10 ctest 验证；落地文件：`sdk/ToolBoxPlugin.h`、`app/ToolRegistry.cpp`、三插件 `*.h` 与 `metadata.json`、`tests/tst_pluginmeta.cpp`、`app/core/Logger.{h,cpp}`、`app/main.cpp`、`app/CMakeLists.txt`（抽 `ToolBoxApp` 库）、`tests/tst_mainwindow.cpp`、`tests/tst_integration.cpp`、`tests/CMakeLists.txt`、`CMakePresets.json`（Qt 路径修正）、`translations/toolbox_en.ts`（词条补齐）。

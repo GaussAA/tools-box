@@ -104,6 +104,13 @@ tools-box/
 
 ### 2.5 测试层（`tests/`）
 
+> 本节写于分析当日。**2026-10-02 更新：现为 13 个 Qt Test 目标**，新增
+> `tst_jsonformat`（jsonfmt 抽 core）、`tst_pluginscanpolicy`（ABI/id/重复 id 门禁）、
+> `tst_downloadargs`（yt-dlp 命令行构造规则）；另有两项新门禁：`verify_filesize.ps1`
+> （单文件 >600 行须登记豁免）与 `verify_coretest.ps1`（每个 core 源必须被测试引用），
+> 以及对真实产物启动并点击的 GUI 冒烟 `verify_shell.ps1`。现状以
+> [workflow.md §5](./workflow.md#5-测试规范) 为准。
+
 10 个 Qt Test 目标。其中**纯逻辑测试**只链接被测的 `*_core` 静态库（不依赖 `QApplication`/真实网络/子进程）：
 `tst_toolcatalog`、`tst_languagechoice`、`tst_pluginmeta`、`tst_logger`、`tst_outputparsing`、`tst_douyinsupport`、`tst_cookiefile`、`tst_enginelocator`；
 另有 `tst_mainwindow`（GUI 烟雾，链接 `ToolBoxApp`）与 `tst_integration`（跨 DLL 端到端）。

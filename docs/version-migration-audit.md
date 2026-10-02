@@ -73,3 +73,16 @@
    [coding-standards.md §4](./coding-standards.md#4-信号槽) 的硬规则正面冲突。现改为驱动真实
    控件（`QListWidget::setCurrentRow` / `QLineEdit::setText`）让信号自己发出来，顺带把「连接
    是否接上」也纳入验证。
+4. **Qt 自带控件的翻译静默失效（2026-10-02 追认，即偏差 9.11）**：迁移时没人发现，
+   因为**中文是源语言** —— 工具自己的文案完全正常，只有 Qt 自带控件（消息框按钮、
+   文件对话框）受影响，而那要等真的启动程序、点开「关于」对话框才能看见。
+   实测：Qt 6.12 里 `qt_zh_CN.qm` 只有 **99 字节**（空壳），真正的词条（147 KB）
+   在 `qtbase_zh_CN.qm` —— `main.cpp` 按 Qt 5 的 `qt` 前缀加载，装上的是一个
+   什么都不翻译的 translator，且 `load()` 返回成功、不报任何错。叠加两个加重因素：
+   本机 Qt 装在非标准路径 `C:\Qt6.12\`（编译期前缀 `C:/Qt/6.12.0/...` 不存在，
+   `QLibraryInfo::path(TranslationsPath)` 回退落空）；配置只写 `zh` 时
+   `QLocale("zh").name()` 找的是同样不存在的 `qtbase_zh.qm`。三处均已修
+   （加载前缀改 `qtbase`、`LanguageChoice` 缺地区补默认、`verify_shell.ps1` 自管语言），
+   详见偏差 9.11 与 [workflow.md §3.3](./workflow.md#33-界面语言与翻译) 的三个坑。
+   **守住它的是 `verify_shell.ps1` 的「对话框按钮是否被本地化」断言 —— 迁移审计当天的
+   10/10 ctest 里没有一条能碰到这类问题，因为不启动真程序的测试永远看不见它。**
