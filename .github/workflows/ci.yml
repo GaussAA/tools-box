@@ -80,6 +80,12 @@ jobs:
       - name: Core modules have tests
         run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_coretest.ps1
 
+      # 「凡含 tr() 的目标必须列入 SOURCE_TARGETS」——漏列不会让任何东西变红，只会让
+      # lupdate 静默看不见该目标的字符串、既有英文译文被判 vanished（抽 ToolBoxApp
+      # 静态库时真实发生过一次，27 条）。
+      - name: Translation pipeline
+        run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_translations.ps1
+
       - name: Docs consistency
         run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_docs.ps1
 

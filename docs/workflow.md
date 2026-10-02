@@ -289,7 +289,8 @@ cmake --build build --config Release --target deploy
    并补 Qt Test 用例（见 §5）；
 8. 更新本文档 §8 的脚本清单（若新增了手工验证脚本）；
 9. 把新插件的**目标名加进顶层 `CMakeLists.txt` 的 `qt_add_translations(... SOURCE_TARGETS)`
-   列表**，否则它的界面文案不会被抽取成译文（§3.3）。
+   列表**，否则它的界面文案不会被抽取成译文（§3.3）。漏了也有兜底：
+   `verify_translations.ps1`（§8）会 FAIL 并点名缺失的目标。
 
 **不允许**为了让新工具跑起来而修改 `app/` 里的代码。如果需要改外壳，
 说明契约不足，应先走 §7 的契约变更流程。
@@ -372,6 +373,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | `verify_docs.ps1` | 文档一致性：所有纳入版本控制的 `*.md`（含根目录 `README.md`）相对链接目标存在、`#锚点` 能落到标题、`docs/` 内无孤立文档（§10 第 5 条，可纳入 CI） |
 | `verify_filesize.ps1` | 单文件规模：源码超过 600 行且未在脚本内的豁免表登记即失败，豁免须写明理由、结论所在文档与自己的上限（coding-standards §2 / §12，可纳入 CI） |
 | `verify_coretest.ps1` | `*/core/` 下的每个源文件都必须被某个测试 include（workflow §5「core 必须有测试」的机械化下限；行覆盖率需要 VS Enterprise 等第三方工具，本机不具备，故只查「测到没有」） |
+| `verify_translations.ps1` | 翻译管道：凡源码含 `tr()` 的目标必须列入顶层 `qt_add_translations` 的 `SOURCE_TARGETS`（§4 第 9 步的机械化——漏列不会让任何东西变红，只会让 lupdate 静默看不见该目标的字符串、既有英文译文被判 `vanished`，抽 ToolBoxApp 静态库时真实发生过一次） |
 | `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译。`-Exe` 可指向别处的构建产物（验收打包结果，§9）；`-Lang en\|zh` 断言对应语言的界面（§3.3） |
 | `verify_recent.ps1` | 收藏 / 最近使用 / 配置持久化 / 搜索 |
 | `verify_videodl.ps1` | 视频下载插件的界面与状态 |
@@ -385,8 +387,8 @@ ctest --test-dir build -C Debug --output-on-failure
 
 `scripts/` 下还有三个不按「验证目标」命名的辅助脚本，一并记在这里免得找不到：
 
-- `run_all.ps1` —— **一键跑完上面那七个自动检查**（空白 / 格式 / 规范 / 行数 /
-  core 测试 / 文档 / 命名），按顺序执行、汇总成一个退出码。命名检查需要先构建
+- `run_all.ps1` —— **一键跑完上面那八个自动检查**（空白 / 格式 / 规范 / 行数 /
+  core 测试 / 翻译管道 / 文档 / 命名），按顺序执行、汇总成一个退出码。命名检查需要先构建
   （缺 `compile_commands.json` 时它**报 FAIL 而不是跳过** —— 那正是它会「静默全绿」
   的地方）。跑完会列出下面那 10 个只能人工跑的脚本。
 - `build_verify.ps1` —— 本机全量：清构建目录 → 配置 → 双配置构建 → 双配置 `ctest`，
@@ -406,13 +408,14 @@ ctest --test-dir build -C Debug --output-on-failure
 > 链路 —— 那几项只能靠人。
 
 ```powershell
-# 1) 六个不依赖构建、秒级的检查，都返回 0 才继续
+# 1) 七个不依赖构建、秒级的检查，都返回 0 才继续
 #    （嫌逐个敲麻烦就直接跑 run_all.ps1，它跑的是同一套，见 §8）
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_whitespace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_format.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_conventions.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_filesize.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_coretest.ps1
+powershell -ExecutionPolicy Bypass -File scripts\verify\verify_translations.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_docs.ps1
 #    命名检查要 build/compile_commands.json，所以只能排在构建之后
 
@@ -427,8 +430,8 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 
 完整清单：
 
-1. 跑上面第 1 步的六个脚本，构建之后再补跑命名检查
-   （[§3.2](#32-命名检查clang-tidy)）：七个都返回 0 才继续（一条命令：`run_all.ps1`）；
+1. 跑上面第 1 步的七个脚本，构建之后再补跑命名检查
+   （[§3.2](#32-命名检查clang-tidy)）：八个都返回 0 才继续（一条命令：`run_all.ps1`）；
 2. 按 §6 确认版本号单一来源 —— 打包配置里没有再写一份版本号，
    `CPACK_PACKAGE_VERSION` 取的就是顶层 `project(... VERSION ...)`；
 3. 构建 + `deploy`（见上面第 2 步）；
