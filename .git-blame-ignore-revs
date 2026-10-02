@@ -13,3 +13,6 @@ d0ba549b6f7473c306efb1c79d915589ff372a33
 
 # 纯格式：按 .clang-format 归一化 PluginScanPolicy 与 tst_pluginscanpolicy
 5637d963cb204e64f2a509f4b81eef451fb56b6d
+
+# 纯格式：归一化 EngineFetcher 与新增的 EngineCheck / tst_enginecheck
+2194f52
