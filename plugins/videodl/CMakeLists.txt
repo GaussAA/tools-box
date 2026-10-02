@@ -7,6 +7,8 @@ add_library(videodl_core STATIC
     core/DouyinSupport.h
     core/DownloadArgs.cpp
     core/DownloadArgs.h
+    core/EngineCheck.cpp
+    core/EngineCheck.h
     core/EngineLocator.cpp
     core/EngineLocator.h
     core/OutputParsing.cpp

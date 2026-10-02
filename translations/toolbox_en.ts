@@ -188,148 +188,159 @@
 <context>
     <name>EngineFetcher</name>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="67"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="68"/>
         <source>ffmpeg</source>
         <translation>ffmpeg</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="67"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="68"/>
         <source>yt-dlp</source>
         <translation>yt-dlp</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="86"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="87"/>
         <source>开始下载 %1 …</source>
         <translation>Starting download of %1 …</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="88"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="89"/>
         <source>正在下载 %1 …</source>
         <translation>Downloading %1 …</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="133"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="134"/>
         <source>无法写入临时文件：%1</source>
         <translation>Could not write the temporary file: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="174"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="175"/>
         <source>%1 下载中断，正在重试（第 %2 次）…</source>
         <translation>Download of %1 interrupted, retrying (attempt %2)…</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="193"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="194"/>
         <source>正在下载 %1 … %2%（%3 / %4 MB）</source>
         <translation>Downloading %1 … %2% (%3 / %4 MB)</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="217"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="218"/>
         <source>网络请求已取消</source>
         <translation>Network request cancelled</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="221"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="222"/>
         <source>服务器未支持断点续传，重新下载整个文件。</source>
         <translation>The server does not support resuming, so the whole file is downloaded again.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="236"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="237"/>
         <source>续传的起始位置与已下载的部分对不上，重新下载整个文件。</source>
         <translation>The resumed range does not match what is already on disk; restarting the whole file.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="246"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="247"/>
         <source>第 %1 次下载中断（%2），重试中…</source>
         <translation>Attempt %1 interrupted (%2), retrying…</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="250"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="251"/>
         <source>下载失败（已尝试 %1 次）：%2</source>
         <translation>Download failed after %1 attempt(s): %2</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="270"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="271"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="302"/>
         <source>%1 下载失败。</source>
         <translation>Failed to download %1.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="277"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="293"/>
+        <source>下载的 %1 文件头不对，不像是可用的文件，已丢弃，请重试。</source>
+        <translation>The downloaded %1 has an unexpected file header and does not look usable. It has been discarded; please try again.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="295"/>
+        <source>下载的 %1 只有 %2 字节，不像是完整文件，已丢弃，请重试。</source>
+        <translation>The downloaded %1 is only %2 bytes, which does not look like a complete file. It has been discarded; please try again.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="310"/>
         <source>保存失败：%1</source>
         <translation>Could not save: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="281"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="314"/>
         <source>%1 保存失败。</source>
         <translation>Failed to save %1.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="287"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="320"/>
         <source>yt-dlp 已就绪：%1</source>
         <translation>yt-dlp ready: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="291"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="324"/>
         <source>yt-dlp 已就绪。</source>
         <translation>yt-dlp is ready.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="300"/>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="310"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="333"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="343"/>
         <source>正在解压 ffmpeg …</source>
         <translation>Extracting ffmpeg …</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="329"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="362"/>
         <source>解压失败：%1</source>
         <translation>Extraction failed: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="329"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="362"/>
         <source>未知错误</source>
         <translation>unknown error</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="330"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="363"/>
         <source>ffmpeg 安装失败：解压出错。</source>
         <translation>ffmpeg install failed: extraction error.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="354"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="387"/>
         <source>解压后没找到 ffmpeg.exe。</source>
         <translation>ffmpeg.exe was not found after extraction.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="355"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="388"/>
         <source>ffmpeg 安装失败：压缩包里没有 ffmpeg.exe。</source>
         <translation>ffmpeg install failed: the archive contains no ffmpeg.exe.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="361"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="394"/>
         <source>ffmpeg 已就绪：%1</source>
         <translation>ffmpeg ready: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="362"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="395"/>
         <source>ffmpeg 已就绪。</source>
         <translation>ffmpeg is ready.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="366"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="399"/>
         <source>复制 ffmpeg 失败：%1</source>
         <translation>Could not copy ffmpeg: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="367"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="400"/>
         <source>ffmpeg 安装失败：无法写入目标目录。</source>
         <translation>ffmpeg install failed: cannot write to the target folder.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="381"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="414"/>
         <source>无法调用 PowerShell 解压，请手动指定 ffmpeg 路径。</source>
         <translation>Could not run PowerShell to extract the archive; choose the ffmpeg path manually.</translation>
     </message>
     <message>
-        <location filename="../plugins/videodl/EngineFetcher.cpp" line="389"/>
+        <location filename="../plugins/videodl/EngineFetcher.cpp" line="422"/>
         <source>ffmpeg 安装失败：无法解压。</source>
         <translation>ffmpeg install failed: cannot extract the archive.</translation>
     </message>
