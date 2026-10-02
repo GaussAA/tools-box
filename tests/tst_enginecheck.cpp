@@ -37,11 +37,9 @@ constexpr qint64 kMinZip = 32 * 1024 * 1024;
 
 void TestEngineCheck::acceptsPlausibleYtDlp()
 {
-    QCOMPARE(videodl::checkYtDlpBinary(kMinYtDlp, kPe),
-             videodl::EngineFileProblem::None);
+    QCOMPARE(videodl::checkYtDlpBinary(kMinYtDlp, kPe), videodl::EngineFileProblem::None);
     // 远大于下限的真实体量（约 18 MB）同样通过。
-    QCOMPARE(videodl::checkYtDlpBinary(18 * 1024 * 1024, kPe),
-             videodl::EngineFileProblem::None);
+    QCOMPARE(videodl::checkYtDlpBinary(18 * 1024 * 1024, kPe), videodl::EngineFileProblem::None);
 }
 
 void TestEngineCheck::rejectsHtmlErrorPageForYtDlp()
@@ -55,27 +53,23 @@ void TestEngineCheck::rejectsHtmlErrorPageForYtDlp()
 void TestEngineCheck::rejectsTruncatedYtDlp()
 {
     // 头对、但大小在下限之下：按截断处理。
-    QCOMPARE(videodl::checkYtDlpBinary(kMinYtDlp - 1, kPe),
-             videodl::EngineFileProblem::TooSmall);
+    QCOMPARE(videodl::checkYtDlpBinary(kMinYtDlp - 1, kPe), videodl::EngineFileProblem::TooSmall);
 }
 
 void TestEngineCheck::acceptsPlausibleFfmpegZip()
 {
-    QCOMPARE(videodl::checkFfmpegZip(kMinZip, kZip),
-             videodl::EngineFileProblem::None);
+    QCOMPARE(videodl::checkFfmpegZip(kMinZip, kZip), videodl::EngineFileProblem::None);
 }
 
 void TestEngineCheck::rejectsNonZipForFfmpeg()
 {
     // 把 yt-dlp 下成了 exe、却拿去当 zip 解压，这类张冠李戴也要拦。
-    QCOMPARE(videodl::checkFfmpegZip(80 * 1024 * 1024, kPe),
-             videodl::EngineFileProblem::BadHeader);
+    QCOMPARE(videodl::checkFfmpegZip(80 * 1024 * 1024, kPe), videodl::EngineFileProblem::BadHeader);
 }
 
 void TestEngineCheck::rejectsTruncatedFfmpegZip()
 {
-    QCOMPARE(videodl::checkFfmpegZip(kMinZip - 1, kZip),
-             videodl::EngineFileProblem::TooSmall);
+    QCOMPARE(videodl::checkFfmpegZip(kMinZip - 1, kZip), videodl::EngineFileProblem::TooSmall);
 }
 
 void TestEngineCheck::emptyHeadIsBadHeader()
@@ -83,8 +77,7 @@ void TestEngineCheck::emptyHeadIsBadHeader()
     // 读不到任何字节（磁盘满、文件消失等）按坏头处理，宁可错杀不放进解压。
     QCOMPARE(videodl::checkYtDlpBinary(kMinYtDlp, QByteArray()),
              videodl::EngineFileProblem::BadHeader);
-    QCOMPARE(videodl::checkFfmpegZip(kMinZip, QByteArray()),
-             videodl::EngineFileProblem::BadHeader);
+    QCOMPARE(videodl::checkFfmpegZip(kMinZip, QByteArray()), videodl::EngineFileProblem::BadHeader);
 }
 
 QTEST_APPLESS_MAIN(TestEngineCheck)

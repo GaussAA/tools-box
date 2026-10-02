@@ -21,8 +21,8 @@ constexpr char kPeMagic[] = {'M', 'Z'};
 /// Zip 存档的魔数（本地文件头 "PK\x03\x04"）。
 constexpr char kZipMagic[] = {'P', 'K', '\x03', '\x04'};
 
-EngineFileProblem check(qint64 size, const QByteArray &head, qint64 minBytes,
-                        const char *magic, int magicLen)
+EngineFileProblem check(qint64 size, const QByteArray &head, qint64 minBytes, const char *magic,
+                        int magicLen)
 {
     if (head.size() < magicLen || qstrncmp(head.constData(), magic, magicLen) != 0) {
         return EngineFileProblem::BadHeader;

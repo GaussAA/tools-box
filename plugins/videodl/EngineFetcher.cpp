@@ -285,9 +285,9 @@ void EngineFetcher::finish(bool ok)
             head = partFile.read(4);
             size = partFile.size();
         }
-        const videodl::EngineFileProblem problem =
-            kind == Kind::Ffmpeg ? videodl::checkFfmpegZip(size, head)
-                                 : videodl::checkYtDlpBinary(size, head);
+        const videodl::EngineFileProblem problem = kind == Kind::Ffmpeg
+            ? videodl::checkFfmpegZip(size, head)
+            : videodl::checkYtDlpBinary(size, head);
         if (problem != videodl::EngineFileProblem::None) {
             emit logLine(problem == videodl::EngineFileProblem::BadHeader
                              ? tr("下载的 %1 文件头不对，不像是可用的文件，已丢弃，请重试。")
