@@ -19,9 +19,12 @@
   **连同之前 deploy 好的运行时一起删掉**，它自己却从不跑 deploy。所以每跑一次全量验证，
   「双击能起界面」就失效一次 —— 而当天的 10/10 ctest 对此完全无感。
 - **[正解]** 手工跑界面前先 `cmake --build build --config Release --target deploy`；
-  `build_verify.ps1` 末尾现在会检测输出目录缺 Qt 运行时并明确提醒。CI 的产物没有这个问题
-  （CI 流程里有 deploy），所以「CI 出的包能用、本地双击不行」正是这条的指纹。
-- **[守住]** `build_verify.ps1` 的运行时自检提醒；workflow §3 的「先 deploy」小节；
+  2026-10-02 起 `build_verify.ps1` 在全量验证末尾**自动跑 deploy**（deploy 目标在受限
+  环境跑不了 windeployqt 时，按 windeployqt 清单手工兜底拷贝运行时），「全量验证之后
+  的双击」天然可用，不再依赖谁记得去跑。CI 的产物没有这个问题（CI 流程里有 deploy），
+  所以「CI 出的包能用、本地双击不行」曾是这条的指纹。
+- **[守住]** `build_verify.ps1` 末尾对 Qt6Core.dll / platforms\qwindows.dll /
+  translations\qtbase_zh_CN.qm 三件套做存在性断言，缺任一项直接 FAIL（退出码 3）；
   `verify_shell.ps1`（真启动产物）—— 它在产物缺运行时会直接失败而不是绿着。
 
 ## 2. 界面全英文（或消息框按钮是 OK），中文文案却完全正常

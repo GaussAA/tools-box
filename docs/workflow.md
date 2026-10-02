@@ -391,8 +391,10 @@ ctest --test-dir build -C Debug --output-on-failure
   core 测试 / 翻译管道 / 文档 / 命名），按顺序执行、汇总成一个退出码。命名检查需要先构建
   （缺 `compile_commands.json` 时它**报 FAIL 而不是跳过** —— 那正是它会「静默全绿」
   的地方）。跑完会列出下面那 10 个只能人工跑的脚本。
-- `build_verify.ps1` —— 本机全量：清构建目录 → 配置 → 双配置构建 → 双配置 `ctest`，
-  是「CI 那套」的本地等价物。
+- `build_verify.ps1` —— 本机全量：清构建目录 → 配置 → 双配置构建 → 双配置 `ctest` →
+  **自动 deploy Qt 运行时**（deploy 目标失败时按 windeployqt 清单手工兜底拷贝，
+  受限环境跑不了 windeployqt 也能产出可双击的产物），
+  是「CI 那套」的本地等价物。退出码：0 全绿，1 测试失败，2 构建/配置失败，3 部署失败。
 - `lupdate_ts.ps1` —— 刷新译文骨架（见 §3.3）。刷新后**必须补英文译文**，
   否则英文界面会静默退回中文。
 
