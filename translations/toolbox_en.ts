@@ -396,119 +396,145 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../app/MainWindow.cpp" line="90"/>
-        <location filename="../app/MainWindow.cpp" line="489"/>
+        <location filename="../app/MainWindow.cpp" line="92"/>
+        <location filename="../app/MainWindow.cpp" line="533"/>
         <source>工具箱</source>
         <translation>Toolbox</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="107"/>
+        <location filename="../app/MainWindow.cpp" line="109"/>
         <source>搜索工具…</source>
         <translation>Search tools…</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="147"/>
+        <location filename="../app/MainWindow.cpp" line="149"/>
         <source>文件</source>
         <translation>File</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="148"/>
+        <location filename="../app/MainWindow.cpp" line="150"/>
         <source>重载插件</source>
         <translation>Reload plugins</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="149"/>
+        <location filename="../app/MainWindow.cpp" line="151"/>
         <source>打开插件目录</source>
         <translation>Open plugin folder</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="153"/>
+        <location filename="../app/MainWindow.cpp" line="155"/>
         <source>退出</source>
         <translation>Quit</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="155"/>
+        <location filename="../app/MainWindow.cpp" line="157"/>
         <source>帮助</source>
         <translation>Help</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="156"/>
+        <location filename="../app/MainWindow.cpp" line="162"/>
+        <location filename="../app/MainWindow.cpp" line="195"/>
+        <source>界面语言</source>
+        <translation>Interface language</translation>
+    </message>
+    <message>
+        <location filename="../app/MainWindow.cpp" line="171"/>
+        <source>跟随系统</source>
+        <translation>Follow system</translation>
+    </message>
+    <message>
+        <location filename="../app/MainWindow.cpp" line="172"/>
+        <source>中文</source>
+        <translation>中文</translation>
+    </message>
+    <message>
+        <location filename="../app/MainWindow.cpp" line="173"/>
+        <source>English</source>
+        <translation>English</translation>
+    </message>
+    <message>
+        <location filename="../app/MainWindow.cpp" line="196"/>
+        <source>语言设置已保存，重启程序后生效。</source>
+        <translation>Language preference saved. Restart the app to apply it.</translation>
+    </message>
+    <message>
+        <location filename="../app/MainWindow.cpp" line="200"/>
         <source>关于</source>
         <translation>About</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="188"/>
+        <location filename="../app/MainWindow.cpp" line="232"/>
         <source>其他</source>
         <translation>Other</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="223"/>
+        <location filename="../app/MainWindow.cpp" line="267"/>
         <source>已加载 %1 个工具 · 插件目录 %2</source>
         <translation>%1 tools loaded · plugin folder %2</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="274"/>
-        <location filename="../app/MainWindow.cpp" line="276"/>
+        <location filename="../app/MainWindow.cpp" line="318"/>
+        <location filename="../app/MainWindow.cpp" line="320"/>
         <source>首页</source>
         <translation>Home</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="281"/>
+        <location filename="../app/MainWindow.cpp" line="325"/>
         <source>收藏</source>
         <translation>Favorites</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="290"/>
+        <location filename="../app/MainWindow.cpp" line="334"/>
         <source>最近使用</source>
         <translation>Recent</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="391"/>
+        <location filename="../app/MainWindow.cpp" line="435"/>
         <source>没有匹配「%1」的工具</source>
         <translation>No tools match “%1”</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="393"/>
+        <location filename="../app/MainWindow.cpp" line="437"/>
         <source>匹配到 %1 个工具</source>
         <translation>%1 tool(s) matched</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="468"/>
+        <location filename="../app/MainWindow.cpp" line="512"/>
         <source>取消收藏</source>
         <translation>Remove from favorites</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="468"/>
+        <location filename="../app/MainWindow.cpp" line="512"/>
         <source>加入收藏</source>
         <translation>Add to favorites</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="490"/>
+        <location filename="../app/MainWindow.cpp" line="534"/>
         <source>已加载 &lt;b&gt;%1&lt;/b&gt; 个工具。</source>
         <translation>&lt;b&gt;%1&lt;/b&gt; tools loaded.</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="491"/>
+        <location filename="../app/MainWindow.cpp" line="535"/>
         <source>在左侧右键任意工具，可以把它加进「收藏」。</source>
         <translation>Right-click any tool on the left to add it to Favorites.</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="493"/>
+        <location filename="../app/MainWindow.cpp" line="537"/>
         <source>要收录新工具，把插件 DLL 放进下面的目录，再按 F5 重新加载：&lt;br&gt;&lt;code&gt;%1&lt;/code&gt;</source>
         <translation>To add a tool, drop its plugin DLL into the folder below and press F5:&lt;br&gt;&lt;code&gt;%1&lt;/code&gt;</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="504"/>
+        <location filename="../app/MainWindow.cpp" line="548"/>
         <source>以下插件加载失败：</source>
         <translation>These plugins failed to load:</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="513"/>
+        <location filename="../app/MainWindow.cpp" line="557"/>
         <source>关于工具箱</source>
         <translation>About Toolbox</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="514"/>
+        <location filename="../app/MainWindow.cpp" line="558"/>
         <source>&lt;b&gt;工具箱&lt;/b&gt; %1&lt;br&gt;&lt;br&gt;基于 Qt %2 构建的插件式桌面工具箱。&lt;br&gt;每个工具都是一个独立 DLL 插件，放进 tools 目录即可生效。</source>
         <translation>&lt;b&gt;Toolbox&lt;/b&gt; %1&lt;br&gt;&lt;br&gt;A plugin-based desktop toolbox built with Qt %2.&lt;br&gt;Every tool is a separate DLL plugin; drop one into the tools folder and it appears.</translation>
     </message>

@@ -18,10 +18,12 @@
 #include "ToolRegistry.h"
 #include "core/Logger.h"
 
+#include <QAction>
 #include <QApplication>
 #include <QDir>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMenu>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QStackedWidget>
@@ -36,7 +38,36 @@ private slots:
     void rescanMissingDirReportsErrorAndZero();
     void switchToHomePageDoesNotCrash();
     void searchFilterDoesNotCrash();
+    void languageMenuReflectsConfiguredChoice();
 };
+
+namespace {
+
+/// 按标题找子菜单（测试未装翻译，标题就是源语言文案）。
+QMenu *findSubMenu(const QWidget *window, const QString &title)
+{
+    const auto menus = window->findChildren<QMenu *>();
+    for (QMenu *menu : menus) {
+        if (menu->title() == title) {
+            return menu;
+        }
+    }
+    return nullptr;
+}
+
+/// 按文案找菜单项。
+QAction *findAction(const QMenu *menu, const QString &text)
+{
+    const auto actions = menu->actions();
+    for (QAction *action : actions) {
+        if (action->text() == text) {
+            return action;
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
 
 // 构造 MainWindow 会触发 reloadTools() 扫描默认插件目录（测试环境多半不存在），
 // 验证外壳能优雅处理「无插件」：构造不崩、导航至少含「首页」、首页页存在。
@@ -98,6 +129,34 @@ void TestMainWindow::searchFilterDoesNotCrash()
     QVERIFY2(textSpy.count() >= 1, "textChanged 未发出，槽可能没接上");
     search->clear();
     QVERIFY2(textSpy.count() >= 2, "清空未走同一路径");
+}
+
+// 语言菜单：勾选态必须如实反映 ui/language 配置（无配置 → 跟随系统；en → English）。
+// 只断言勾选态，不触发 action —— 触发会弹 QMessageBox 阻塞无头会话；写配置那条
+// 路径由真机冒烟（verify_shell -Lang en|zh）覆盖。
+void TestMainWindow::languageMenuReflectsConfiguredChoice()
+{
+    QSettings().remove(QStringLiteral("ui/language"));
+    {
+        MainWindow w;
+        QMenu *language = findSubMenu(&w, QStringLiteral("界面语言"));
+        QVERIFY2(language != nullptr, "帮助菜单下没有「界面语言」子菜单");
+        QAction *system = findAction(language, QStringLiteral("跟随系统"));
+        QAction *english = findAction(language, QStringLiteral("English"));
+        QVERIFY2(system != nullptr && english != nullptr, "语言选项不全");
+        QVERIFY(system->isChecked());
+        QVERIFY(!english->isChecked());
+    }
+
+    QSettings().setValue(QStringLiteral("ui/language"), QStringLiteral("en"));
+    {
+        MainWindow w;
+        QMenu *language = findSubMenu(&w, QStringLiteral("界面语言"));
+        QVERIFY2(language != nullptr, "帮助菜单下没有「界面语言」子菜单");
+        QVERIFY(findAction(language, QStringLiteral("English"))->isChecked());
+        QVERIFY(!findAction(language, QStringLiteral("跟随系统"))->isChecked());
+    }
+    QSettings().remove(QStringLiteral("ui/language"));
 }
 
 int main(int argc, char *argv[])

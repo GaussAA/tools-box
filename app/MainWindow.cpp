@@ -5,6 +5,7 @@
 #include "core/ToolCatalog.h"
 
 #include <QAction>
+#include <QActionGroup>
 #include <QApplication>
 #include <QCloseEvent>
 #include <QColor>
@@ -54,6 +55,7 @@ constexpr int kToolIdRole = Qt::UserRole + 2;
 const QString kLastToolKey = QStringLiteral("ui/lastToolId");
 const QString kFavoritesKey = QStringLiteral("ui/favorites");
 const QString kRecentKey = QStringLiteral("ui/recent");
+const QString kUiLanguageKey = QStringLiteral("ui/language");
 
 /// 插件没提供图标时，用工具名首字符画一个圆角占位图标。
 /// 色相由名字哈希决定，保证同一个工具每次启动颜色都一样。
@@ -153,6 +155,39 @@ void MainWindow::buildMenus()
     fileMenu->addAction(tr("退出"), QKeySequence::Quit, this, &QWidget::close);
 
     QMenu *helpMenu = menuBar()->addMenu(tr("帮助"));
+
+    // 界面语言。这里只写配置并提示重启，**运行期不切换** —— 语言在启动时定一次，
+    // 是 ToolMeta::name 按装载期稳定缓存的前提（架构 §4.3）。取值语义与
+    // workflow §3.3 的命令行做法一致：删键 = 跟随系统，zh* / en* = 强制对应语言。
+    QMenu *languageMenu = helpMenu->addMenu(tr("界面语言"));
+    QActionGroup *languageGroup = new QActionGroup(languageMenu);
+    languageGroup->setExclusive(true);
+    const QString configured = QSettings().value(kUiLanguageKey).toString().toLower();
+    const auto addLanguageChoice = [languageMenu, languageGroup,
+                                    &configured](const QString &stored, const QString &label) {
+        QAction *action = languageMenu->addAction(label);
+        action->setCheckable(true);
+        action->setData(stored);
+        // 认不出来的配置值（如 fr）在启动时按跟随系统解析，菜单却不勾任何一项
+        // —— 暴露这种「配置不认识」的状态比假装成跟随系统更诚实。
+        action->setChecked(stored.isEmpty() ? configured.isEmpty()
+                                            : configured.startsWith(stored.left(2)));
+        languageGroup->addAction(action);
+    };
+    addLanguageChoice(QString(), tr("跟随系统"));
+    addLanguageChoice(QStringLiteral("zh_CN"), tr("中文"));
+    addLanguageChoice(QStringLiteral("en"), tr("English"));
+    connect(languageGroup, &QActionGroup::triggered, this, [this](QAction *action) {
+        const QString value = action->data().toString();
+        if (value.isEmpty()) {
+            QSettings().remove(kUiLanguageKey);
+        } else {
+            QSettings().setValue(kUiLanguageKey, value);
+        }
+        QMessageBox::information(this, tr("界面语言"), tr("语言设置已保存，重启程序后生效。"));
+    });
+
+    helpMenu->addSeparator();
     helpMenu->addAction(tr("关于"), this, &MainWindow::showAbout);
 }
 
