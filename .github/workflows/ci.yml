@@ -94,11 +94,18 @@ jobs:
       # （"Support Qt 6.11+ for Windows X64" #1000），因此装 6.12.0 会报
       # "Failed to locate XML data for Qt version '6.12.0'"。此处直接装 aqtinstall
       # 主干并手动安装；待含该支持的正式版发布后，可改回 install-qt-action。
+      #
+      # 主干必须**钉死到 commit**（2026-10-02 钉在 076e165，当时的最新提交）：
+      # 裸写 git+https://master 意味着上游一次无关合并就能让 CI 在本项目零改动时
+      # 突然变红，且失败信息与真实原因隔得很远。升级步骤：
+      #   1. gh api repos/miurahr/aqtinstall/commits/master --jq .sha 取新 commit；
+      #   2. 换掉下面的 @ 后哈希，跑一次 CI 确认绿；
+      #   3. 若 aqtinstall 发布了含 Qt 6.11+ 支持的正式版，整体改回 install-qt-action。
       - name: Install Qt
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          python -m pip install --upgrade --disable-pip-version-check "aqtinstall @ git+https://github.com/miurahr/aqtinstall.git"
+          python -m pip install --upgrade --disable-pip-version-check "aqtinstall @ git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7"
           $qtRoot = "$env:GITHUB_WORKSPACE\Qt\6.12.0\msvc2022_64"
           python -m aqt install-qt windows desktop 6.12.0 win64_msvc2022_64 --outputdir "$env:GITHUB_WORKSPACE\Qt"
           if (-not (Test-Path "$qtRoot\bin\qmake.exe")) { throw "Qt 6.12.0 did not install to $qtRoot" }
