@@ -121,7 +121,14 @@
 
 ## 9. C++ 与 Qt 语言约束
 
-- C++ 标准为 17（`qt_standard_project_setup()` 的默认值）。不允许使用更高标准的特性。
+- C++ 标准为 17，**由顶层 `CMakeLists.txt` 显式写死**（`CMAKE_CXX_STANDARD 17` +
+  `CMAKE_CXX_STANDARD_REQUIRED ON` + `CMAKE_CXX_EXTENSIONS OFF`）。不允许使用更高
+  标准的特性。
+  **不要删掉这几行改回 `qt_standard_project_setup()` 的默认值**：那个默认值随 Qt 版本
+  走（它只在变量未被设置时填一个），升级 Qt 时标准会被静默抬高，而本条「不允许使用更
+  高标准的特性」就失去了唯一的执行点 —— 编译器照旧能编，规则却形同虚设。
+  `STANDARD_REQUIRED ON` 同样不能省：少了它编译器会在不支持时降级，后果是「本机编得
+  过、CI 编不过」。
 - 只用 Qt 6 API，不引入 Qt 5 兼容分支；不使用已标记弃用的 API。后者不需要评审盯着：
   触碰弃用 API 会产生 `C4996`，在 `/WX` 下直接变成编译错误（实测确认）。
 - 新增 Qt 模块依赖时，必须同时在顶层 `CMakeLists.txt` 的 `find_package` 中声明
@@ -182,7 +189,7 @@
 | `core/` 里的每个源文件都有测试 | `scripts/verify/verify_coretest.ps1`：任何 `*/core/*.cpp` 未被测试 include 即 FAIL。**行覆盖率**本机没有可用工具（VS Community 不带 Code Coverage），故这里只机械保证「测到没有」，「测得好不好」仍归评审 | 已达标：10 个 core 源文件全部被引用，已在 CI 跑 |
 | 编译警告不引入新告警 | MSVC `/W4 /permissive- /WX`（警告即错误） | 已达标：Debug 与 Release 全量重建 0 告警 |
 | 不使用已标记弃用的 API | 同一个 `/WX`：弃用告警是 `C4996`，在 `/WX` 下直接编译失败（实测确认） | 已达标 |
-| C++ 标准不超标 | 编译器约束（`CMAKE_CXX_STANDARD`） | 已达标 |
+| C++ 标准固定 17，且不随 Qt 升级漂移 | 顶层 `CMakeLists.txt` 显式 `CMAKE_CXX_STANDARD 17` + `STANDARD_REQUIRED ON` + `EXTENSIONS OFF`；**不靠** `qt_standard_project_setup()` 的默认值（那个值随 Qt 版本走）（§9） | 已达标：2026-10-07 由「隐式默认」改为显式写死 |
 
 保证手段按可靠性排序：**编译器 > 脚本 > 评审**。同一条规则如果评估后能用更靠前的
 手段保证，就应该下移 —— 本轮把「不引入新告警」「空白与编码」「跨层 include / 旧式

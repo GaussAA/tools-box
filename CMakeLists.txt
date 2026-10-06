@@ -9,6 +9,20 @@ project(ToolBox
 # 插件 DLL 与主程序之间共享 QWidget 对象，二进制不兼容会直接崩溃。
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network Test LinguistTools)
 
+# ── C++ 标准：显式钉住 17，不靠 Qt 的默认值 ────────────────────────────────────
+# qt_standard_project_setup() 会在变量未设置时替我们填一个默认值，但那个默认值
+# 随 Qt 版本走 —— 升级 Qt 时标准可能被静默抬高，而 docs/coding-standards.md §9
+# 写的是「标准固定 17，不允许使用更高标准的特性」。规则要成立就得自己写出来，
+# 不能靠上游的默认值兜着。
+#
+#   * CMAKE_CXX_STANDARD_REQUIRED ON —— 编译器不支持 17 时直接失败，而不是悄悄
+#     降级到一个能编的标准（降级的后果是「本机编得过、CI 编不过」）。
+#   * CMAKE_CXX_EXTENSIONS OFF       —— 禁用 -std=gnu++17 这类带编译器扩展的档位，
+#     避免写出只有 MSVC 认的写法。MSVC 本来也没有这档，主要是防将来接其它编译器。
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 qt_standard_project_setup(REQUIRES 6.12)
 
 # 单元测试走 CTest，命令见 docs/workflow.md §5。
