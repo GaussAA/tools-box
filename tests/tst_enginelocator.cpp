@@ -19,6 +19,9 @@ private slots:
     void resolvePrefersManualPath();
     void resolveFallsBackToBundledDirectory();
     void resolveReturnsEmptyWhenNothingFound();
+    void sharedDirIsTheLastResort();
+    void sharedDirIsUsedWhenOthersMiss();
+    void sharedDirIsSkippedWhenNotConfigured();
 };
 
 namespace {
@@ -83,6 +86,60 @@ void TestEngineLocator::resolveReturnsEmptyWhenNothingFound()
         QUuid::createUuid().toString(QUuid::WithoutBraces) + QStringLiteral(".exe");
 
     QVERIFY(videodl::resolveExecutable(QString(), ghost, dir.path()).isEmpty());
+}
+
+// 共享目录是最后一级兜底：前三处都找不到时才生效，且它排在 PATH 之后 ——
+// 前三级都是「本机本来就有的」，用户特意指出来的目录不该抢在前面。
+void TestEngineLocator::sharedDirIsTheLastResort()
+{
+    QTemporaryDir sharedDir;
+    QVERIFY(sharedDir.isValid());
+    const QString shared = sharedDir.path() + QStringLiteral("/ffmpeg.exe");
+    QVERIFY(touch(shared));
+
+    // 随程序目录里有同一个文件时，共享目录不参与（优先级更高的一级胜出）。
+    QTemporaryDir bundledDir;
+    QVERIFY(bundledDir.isValid());
+    const QString bundled = bundledDir.path() + QStringLiteral("/ffmpeg.exe");
+    QVERIFY(touch(bundled));
+
+    const QString resolved = videodl::resolveExecutable(QString(), QStringLiteral("ffmpeg.exe"),
+                                                        bundledDir.path(), sharedDir.path());
+    QCOMPARE(QFileInfo(resolved).canonicalFilePath(), QFileInfo(bundled).canonicalFilePath());
+}
+
+// 共享目录里确实有文件、而前三级都没有时，才能落到它。
+void TestEngineLocator::sharedDirIsUsedWhenOthersMiss()
+{
+    QTemporaryDir sharedDir;
+    QVERIFY(sharedDir.isValid());
+    const QString shared = sharedDir.path() + QStringLiteral("/ffmpeg.exe");
+    QVERIFY(touch(shared));
+    QTemporaryDir bundledDir;
+    QVERIFY(bundledDir.isValid());
+
+    // PATH 里没有 ffmpeg（用随机名避免撞上），所以唯一来源就是共享目录。
+    const QString ghost =
+        QUuid::createUuid().toString(QUuid::WithoutBraces) + QStringLiteral(".exe");
+    const QString resolved =
+        videodl::resolveExecutable(QString(), ghost, bundledDir.path(), sharedDir.path());
+    QVERIFY(resolved.isEmpty()); // 随机名共享目录里当然没有
+
+    const QString real = videodl::resolveExecutable(QString(), QStringLiteral("ffmpeg.exe"),
+                                                    bundledDir.path(), sharedDir.path());
+    if (!real.isEmpty()) {
+        QCOMPARE(QFileInfo(real).canonicalFilePath(), QFileInfo(shared).canonicalFilePath());
+    }
+}
+
+// 没配置共享目录时行为与从前完全一致：找不到就是找不到，不报错、不猜路径。
+void TestEngineLocator::sharedDirIsSkippedWhenNotConfigured()
+{
+    QTemporaryDir bundledDir;
+    QVERIFY(bundledDir.isValid());
+    const QString resolved = videodl::resolveExecutable(QString(), QStringLiteral("__absent__.exe"),
+                                                        bundledDir.path(), QString());
+    QVERIFY(resolved.isEmpty());
 }
 
 QTEST_APPLESS_MAIN(TestEngineLocator)

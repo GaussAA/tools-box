@@ -199,7 +199,14 @@ tools-box/
   插件 DLL 输出目录由各插件 `CMakeLists.txt` 指向 `TOOLBOX_BIN_DIR/tools`。
 - 插件外部依赖的内核程序（如 yt-dlp / ffmpeg）落在 `<exe 目录>/tools/bin/`，
   与插件 DLL 同处一层，保证整个 `bin/<Config>/` 拷走即可运行。
-- 运行时可执行文件的查找顺序固定为：**手动指定 → `<exe 目录>/tools/bin/` → PATH**。
+- 运行时可执行文件的查找顺序固定为：**手动指定 → `<exe 目录>/tools/bin/` → PATH →
+  共享内核目录**（2026-10-02 加的最后一级兜底，见下）。
+- **共享内核目录**是用户配置的一个目录（应用级配置键 `ui/sharedEngineDir`，
+  常量在 SDK 里：`toolbox::kSharedEngineDirKey`），让同一台机器上的多个工具
+  共用一份 yt-dlp / ffmpeg，而不是各下载一份。它**排在最后**：前三级都是
+  「本机本来就有的」，用户特意指出来的目录不该抢在前面；清空它则行为完全回到从前。
+  之所以不做成「强制公共目录」：那会毁掉「解压即用」的便携形态（zip 换台机器
+  就残废）、撞上写权限（`Program Files` 不可写），并让多版本同名冲突无解。
 - **交付形态就是 `bin/<Config>/` 这一个目录**，由顶层的 `install()`（整目录安装）
   与 CPack 打成 zip 发出。因此 `install()` 规则不允许出现在子目录里 ——
   一旦有人往插件目录里加 `install(TARGETS)`，交付内容就会分裂成两处描述。
@@ -224,6 +231,7 @@ tools-box/
 | 9.11 | Qt 自带控件的翻译在 Qt 6.12 上失效 —— 消息框按钮回到 `OK`，而工具自己的中文文案完全正常 | [app/main.cpp](../app/main.cpp)、[app/core/LanguageChoice.cpp](../app/core/LanguageChoice.cpp) | 9.6 的修复按 **Qt 5 的文件名**（`qt_<locale>.qm`）加载，而 Qt 6 把词条搬到了 `qtbase_<locale>.qm`，旧文件退化成一个 **99 字节空壳**（实测 147222 vs 99）；本机 Qt 又装在非标准路径 `C:\Qt6.12\`，`QLibraryInfo::path(TranslationsPath)` 指向的编译期前缀 `C:/Qt/6.12.0/...` 并不存在，回退路径也落空 | **已消除（P2）**：加载前缀改为 `qtbase`（保留 `qt` 回退）；`LanguageChoice` 在配置只写语言（`zh`）时补上默认地区；`verify_shell.ps1` 自己设并复原 `ui/language`，不再依赖调用方 | 守住它的是 `verify_shell.ps1` 里那条「对话框按钮是否被本地化」的断言 —— 而**这条断言此前从未在本地跑过**，所以退化一直没人发现（详见 [workflow.md §3.3](./workflow.md#33-界面语言与翻译)） |
 | 9.10 | ~~无 `install()` / CPack 打包规则，交付靠手工拷贝 `bin/`~~ | 顶层 [CMakeLists.txt](../CMakeLists.txt) | 交付频次低 | **已消除（P3）**：顶层整目录 `install()` + CPack 出 zip，版本号仍只有 `project(... VERSION ...)` 一个来源；两条 `install(CODE)` 保护会拦下「打错配置」与「忘了 deploy」，实测都会报错停下 | 发布流程见 [workflow.md §9](./workflow.md#9-发布)；`verify_shell.ps1 -Exe` 用于验收解压后的产物 |
 | 9.12 | 运行时内核（yt-dlp / ffmpeg）从 GitHub `releases/latest` 下载，**未钉版本、无哈希校验** | [VideoDlPlugin.cpp](../plugins/videodl/VideoDlPlugin.cpp)（URL 常量）、[EngineFetcher.cpp](../plugins/videodl/EngineFetcher.cpp)（下载与校验） | yt-dlp 的价值就在「跟着站点对抗跑」，钉旧版本反而让下载功能随上游站点改版静默失效；release 更新频繁，手维护哈希表的成本与漂移风险都高 | **接受不钉版本（P1，2026-10-02）**；但补上**最小完整性校验**——[core/EngineCheck](../plugins/videodl/core/EngineCheck.h) 查文件头魔数（PE / Zip）+ 大小下限（8 MB / 32 MB），在落地环节拦住「下载到 HTML 错误页 / 严重截断文件」这类最常见的损坏。这不是安全边界，是可用性闸门 | 校验规则由 `tst_enginecheck` 盯住；若上游提供稳定的校验和清单，再升级为哈希校验 |
+| 9.13 | 引擎安装的解压步骤依赖系统自带 `powershell.exe`（`Expand-Archive`） | [EngineFetcher.cpp](../plugins/videodl/EngineFetcher.cpp)（`extractFfmpeg`） | 当初为「不引第三方库」选了系统自带解压 | **已知局限（P2，2026-10-02 实测）**：受限环境（企业安全策略 / 开发沙箱）会拦子进程，界面只报「ffmpeg 安装失败：无法解压。」而不说原因；当晚 ffmpeg 压缩包已下载并通过完整性校验，卡在解压 | 治本方案是改用内嵌的 minizip（单文件、MIT），彻底去掉对 `powershell.exe` 的依赖；未做，等大帅排期 |
 
 ## 10. 目标架构与迁移计划
 

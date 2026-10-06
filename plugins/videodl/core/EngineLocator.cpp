@@ -10,7 +10,8 @@ QString engineDir(const QString &appDir)
     return appDir + QStringLiteral("/tools/bin");
 }
 
-QString resolveExecutable(const QString &manual, const QString &fileName, const QString &baseDir)
+QString resolveExecutable(const QString &manual, const QString &fileName, const QString &baseDir,
+                          const QString &sharedDir)
 {
     if (!manual.isEmpty() && QFileInfo::exists(manual)) {
         return QFileInfo(manual).absoluteFilePath();
@@ -29,6 +30,15 @@ QString resolveExecutable(const QString &manual, const QString &fileName, const 
             return found;
         }
     }
+
+    // 最后一级兜底：用户配置的共享目录（跨工具复用外部内核，见头文件注释）。
+    if (!sharedDir.isEmpty()) {
+        const QString shared = sharedDir + QLatin1Char('/') + fileName;
+        if (QFileInfo::exists(shared)) {
+            return QFileInfo(shared).absoluteFilePath();
+        }
+    }
+
     return QString();
 }
 

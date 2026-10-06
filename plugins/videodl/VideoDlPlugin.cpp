@@ -105,6 +105,7 @@ private:
     QPushButton *m_browseDir = nullptr;
     QPushButton *m_openDir = nullptr;
     QLineEdit *m_cookies = nullptr;
+    QLineEdit *m_sharedDirEdit = nullptr; ///< 共享内核目录（应用级配置，跨插件生效）
     QPushButton *m_pickCookies = nullptr;
     QPushButton *m_download = nullptr;
     QPushButton *m_cancel = nullptr;
@@ -237,6 +238,16 @@ void VideoDlPage::buildUi()
     m_fetchFfmpeg = new QPushButton(tr("下载 ffmpeg"), engineBox);
     m_pickYtDlp = new QPushButton(tr("手动指定 yt-dlp…"), engineBox);
     m_pickFfmpeg = new QPushButton(tr("手动指定 ffmpeg…"), engineBox);
+    auto *browseShared = new QPushButton(tr("浏览…"), engineBox);
+    auto *clearShared = new QPushButton(tr("清除"), engineBox);
+
+    // 共享内核目录：同一台机器上多个工具往往都要 yt-dlp / ffmpeg，各自下载一份
+    // 既费磁盘又容易版本不一致。用户在这里填一次，所有插件的引擎查找都会把它
+    // 当作最后一级兜底（顺序见 docs/architecture.md §8）。清空则完全回到原行为。
+    m_sharedDirEdit = new QLineEdit(engineBox);
+    m_sharedDirEdit->setPlaceholderText(
+        tr("可选：多个工具共用的内核目录，例如 D:\\Tools\\runtime"));
+    m_sharedDirEdit->setClearButtonEnabled(true);
 
     auto *engineButtons = new QHBoxLayout;
     engineButtons->addWidget(m_fetchYtDlp);
@@ -247,6 +258,14 @@ void VideoDlPage::buildUi()
 
     engineLayout->addWidget(m_engineStatus);
     engineLayout->addLayout(engineButtons);
+
+    auto *sharedRow = new QHBoxLayout;
+    sharedRow->addWidget(new QLabel(tr("共享内核目录"), engineBox));
+    sharedRow->addWidget(m_sharedDirEdit, 1);
+    sharedRow->addWidget(browseShared);
+    sharedRow->addWidget(clearShared);
+    engineLayout->addLayout(sharedRow);
+
     layout->addWidget(engineBox);
 
     // ── 操作与进度 ────────────────────────────────────────────
@@ -302,6 +321,34 @@ void VideoDlPage::buildUi()
     connect(m_fetchFfmpeg, &QPushButton::clicked, this, &VideoDlPage::fetchFfmpeg);
     connect(m_pickYtDlp, &QPushButton::clicked, this, &VideoDlPage::pickYtDlp);
     connect(m_pickFfmpeg, &QPushButton::clicked, this, &VideoDlPage::pickFfmpeg);
+
+    // 共享内核目录：写的是**应用级**键（ui/sharedEngineDir），不是本插件的
+    // plugin/<id>/ 命名空间 —— 它的意义就是跨工具复用，所以必须放在公共位置。
+    // 键名由 SDK 提供（toolbox::kSharedEngineDirKey），宿主与所有插件共用一份。
+    m_sharedDirEdit->setText(
+        QSettings().value(QString::fromLatin1(toolbox::kSharedEngineDirKey)).toString());
+    connect(m_sharedDirEdit, &QLineEdit::editingFinished, this, [this] {
+        QSettings().setValue(QString::fromLatin1(toolbox::kSharedEngineDirKey),
+                             m_sharedDirEdit->text().trimmed());
+        appendLog(tr("共享内核目录已保存：%1")
+                      .arg(m_sharedDirEdit->text().trimmed().isEmpty()
+                               ? tr("（已清空）")
+                               : m_sharedDirEdit->text().trimmed()));
+        refreshEngineStatus();
+    });
+    connect(browseShared, &QPushButton::clicked, this, [this] {
+        const QString dir = QFileDialog::getExistingDirectory(this, tr("选择共享内核目录"),
+                                                              m_sharedDirEdit->text().trimmed());
+        if (dir.isEmpty()) {
+            return;
+        }
+        m_sharedDirEdit->setText(QDir::toNativeSeparators(dir));
+        emit m_sharedDirEdit->editingFinished();
+    });
+    connect(clearShared, &QPushButton::clicked, this, [this] {
+        m_sharedDirEdit->clear();
+        emit m_sharedDirEdit->editingFinished();
+    });
     connect(m_pickCookies, &QPushButton::clicked, this, &VideoDlPage::pickCookies);
 }
 
@@ -317,12 +364,16 @@ void VideoDlPage::setStatus(const QString &text)
 
 QString VideoDlPage::resolvedYtDlp() const
 {
-    return videodl::resolveExecutable(m_ytDlpManual, QStringLiteral("yt-dlp.exe"), engineDir());
+    return videodl::resolveExecutable(m_ytDlpManual, QStringLiteral("yt-dlp.exe"), engineDir(),
+                                      m_sharedDirEdit ? m_sharedDirEdit->text().trimmed()
+                                                      : QString());
 }
 
 QString VideoDlPage::resolvedFfmpeg() const
 {
-    return videodl::resolveExecutable(m_ffmpegManual, QStringLiteral("ffmpeg.exe"), engineDir());
+    return videodl::resolveExecutable(m_ffmpegManual, QStringLiteral("ffmpeg.exe"), engineDir(),
+                                      m_sharedDirEdit ? m_sharedDirEdit->text().trimmed()
+                                                      : QString());
 }
 
 void VideoDlPage::refreshEngineStatus()
@@ -330,10 +381,13 @@ void VideoDlPage::refreshEngineStatus()
     const QString ytDlp = resolvedYtDlp();
     const QString ffmpeg = resolvedFfmpeg();
 
-    const QString ytDlpText = ytDlp.isEmpty() ? tr("未找到 —— 点下面的按钮下载，或手动指定路径")
-                                              : QDir::toNativeSeparators(ytDlp);
-    const QString ffmpegText = ffmpeg.isEmpty() ? tr("未找到 —— 高画质合并与「仅音频」将不可用")
-                                                : QDir::toNativeSeparators(ffmpeg);
+    const QString ytDlpText = ytDlp.isEmpty()
+        ? tr("未找到 —— 点下面的按钮下载，或手动指定路径，也可填上面的共享内核目录")
+        : QDir::toNativeSeparators(ytDlp);
+    const QString ffmpegText = ffmpeg.isEmpty()
+        ? tr("未找到 —— 高画质合并与「仅音频」将不可用；可点上面的按钮下载，"
+             "或手动指定路径 / 填共享内核目录")
+        : QDir::toNativeSeparators(ffmpeg);
 
     m_engineStatus->setText(tr("yt-dlp：%1\nffmpeg：%2").arg(ytDlpText, ffmpegText));
 
