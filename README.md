@@ -26,6 +26,13 @@ cmake --build --preset debug                          # 构建
 ctest --test-dir build -C Debug --output-on-failure   # 单元测试
 ```
 
+钩子（**每个 clone 跑一次**）：让 git 用仓库里的 `.githooks/`，此后每次 `git commit`
+会自动跑七个秒级检查，违规直接拦下 —— 免得等 CI 几分钟后才被告知：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install_hooks.ps1
+```
+
 打一个「解压即用」的 zip：
 
 ```powershell

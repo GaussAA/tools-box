@@ -416,6 +416,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | `verify_videodl_platform.ps1` | 各站点（B站 / YouTube / 抖音）适配 |
 | `verify_videodl_status.ps1` | 状态栏与进度反馈 |
 | `verify_videodl_logread.ps1` | 日志解析与输出读取 |
+| `pre_commit.ps1` | **git pre-commit 钩子跑的那一个**：把上面七个里不需要构建的检查跑一遍（whitespace / format / conventions / filesize / coretest / translations / docs）。由 `.githooks/pre-commit` 调起，也可单独手跑 |
 
 **周六 09:30 的自动化（tools-box 每周真机回归巡检）跑哪些**：`build_verify.ps1`
 全量 + `verify_shell.ps1 -Exe <Release 产物>`；`verify_videodl_fetch.ps1` 与
@@ -425,8 +426,13 @@ ctest --test-dir build -C Debug --output-on-failure
 不许碰真实网络与真实子进程），所以真实链路就是它们唯一的防线；其余
 `verify_videodl*` 视情况加跑。
 
-`scripts/` 下还有三个不按「验证目标」命名的辅助脚本，一并记在这里免得找不到：
+`scripts/` 下还有几个不按「验证目标」命名的辅助脚本，一并记在这里免得找不到：
 
+- `install_hooks.ps1` —— **让 git 用仓库里 `.githooks/` 目录里的钩子**（`git config
+  core.hooksPath .githooks`）。**每个 clone 跑一次即可**：`core.hooksPath` 是本地仓库
+  设置，git 没有让 clone 继承它的机制，这是 git 的限制而不是我们的选择。启用之后
+  每次 `git commit` 会自动跑 `pre_commit.ps1`（七个秒级检查），违规直接拦下提交。
+  想临时跳过：`git commit --no-verify` —— CI 会跑同一套，所以那只是把失败推后。
 - `run_all.ps1` —— **一键跑完上面那八个自动检查**（空白 / 格式 / 规范 / 行数 /
   core 测试 / 翻译管道 / 文档 / 命名），按顺序执行、汇总成一个退出码。命名检查需要先构建
   （缺 `compile_commands.json` 时它**报 FAIL 而不是跳过** —— 那正是它会「静默全绿」

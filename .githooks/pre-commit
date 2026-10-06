@@ -1,0 +1,13 @@
+#!/bin/sh
+# Git pre-commit hook. Enabled with:  powershell -File scripts/install_hooks.ps1
+#
+# It runs the checks that take seconds and need no build, so that a violation is
+# caught before it becomes a commit instead of after it reaches CI.
+#
+# Skipping: git commit --no-verify (use sparingly; the same checks will fail in CI).
+#
+# Why a sh wrapper and not a .ps1 directly: git always executes hooks through
+# /bin/sh on Windows, so the entry point has to be a shell script. All the real
+# work lives in scripts/verify/pre_commit.ps1.
+
+exec powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify/pre_commit.ps1
