@@ -35,7 +35,10 @@ tools-box/
 │   ├── MainWindow.*        窗口装配、导航渲染、配置持久化
 │   └── ToolRegistry.*      插件扫描与装载（与 MainWindow 一起编成静态库 ToolBoxApp）
 ├── plugins/<工具名>/        工具层：一个工具 = 一个 MODULE 库（DLL）
-│   └── core/               该工具的纯逻辑（无 QWidget 依赖），编成 <工具名>_core
+│   ├── core/               该工具的纯逻辑（无 QWidget 依赖），编成 <工具名>_core
+│   └── *Orchestration*     编排层（可选）：把外部事件翻译成界面信号。
+│                           编成 <工具名>_orch，外部通道经接口注入，故可测。
+│                           详见 §3.1
 └── tests/                  Qt Test 用例，一个测试一个目标，由 CTest 驱动
 ```
 
@@ -80,6 +83,32 @@ tools-box/
 **历史反例（P1 已修正，见偏差台账 9.1 / 9.2）**：把过滤算法写在 `MainWindow` 里、
 把下载进度解析写在页面类里，都是把 Model 塞进了 View。现在这两处分别落在
 `app/core/ToolCatalog.*` 与 `plugins/videodl/core/`，并且都有测试兜底。
+
+### 3.1 编排层（`_orch`）：不是 core，但要能测
+
+有一类代码两边都不沾：它不碰任何控件，却持有 `tr()` 文案（把 Model 的变化刷成
+一句话给用户看），按上面那张表属于 View；可它的价值又全在**决策**上 —— 哪一行输出
+对应哪个阶段、取消与重试撞车时谁赢。放 `core/` 不合适（那是 View 的活），挂回页面
+则彻底失去可测性。
+
+这类代码单独编成 `<工具名>_orch` 静态库，并且**外部通道一律经接口注入**：
+
+| 外部通道 | 接口 | 真的实现 |
+| --- | --- | --- |
+| 子进程 | `IChildProcess` | `RealChildProcess` |
+| 网络 | `IEngineTransport` | `NetworkEngineTransport` |
+
+于是测试可以换成假实现，喂预置字节与数据、断言信号 —— **既不启动子进程也不发出
+网络请求**，`workflow.md §5` 那条约定依然成立。这不是绕开约定：约定要防的是
+「测试依赖外部世界因而脆弱」，注入恰恰让测试不再依赖外部世界。
+
+注意边界：**注入换不来真实路径的覆盖**。`RealChildProcess` / `NetworkEngineTransport`
+本身并没有被单元测试覆盖，它们仍靠手工回归（workflow §8）。注入换来的是决策分支能
+被确定地走到，尤其是那些真机上靠运气才撞得到的（合并阶段要切不确定态、重试等待
+期间点取消）。
+
+`videodl_orch` 用 `qt_add_library` 而不是 `add_library`：这些类都带 `Q_OBJECT`，
+普通 `add_library` 不跑 moc 会缺虚表符号。
 
 ## 4. 插件契约
 
@@ -302,6 +331,8 @@ plugins/videodl/
 ├── DownloadRunner.*            跑 yt-dlp，输出行 → 进度/阶段/产物信号
 ├── DouyinResolver.*            借浏览器渲染取 video_id，拼播放直链
 ├── EngineFetcher.*             内核下载 / 断点续传 / 解压 / 取消
+├── IChildProcess.*             子进程的注入点：接口 + RealChildProcess
+├── IEngineTransport.*          网络传输的注入点：接口 + NetworkEngineTransport
 └── core/                       无 QWidget 依赖，可单测
     ├── OutputParsing.*         输出解码、剥色、地址提取、进度/阶段/产物解析、
     │                           文件名消毒、Content-Range 解析、命令行脱敏

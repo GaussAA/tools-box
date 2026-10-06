@@ -118,6 +118,7 @@ qt_add_translations(ToolBox
         jsonfmt_tool
         jsonfmt_core
         videodl_tool
+        videodl_orch
         videodl_core
     RESOURCE_PREFIX "/i18n"
     NO_GENERATE_PLURALS_TS_FILE)

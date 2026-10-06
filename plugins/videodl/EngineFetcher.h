@@ -1,12 +1,12 @@
 #pragma once
 
+#include "IChildProcess.h"
+#include "IEngineTransport.h"
+
 #include <QObject>
 #include <QString>
 
-class QNetworkReply;
-class QProcess;
-class QFile;
-class QNetworkAccessManager;
+class QDirIterator;
 
 /// 下载内核（yt-dlp / ffmpeg）的那部分：发起传输、断点续传、解压、取消。
 ///
@@ -15,8 +15,10 @@ class QNetworkAccessManager;
 /// 理由是职责：页面只该管界面，而「什么时候该续传、什么时候该重来、怎么算取消」
 /// 与界面毫无关系。
 ///
-/// 它仍然持有 QNetworkAccessManager 与 QProcess（所以**不能**进 `core/`），
-/// 与页面之间只靠信号说话。
+/// 与页面之间只靠信号说话。网络经 IEngineTransport 注入、解压子进程经
+/// IChildProcess 注入：两条外部通道都可以换成假的，于是状态机（续传 / 重试 / 取消
+/// / 放弃）不必真下载也能验证 —— 剩下真正只属于真机的，只有「解压出来的是不是
+/// ffmpeg.exe」这一段。
 class EngineFetcher : public QObject
 {
     Q_OBJECT
@@ -25,7 +27,14 @@ public:
     /// 正在进行的下载任务。同一时刻只允许一个，所以不是「几个 bool」。
     enum class Kind { None, YtDlp, Ffmpeg };
 
+    /// 生产用法：真实网络 + 真实解压子进程。
     explicit EngineFetcher(QObject *parent = nullptr);
+
+    /// 测试用法：注入网络与解压子进程。**所有权都不转移**，调用方须让它们活到
+    /// 本对象销毁之后。
+    explicit EngineFetcher(IEngineTransport *transport, IChildProcess *unzip,
+                           QObject *parent = nullptr);
+
     ~EngineFetcher() override;
 
     bool isBusy() const { return m_kind != Kind::None; }
@@ -46,8 +55,8 @@ signals:
 private:
     void beginTransfer();
     void scheduleRetry();
-    void onReplyProgress(qint64 received, qint64 total);
-    void onReplyFinished(QNetworkReply *reply);
+    void onTransportProgress(qint64 received, qint64 total);
+    void onTransportFinished(EngineFetchOutcome outcome);
     void finish(bool ok);
     void extractFfmpeg(const QString &zipPath);
     /// 收尾：清临时文件、复位状态；busy 归零后页面据此刷新按钮。
@@ -55,16 +64,19 @@ private:
 
     QString kindLabel() const;
 
-    QNetworkAccessManager *m_net = nullptr;
-    QProcess *m_unzip = nullptr; ///< 解压 ffmpeg 那个 zip 用的进程
+    IEngineTransport *m_transport = nullptr;
+    IChildProcess *m_unzip = nullptr; ///< 解压 ffmpeg 那个 zip 用的进程
+    bool m_ownsExternals = false;     ///< 真实实现才由本对象负责销毁
 
     Kind m_kind = Kind::None;
-    QNetworkReply *m_reply = nullptr;
-    QFile *m_file = nullptr;
     QString m_url;
     QString m_partPath;
     QString m_targetPath;
     int m_attempt = 0;   ///< 已发起的传输次数，到上限就放弃
     qint64 m_offset = 0; ///< 本次续传的起始偏移（即已落盘的字节数）
+    /// 是否有一个传输正在飞。取消要靠它分流：在飞就 abort（由 finished 收尾），
+    /// 不在飞（正等着 1.5 秒后重试）就直接收尾 —— 少了这个标志，重试等待期间的
+    /// 取消会被随后的定时器悄悄重新拉起来。
+    bool m_transferActive = false;
     bool m_cancelled = false;
 };

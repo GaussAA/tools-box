@@ -50,6 +50,16 @@ toolbox_add_test(tst_enginecheck videodl_core)
 toolbox_add_test(tst_enginefetchpolicy videodl_core)
 toolbox_add_test(tst_linesplitter videodl_core)
 toolbox_add_test(tst_engineinstall videodl_core)
+
+# ── 编排层测试（videodl_orch）─────────────────────────────────────────────────
+# 这三个类的外部通道（子进程 / 网络）经 IChildProcess / IEngineTransport 注入，
+# 所以测试用假的实现来驱动它们 —— 不启动任何真实子进程、不发出任何网络请求，
+# workflow §5 那条约定依然成立。测的是**决策**：哪一行输出对应哪个阶段、
+# 取消与重试撞车时谁赢、哪种结局该报哪种结果。
+toolbox_add_test(tst_downloadrunner videodl_orch)
+toolbox_add_test(tst_douyinresolver videodl_orch)
+toolbox_add_test(tst_enginefetcher videodl_orch)
+
 toolbox_add_test(tst_pluginscanpolicy ToolBoxCore)
 toolbox_add_test(tst_pluginmeta ToolBox::Sdk)
 toolbox_add_test(tst_logger ToolBoxCore)

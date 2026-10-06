@@ -25,11 +25,26 @@ target_link_libraries(videodl_core PUBLIC Qt6::Core)
 # 把头文件目录暴露出去，测试目标才能 #include "core/OutputParsing.h"
 target_include_directories(videodl_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
-# 视频下载插件。相比其它工具它多依赖一个 Qt 模块：
-# Qt6::Network —— 用来在首次使用时把 yt-dlp / ffmpeg 下载到 tools/bin。
-add_library(videodl_tool MODULE
-    VideoDlPlugin.cpp
-    VideoDlPlugin.h
+# ── 编排层 ────────────────────────────────────────────────────────────────────
+# 「把外部世界的事件翻译成界面信号」的那一层：DownloadRunner（yt-dlp 输出 → 进度）、
+# DouyinResolver（渲染 → 直链）、EngineFetcher（传输 → 续传/重试/取消）。
+#
+# 它们**不是** core/，因为持有用户可见的 tr() 文案 —— 按架构 §3 的判定表，把 Model
+# 的变化刷成界面文案属于 View 这一侧。但它们的价值恰恰全在决策上，而此前这层一个
+# 用例都没有：外部通道（子进程 / 网络）被直接 new 在构造函数里，想测就必须真的把
+# yt-dlp 与浏览器跑起来。
+#
+# 现在两条外部通道都经 IChildProcess / IEngineTransport 注入，测试可以换成假的，
+# 于是「哪一行输出对应哪个阶段」「取消与重试撞车时谁赢」这些分支第一次可测 —— 而且
+# 既不碰网络也不碰子进程，workflow §5 那条约定没有被绕过，只是不再是不写测试的理由。
+#
+# 单独成库（而不是并进 videodl_tool）是为了让测试目标能链接它：MODULE 库不可被链接。
+# 用 qt_add_library 而非 add_library：这几个类都带 Q_OBJECT，需要 Qt 的自动 moc。
+qt_add_library(videodl_orch STATIC
+    IChildProcess.cpp
+    IChildProcess.h
+    IEngineTransport.cpp
+    IEngineTransport.h
     DownloadRunner.cpp
     DownloadRunner.h
     DouyinResolver.cpp
@@ -37,7 +52,19 @@ add_library(videodl_tool MODULE
     EngineFetcher.cpp
     EngineFetcher.h)
 
-target_link_libraries(videodl_tool PRIVATE ToolBox::Sdk videodl_core Qt6::Network)
+target_link_libraries(videodl_orch PUBLIC videodl_core Qt6::Core Qt6::Network)
+
+# 暴露本目录，使测试目标能 #include "DownloadRunner.h" / "IChildProcess.h"。
+target_include_directories(videodl_orch PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+
+# 视频下载插件本体。相比其它工具它多依赖一个 Qt 模块：
+# Qt6::Network —— 用来在首次使用时把 yt-dlp / ffmpeg 下载到 tools/bin
+# （由 videodl_orch 传递过来）。
+add_library(videodl_tool MODULE
+    VideoDlPlugin.cpp
+    VideoDlPlugin.h)
+
+target_link_libraries(videodl_tool PRIVATE ToolBox::Sdk videodl_orch videodl_core)
 
 # 同 base64：静态元数据由模板生成，abi 字段由构建注入。
 configure_file(metadata.json.in "${CMAKE_CURRENT_BINARY_DIR}/metadata.json" @ONLY)

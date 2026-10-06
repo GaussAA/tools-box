@@ -323,6 +323,9 @@ ctest --test-dir build -C Debug --output-on-failure
 | `tst_jsonformat` | [jsonfmt/core/JsonFormat.*](../plugins/jsonfmt/core/JsonFormat.h)：JSON 解析与序列化、出错偏移与原因的回传 |
 | `tst_mainwindow` | 外壳在**无插件**环境下的四条主路径：构造、扫描不存在目录、切页、搜索（不装载任何真实插件） |
 | `tst_integration` | 跨 DLL 真链路：把 base64 / jsonfmt 部署到专属目录，验证 `rescan` → `qobject_cast` → `createPage` 全程可用 |
+| `tst_downloadrunner` | [videodl/DownloadRunner](../plugins/videodl/DownloadRunner.h)：yt-dlp 的哪一行输出对应哪个进度/阶段信号（注入假子进程） |
+| `tst_douyinresolver` | [videodl/DouyinResolver](../plugins/videodl/DouyinResolver.h)：渲染结局的编排侧 —— DOM 收全、真因上报、拼直链（注入假子进程） |
+| `tst_enginefetcher` | [videodl/EngineFetcher](../plugins/videodl/EngineFetcher.h)：续传 / 重试 / 取消 / 放弃的状态机（注入假传输） |
 
 新增用例：在 `tests/` 下加一个 `tst_<模块名>.cpp`，用
 `toolbox_add_test(tst_<模块名> <被测静态库>)` 注册，并同步本表。
@@ -335,12 +338,40 @@ ctest --test-dir build -C Debug --output-on-failure
   `QApplication` 之前**设 `QT_QPA_PLATFORM=offscreen`，且只验证「构造与装载不崩」。
   例外不能成为借口：**逻辑**若因为「挂了控件所以不好测」，第一选择仍是把逻辑挪进
   `core/` 再测，而不是加一个 GUI 用例糊过去。
-- **不允许**依赖真实网络与真实子进程；需要文件系统时用 `QTemporaryDir`，不留残留。
+- **不允许**依赖真实网络与真实子进程。这条约定没有松动 —— 松动的是另一件事：
+  见下面「编排层怎么测」。
 - 测试可执行文件落在 `build/tests/<Config>/`，不混进要分发的 `bin/<Config>/`；
   测试进程的 `PATH` 由 `tests/CMakeLists.txt` 前置 Qt 的 `bin` 目录，
   因此没跑过 `deploy` 的干净构建也能直接启动。
 - 界面与真实下载链路用 `scripts/verify/` 下的脚本验证（清单见 §8），
   它们属于**手工回归**，不替代单元测试。
+
+### 5.1 编排层怎么测（不碰网络与子进程）
+
+`DownloadRunner` / `DouyinResolver` / `EngineFetcher` 是「把外部世界的事件翻译成界面
+信号」的那一层，编成静态库 `videodl_orch`（不是 `core/` —— 它们持有 `tr()` 文案，
+按 [architecture.md §3](./architecture.md#3-mvp-落地约定) 的判定表属 View 侧）。
+
+它们的价值恰恰全在**决策**上：哪一行输出对应哪个阶段、取消与重试撞车时谁赢、哪种
+结局该报哪种结果。而这些分支此前一个用例都没有 —— 外部通道被直接 `new` 在构造函数
+里，想测就必须真的把 yt-dlp 和浏览器跑起来，「不许依赖真实网络与真实子进程」这条
+约定于是**事实上**成了不写测试的理由。
+
+正确的做法不是放弃这条约定，而是**把外部通道换成可注入的接口**：
+
+| 通道 | 接口 | 真的实现 | 假的实现 |
+| --- | --- | --- | --- |
+| 子进程 | `IChildProcess`（`plugins/videodl/`） | `RealChildProcess` | 测试文件内定义，喂预置输出与退出码 |
+| 网络 | `IEngineTransport`（`plugins/videodl/`） | `NetworkEngineTransport` | 测试文件内定义，直接给出 outcome |
+
+于是测试喂的是字节与数据、断言的是信号，**既不启动子进程也不发出网络请求**，约定
+依然成立。假实现定义在测试自己的 `.cpp` 里（带 `Q_OBJECT`，文件末尾
+`#include "xxx.moc"`），不进生产代码。
+
+**「注入」不等于「什么都信注入的」**：真实路径（`RealChildProcess`、
+`NetworkEngineTransport`）本身没有被单元测试覆盖，它们仍然靠 §8 的真机脚本。注入
+换来的是**决策**能被确定地走到 —— 尤其是那些真机上靠运气才撞得到的分支
+（合并阶段要切不确定态、重试等待期间点取消）。
 
 ## 6. 版本与提交
 

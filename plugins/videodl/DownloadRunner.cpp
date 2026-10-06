@@ -2,32 +2,53 @@
 
 #include "core/OutputParsing.h"
 
-#include <QFileInfo>
 #include <QProcessEnvironment>
+
+namespace {
+
+/// yt-dlp 是 Python 打包的：不强制 UTF-8，中文标题在 Windows 控制台下会变问号。
+QProcessEnvironment pythonUtf8Environment()
+{
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert(QStringLiteral("PYTHONUTF8"), QStringLiteral("1"));
+    env.insert(QStringLiteral("PYTHONIOENCODING"), QStringLiteral("utf-8"));
+    return env;
+}
+
+} // namespace
 
 DownloadRunner::DownloadRunner(QObject *parent)
     : QObject(parent)
-    , m_process(new QProcess(this))
+    , m_process(new RealChildProcess(this))
+    , m_ownsProcess(true)
 {
     // 合并通道：yt-dlp 的进度与报错混在 stdout/stderr 两边，分开收会漏行。
-    m_process->setProcessChannelMode(QProcess::MergedChannels);
-    connect(m_process, &QProcess::readyReadStandardOutput, this, &DownloadRunner::onReadyRead);
-    connect(m_process, &QProcess::finished, this, &DownloadRunner::onFinished);
+    m_process->setChannelMode(IChildProcess::ChannelMode::Merged);
+    connect(m_process, &IChildProcess::readyReadStandardOutput, this, &DownloadRunner::onReadyRead);
+    connect(m_process, &IChildProcess::finished, this, &DownloadRunner::onFinished);
+}
+
+DownloadRunner::DownloadRunner(IChildProcess *process, QObject *parent)
+    : QObject(parent)
+    , m_process(process)
+    , m_ownsProcess(false)
+{
+    m_process->setChannelMode(IChildProcess::ChannelMode::Merged);
+    connect(m_process, &IChildProcess::readyReadStandardOutput, this, &DownloadRunner::onReadyRead);
+    connect(m_process, &IChildProcess::finished, this, &DownloadRunner::onFinished);
 }
 
 DownloadRunner::~DownloadRunner()
 {
-    // 页面可能因为重载插件或关窗被销毁，此时进程还在跑就会报
-    // "QProcess: Destroyed while process is still running"，先收干净。
-    if (m_process->state() != QProcess::NotRunning) {
-        m_process->kill();
-        m_process->waitForFinished(2000);
+    if (m_ownsProcess) {
+        delete m_process;
+        m_process = nullptr;
     }
 }
 
 bool DownloadRunner::isRunning() const
 {
-    return m_process->state() != QProcess::NotRunning;
+    return m_process->isRunning();
 }
 
 void DownloadRunner::start(const QString &ytDlp, const QStringList &args)
@@ -35,18 +56,13 @@ void DownloadRunner::start(const QString &ytDlp, const QStringList &args)
     m_splitter = videodl::LineSplitter();
     m_outputPath.clear();
 
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    // yt-dlp 是 Python 打包的：不强制 UTF-8，中文标题在 Windows 控制台下会变问号。
-    env.insert(QStringLiteral("PYTHONUTF8"), QStringLiteral("1"));
-    env.insert(QStringLiteral("PYTHONIOENCODING"), QStringLiteral("utf-8"));
-    m_process->setProcessEnvironment(env);
-
+    m_process->setEnvironment(pythonUtf8Environment());
     m_process->start(ytDlp, args);
 }
 
 void DownloadRunner::cancel()
 {
-    if (m_process->state() != QProcess::NotRunning) {
+    if (m_process->isRunning()) {
         m_process->kill();
     }
 }

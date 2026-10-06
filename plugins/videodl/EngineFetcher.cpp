@@ -11,9 +11,6 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QProcess>
 #include <QTimer>
 
@@ -21,9 +18,6 @@ namespace {
 
 /// 内核下载最多发起几次传输（失败会带着断点续传重试）。
 constexpr int kMaxFetchAttempts = 5;
-
-/// 单次传输的超时（毫秒）。没有它，连接被中间设备挂住时会永远卡在某个百分比上不报错。
-constexpr int kTransferTimeoutMs = 30000;
 
 /// 失败后隔多久重连（毫秒）。立刻重连容易又撞上同一个坏连接。
 constexpr int kRetryDelayMs = 1500;
@@ -49,20 +43,32 @@ QString psSingleQuoted(const QString &value)
 
 EngineFetcher::EngineFetcher(QObject *parent)
     : QObject(parent)
-    , m_net(new QNetworkAccessManager(this))
-{}
+    , m_transport(new NetworkEngineTransport(this))
+    , m_unzip(new RealChildProcess(this))
+    , m_ownsExternals(true)
+{
+    connect(m_transport, &IEngineTransport::progress, this, &EngineFetcher::onTransportProgress);
+    connect(m_transport, &IEngineTransport::finished, this, &EngineFetcher::onTransportFinished);
+}
+
+EngineFetcher::EngineFetcher(IEngineTransport *transport, IChildProcess *unzip, QObject *parent)
+    : QObject(parent)
+    , m_transport(transport)
+    , m_unzip(unzip)
+    , m_ownsExternals(false)
+{
+    connect(m_transport, &IEngineTransport::progress, this, &EngineFetcher::onTransportProgress);
+    connect(m_transport, &IEngineTransport::finished, this, &EngineFetcher::onTransportFinished);
+}
 
 EngineFetcher::~EngineFetcher()
 {
-    if (m_unzip && m_unzip->state() != QProcess::NotRunning) {
-        m_unzip->kill();
-        m_unzip->waitForFinished(2000);
+    if (m_ownsExternals) {
+        delete m_unzip;
+        delete m_transport;
     }
-    delete m_file;
-    m_file = nullptr;
-    if (m_reply) {
-        m_reply->abort();
-    }
+    m_unzip = nullptr;
+    m_transport = nullptr;
 }
 
 QString EngineFetcher::kindLabel() const
@@ -99,10 +105,14 @@ void EngineFetcher::cancel()
     }
 
     // 与「传输失败」分开处理：失败会重试并报失败，取消就是取消。
+    //
+    // 两条路必须分开走：有传输在飞时 abort() 会立刻带来一次 finished，收尾交给它；
+    // 而**没有**传输在飞（正等着 1.5 秒后的重试）时没人会再来收尾，必须就地 reset。
+    // 少了这个分流，重试等待期间的取消会被随后的定时器重新拉起来 —— 用户在界面上
+    // 看到的是「点了取消，下载又自己开始了」。
     m_cancelled = true;
-    if (m_reply) {
-        // abort() 会立刻发出 finished，收尾交给 onReplyFinished 的取消分支。
-        m_reply->abort();
+    if (m_transferActive) {
+        m_transport->abort();
         return;
     }
     reset();
@@ -118,9 +128,6 @@ void EngineFetcher::beginTransfer()
 
     ++m_attempt;
 
-    delete m_file;
-    m_file = nullptr;
-
     // 上次已经落盘的部分继续用，从它的末尾往后接着要。
     qint64 offset = 0;
     const QFileInfo partInfo(m_partPath);
@@ -129,56 +136,23 @@ void EngineFetcher::beginTransfer()
     }
     m_offset = offset;
 
-    m_file = new QFile(m_partPath, this);
-    const QIODevice::OpenMode mode =
-        offset > 0 ? (QIODevice::WriteOnly | QIODevice::Append) : QIODevice::WriteOnly;
-    if (!m_file->open(mode)) {
-        emit logLine(tr("无法写入临时文件：%1").arg(QDir::toNativeSeparators(m_partPath)));
-        // 先复位再发信号：页面收到 finished 时会立刻读 isBusy() 刷新按钮，
-        // 顺序反了就会把按钮留在忙碌态。
-        const Kind kind = m_kind;
-        m_kind = Kind::None;
-        reset();
-        emit finished(false, kind, m_targetPath);
-        return;
-    }
-
-    QNetworkRequest request{QUrl(m_url)};
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                         QNetworkRequest::NoLessSafeRedirectPolicy);
-    // GitHub 的 release 资源会跳到 release-assets.githubusercontent.com，
-    // Qt 默认走 HTTP/2 连那个主机时容易一个字节都收不到，退回 HTTP/1.1 更稳。
-    request.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
-    request.setTransferTimeout(kTransferTimeoutMs);
-    if (offset > 0) {
-        request.setRawHeader("Range",
-                             "bytes=" + QByteArray::number(offset) + QByteArrayLiteral("-"));
-    }
-
-    QNetworkReply *reply = m_net->get(request);
-    m_reply = reply;
-
-    connect(reply, &QNetworkReply::downloadProgress, this, &EngineFetcher::onReplyProgress);
-    connect(reply, &QNetworkReply::readyRead, this, [this, reply] {
-        if (m_file) {
-            m_file->write(reply->readAll());
-        }
-    });
-    connect(reply, &QNetworkReply::finished, this, [this, reply] { onReplyFinished(reply); });
+    m_transferActive = true;
+    EngineFetchRequest request;
+    request.url = QUrl(m_url);
+    request.partPath = m_partPath;
+    request.offset = offset;
+    m_transport->fetch(request);
 }
 
 void EngineFetcher::scheduleRetry()
 {
-    m_reply = nullptr;
-    delete m_file;
-    m_file = nullptr;
-
+    m_transferActive = false;
     // 稍等一下再重连，避免立刻又撞上同一个坏连接。
     emit status(tr("%1 下载中断，正在重试（第 %2 次）…").arg(kindLabel()).arg(m_attempt + 1));
     QTimer::singleShot(kRetryDelayMs, this, &EngineFetcher::beginTransfer);
 }
 
-void EngineFetcher::onReplyProgress(qint64 received, qint64 total)
+void EngineFetcher::onTransportProgress(qint64 received, qint64 total)
 {
     if (total <= 0) {
         return;
@@ -196,32 +170,19 @@ void EngineFetcher::onReplyProgress(qint64 received, qint64 total)
         tr("正在下载 %1 … %2%（%3 / %4 MB）").arg(kindLabel()).arg(percent).arg(mb(done), mb(all)));
 }
 
-void EngineFetcher::onReplyFinished(QNetworkReply *reply)
+void EngineFetcher::onTransportFinished(EngineFetchOutcome outcome)
 {
-    delete m_file;
-    m_file = nullptr;
-    if (reply) {
-        reply->deleteLater();
-    }
-    m_reply = nullptr;
-
-    const int statusCode =
-        reply ? reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() : 0;
-    const QNetworkReply::NetworkError error =
-        reply ? reply->error() : QNetworkReply::UnknownNetworkError;
-    const QString errorText = reply ? reply->errorString() : tr("网络请求已取消");
+    m_transferActive = false;
 
     // 「下一步怎么办」交给 core 里的纯函数判定（tests/tst_enginefetchpolicy 逐条钉住）：
     // 这里只负责把事实凑齐、把结论翻译成日志与信号。
     videodl::FetchFacts facts;
     facts.userCancelled = m_cancelled;
     m_cancelled = false;
-    facts.transportFailed = !reply || error != QNetworkReply::NoError;
-    facts.statusCode = statusCode;
+    facts.transportFailed = outcome.transportFailed;
+    facts.statusCode = outcome.statusCode;
     facts.offset = m_offset;
-    facts.contentRangeStart = (reply && error == QNetworkReply::NoError && statusCode == 206)
-        ? videodl::parseContentRangeStart(QString::fromLatin1(reply->rawHeader("Content-Range")))
-        : -1;
+    facts.contentRangeStart = outcome.contentRangeStart;
     facts.attempt = m_attempt;
     facts.maxAttempts = kMaxFetchAttempts;
 
@@ -232,7 +193,7 @@ void EngineFetcher::onReplyFinished(QNetworkReply *reply)
         return;
     case videodl::FetchAction::RestartWhole:
         // 两条文案对应两种故障：服务端当没听见 Range，或 206 起点对不上。
-        emit logLine(statusCode == 200
+        emit logLine(outcome.statusCode == 200
                          ? tr("服务器未支持断点续传，重新下载整个文件。")
                          : tr("续传的起始位置与已下载的部分对不上，重新下载整个文件。"));
         QFile::remove(m_partPath);
@@ -240,11 +201,11 @@ void EngineFetcher::onReplyFinished(QNetworkReply *reply)
         scheduleRetry();
         return;
     case videodl::FetchAction::Retry:
-        emit logLine(tr("第 %1 次下载中断（%2），重试中…").arg(m_attempt).arg(errorText));
+        emit logLine(tr("第 %1 次下载中断（%2），重试中…").arg(m_attempt).arg(outcome.errorText));
         scheduleRetry();
         return;
     case videodl::FetchAction::Fail:
-        emit logLine(tr("下载失败（已尝试 %1 次）：%2").arg(m_attempt).arg(errorText));
+        emit logLine(tr("下载失败（已尝试 %1 次）：%2").arg(m_attempt).arg(outcome.errorText));
         finish(false);
         return;
     case videodl::FetchAction::Complete:
@@ -325,19 +286,19 @@ void EngineFetcher::extractFfmpeg(const QString &zipPath)
 
     emit logLine(tr("正在解压 ffmpeg …"));
 
-    auto *ps = new QProcess(this);
-    m_unzip = ps;
+    if (!m_unzip) {
+        m_unzip = new RealChildProcess(this);
+    }
+    auto *ps = m_unzip;
 
     const auto cleanup = [tmpDir, zipPath] {
         QDir(tmpDir).removeRecursively();
         QFile::remove(zipPath);
     };
 
-    connect(ps, &QProcess::finished, this,
+    connect(ps, &IChildProcess::finished, this,
             [this, ps, tmpDir, zipPath, cleanup](int exitCode, QProcess::ExitStatus) {
                 const QString err = videodl::decodeOutput(ps->readAllStandardError()).trimmed();
-                ps->deleteLater();
-                m_unzip = nullptr;
 
                 QString result;
                 bool ok = false;
@@ -393,10 +354,8 @@ void EngineFetcher::extractFfmpeg(const QString &zipPath)
                 emit status(result);
                 emit finished(ok, kind, m_targetPath);
             });
-    connect(ps, &QProcess::errorOccurred, this, [this, ps, cleanup](QProcess::ProcessError) {
+    connect(ps, &IChildProcess::errorOccurred, this, [this, cleanup](QProcess::ProcessError) {
         emit logLine(tr("无法调用 PowerShell 解压，请手动指定 ffmpeg 路径。"));
-        ps->deleteLater();
-        m_unzip = nullptr;
         cleanup();
         const Kind kind = m_kind;
         m_kind = Kind::None;
@@ -406,7 +365,8 @@ void EngineFetcher::extractFfmpeg(const QString &zipPath)
         emit finished(false, kind, m_targetPath);
     });
 
-    // 用系统自带的 Expand-Archive，省得为解压一个 zip 引入第三方库。
+    // 用系统自带的 Expand-Archive，省得为解压一个 zip 引入第三方库
+    // （偏差 9.13：受限环境会拦子进程，治本方案是内嵌 minizip，待排期）。
     ps->start(QStringLiteral("powershell.exe"),
               {QStringLiteral("-NoProfile"), QStringLiteral("-NonInteractive"),
                QStringLiteral("-Command"),
@@ -420,9 +380,6 @@ void EngineFetcher::reset()
     // 复位必须在**同一个地方**完成：少设一次 m_kind，isBusy() 就一直为真，
     // 页面上的按钮会永久停在忙碌态，而日志看上去一切正常。
     m_kind = Kind::None;
-    delete m_file;
-    m_file = nullptr;
-    m_reply = nullptr;
     m_attempt = 0;
     m_offset = 0;
     QFile::remove(m_partPath);
