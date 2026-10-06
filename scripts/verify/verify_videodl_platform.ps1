@@ -1,4 +1,4 @@
-﻿param([string]$UrlFile, [string]$Tag = "test", [int]$TimeoutSec = 300, [string]$CookiesFile = "")
+﻿param([string]$UrlFile, [string]$Tag = "test", [int]$TimeoutSec = 300, [string]$CookiesFile = "", [string]$Exe = "c:/WorkSpace/ProjectSpace/tools-box/build/bin/Debug/ToolBox.exe")
 
 # Force the UI language for this run and restore it on exit: with a
 # LANG/LC_ALL environment variable in the launching shell the app comes
@@ -45,7 +45,6 @@ public class W {
 $ErrorActionPreference = "Continue"
 [void][W]::SetProcessDPIAware()
 
-$exe    = "c:\WorkSpace\ProjectSpace\tools-box\build\bin\Debug\ToolBox.exe"
 $shots  = "c:\WorkSpace\ProjectSpace\tools-box\build\shots"
 $dlDir  = "c:\WorkSpace\ProjectSpace\tools-box\build\vdl-$Tag"
 $url    = [IO.File]::ReadAllText($UrlFile, [Text.Encoding]::UTF8).Trim()

@@ -1,7 +1,8 @@
 ﻿param(
   [string]$Url = "https://www.bilibili.com/video/BV1GJ411x7h7",
   [string]$Tag = "logcheck",
-  [string]$CookiesFile = ""
+  [string]$CookiesFile = "",
+  [string]$Exe = "c:/WorkSpace/ProjectSpace/tools-box/build/bin/Debug/ToolBox.exe"
 )
 
 # Force the UI language for this run and restore it on exit: with a
@@ -41,7 +42,6 @@ public class W {
 $ErrorActionPreference = "Continue"
 [void][W]::SetProcessDPIAware()
 
-$exe   = "c:\WorkSpace\ProjectSpace\tools-box\build\bin\Debug\ToolBox.exe"
 $dlDir = "c:\WorkSpace\ProjectSpace\tools-box\build\vdl-$Tag"
 $url   = $Url
 $ck    = $CookiesFile
