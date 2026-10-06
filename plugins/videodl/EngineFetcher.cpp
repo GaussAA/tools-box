@@ -1,6 +1,7 @@
 #include "EngineFetcher.h"
 
 #include "core/EngineCheck.h"
+#include "core/EngineFetchPolicy.h"
 #include "core/EngineLocator.h"
 #include "core/OutputParsing.h"
 
@@ -203,54 +204,50 @@ void EngineFetcher::onReplyFinished(QNetworkReply *reply)
     }
     m_reply = nullptr;
 
-    // 用户主动取消：不重试、不报失败。
-    const bool cancelled = m_cancelled;
-    m_cancelled = false;
-    if (cancelled) {
-        reset();
-        return;
-    }
-
     const int statusCode =
         reply ? reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() : 0;
     const QNetworkReply::NetworkError error =
         reply ? reply->error() : QNetworkReply::UnknownNetworkError;
     const QString errorText = reply ? reply->errorString() : tr("网络请求已取消");
 
-    // 带了 Range 却收到 200：服务器不支持续传，之前那半截文件对不上了，只能重来。
-    if (error == QNetworkReply::NoError && m_offset > 0 && statusCode == 200) {
-        emit logLine(tr("服务器未支持断点续传，重新下载整个文件。"));
+    // 「下一步怎么办」交给 core 里的纯函数判定（tests/tst_enginefetchpolicy 逐条钉住）：
+    // 这里只负责把事实凑齐、把结论翻译成日志与信号。
+    videodl::FetchFacts facts;
+    facts.userCancelled = m_cancelled;
+    m_cancelled = false;
+    facts.transportFailed = !reply || error != QNetworkReply::NoError;
+    facts.statusCode = statusCode;
+    facts.offset = m_offset;
+    facts.contentRangeStart = (reply && error == QNetworkReply::NoError && statusCode == 206)
+        ? videodl::parseContentRangeStart(QString::fromLatin1(reply->rawHeader("Content-Range")))
+        : -1;
+    facts.attempt = m_attempt;
+    facts.maxAttempts = kMaxFetchAttempts;
+
+    switch (videodl::decideFetchAction(facts)) {
+    case videodl::FetchAction::Cancelled:
+        // 用户主动取消：不重试、不报失败。
+        reset();
+        return;
+    case videodl::FetchAction::RestartWhole:
+        // 两条文案对应两种故障：服务端当没听见 Range，或 206 起点对不上。
+        emit logLine(statusCode == 200
+                         ? tr("服务器未支持断点续传，重新下载整个文件。")
+                         : tr("续传的起始位置与已下载的部分对不上，重新下载整个文件。"));
         QFile::remove(m_partPath);
         m_offset = 0;
         scheduleRetry();
         return;
-    }
-
-    // 206（Partial Content）也要核对服务端究竟从哪个字节开始给：带了 Range 请求，
-    // 服务端仍可能从头给、或从别的偏移给。不核对就把收到的字节往旧的 .part 后面
-    // 拼，会得到一个「长度对得上、内容却是错」的文件 —— 这种损坏不报错，
-    // 只会等到用的时候才发现。
-    if (reply && error == QNetworkReply::NoError && statusCode == 206) {
-        const qint64 start =
-            videodl::parseContentRangeStart(QString::fromLatin1(reply->rawHeader("Content-Range")));
-        if (start < 0 || start != m_offset) {
-            emit logLine(tr("续传的起始位置与已下载的部分对不上，重新下载整个文件。"));
-            QFile::remove(m_partPath);
-            m_offset = 0;
-            scheduleRetry();
-            return;
-        }
-    }
-
-    if (!reply || error != QNetworkReply::NoError) {
-        if (m_attempt < kMaxFetchAttempts) {
-            emit logLine(tr("第 %1 次下载中断（%2），重试中…").arg(m_attempt).arg(errorText));
-            scheduleRetry();
-            return;
-        }
+    case videodl::FetchAction::Retry:
+        emit logLine(tr("第 %1 次下载中断（%2），重试中…").arg(m_attempt).arg(errorText));
+        scheduleRetry();
+        return;
+    case videodl::FetchAction::Fail:
         emit logLine(tr("下载失败（已尝试 %1 次）：%2").arg(m_attempt).arg(errorText));
         finish(false);
         return;
+    case videodl::FetchAction::Complete:
+        break;
     }
 
     finish(true);

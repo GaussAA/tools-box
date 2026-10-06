@@ -9,6 +9,8 @@ add_library(videodl_core STATIC
     core/DownloadArgs.h
     core/EngineCheck.cpp
     core/EngineCheck.h
+    core/EngineFetchPolicy.cpp
+    core/EngineFetchPolicy.h
     core/EngineLocator.cpp
     core/EngineLocator.h
     core/OutputParsing.cpp
