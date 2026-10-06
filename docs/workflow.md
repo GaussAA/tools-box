@@ -407,6 +407,12 @@ ctest --test-dir build -C Debug --output-on-failure
 - `lupdate_ts.ps1` —— 刷新译文骨架（见 §3.3）。刷新后**必须补英文译文**，
   否则英文界面会静默退回中文。
 
+**所有真机脚本都会先强制 `ui/language=zh_CN` 再启动程序**，跑完复原原值：共享助手
+`scripts/verify/_ui_language.ps1`（`Enter-UiLanguage` / `Restore-UiLanguage`，
+中途 ABORT 退出由 `PowerShell.Exiting` 兜底）。原因见错误台账 #6：会话里的
+`LANG` / `LC_ALL` 会盖过系统语言让程序起成英文界面，而脚本按中文标签找控件，
+不强制就会一路报 `nav not found`。**新增按界面文案驱动 UI 的脚本时照此办理。**
+
 `fixtures/` 只放固定样本（各类分享文案、地址样例）。脚本运行时的截图与下载产物落在
 `build/shots/`、`build/` 下的临时目录 —— 那是可再生成的东西，不进版本控制，跑完随手清掉。
 

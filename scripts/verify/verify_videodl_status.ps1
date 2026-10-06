@@ -1,4 +1,10 @@
-﻿Add-Type -AssemblyName System.Drawing
+﻿# Force the UI language for this run and restore it on exit: with a
+# LANG/LC_ALL environment variable in the launching shell the app comes
+# up in English, and every lookup by Chinese label below would abort with
+# "nav not found" -- a symptom three layers from the cause. See
+# _ui_language.ps1 and docs/error_ledger.md.
+. (Join-Path $PSScriptRoot "_ui_language.ps1")
+Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
@@ -102,6 +108,7 @@ function Get-StatusText($hwnd, $prevElem) {
 }
 
 Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
+Enter-UiLanguage
 Start-Sleep -Milliseconds 600
 [void][W]::ReleaseLeft()
 
@@ -174,3 +181,4 @@ Get-ChildItem $dlDir -File -ErrorAction SilentlyContinue | ForEach-Object {
 Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 500
 Write-Output "DONE"
+Restore-UiLanguage

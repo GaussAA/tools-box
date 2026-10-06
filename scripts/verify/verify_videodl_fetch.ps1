@@ -6,6 +6,12 @@
 # carries its own TLS backend (tls/qschannelbackend.dll) and networkinformation
 # plugin, and nothing else in the verify set exercises them.
 
+# Force the UI language for this run and restore it on exit: with a
+# LANG/LC_ALL environment variable in the launching shell the app comes
+# up in English, and every lookup by Chinese label below would abort with
+# "nav not found" -- a symptom three layers from the cause. See
+# _ui_language.ps1 and docs/error_ledger.md.
+. (Join-Path $PSScriptRoot "_ui_language.ps1")
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName UIAutomationClient
@@ -105,6 +111,7 @@ Start-Sleep -Milliseconds 600
 # 是上一轮的残留、也可能是本轮下载成功，检查就失去意义了。
 Remove-Item -Force $target -ErrorAction SilentlyContinue
 Remove-Item -Force $part -ErrorAction SilentlyContinue
+Enter-UiLanguage
 Write-Output ("=== target = {0}" -f $target)
 Write-Output ("exists before = {0} (expect False)" -f (Test-Path $target))
 
@@ -178,6 +185,7 @@ Start-Sleep -Seconds 2
 Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
 
 # 退出码要能当门禁用：下载没成功就不算通过。
-if ($ok) { Write-Output "DONE(ALL PASS)"; exit 0 }
+if ($ok) { Write-Output "DONE(ALL PASS)"; Restore-UiLanguage
+exit 0 }
 Write-Output ("DONE(FAILED): {0} was not fetched" -f $Which)
 exit 1
