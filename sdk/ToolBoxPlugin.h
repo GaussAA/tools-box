@@ -64,6 +64,11 @@ struct ToolMeta
 ///
 /// 底层就是 QSettings（Windows 上落在注册表），值类型遵循 QVariant 的规则。
 /// 想清空自己的全部配置用 clear()，不会影响别的工具。
+///
+/// **生命周期约定：用作短生命周期的「句柄」，不要长期持有。**
+/// 类内部持有一份 QSettings（见下面的 m_settings），而 QSettings 会缓存读到的值：
+/// 一个活了很久的实例可能读到别的实例（或外部进程）改动**之前**的旧值。项目里
+/// 的两处调用点（`MainWindow` 装载与保存状态时）都是即用即弃的临时对象，正合此约定。
 class ToolSettings
 {
 public:
@@ -73,7 +78,7 @@ public:
 
     QVariant value(const QString &key, const QVariant &defaultValue = QVariant()) const
     {
-        return QSettings().value(m_prefix + key, defaultValue);
+        return m_settings.value(m_prefix + key, defaultValue);
     }
 
     // 下面三个写入方法刻意声明为 const：它们改的是 QSettings 里的数据，
@@ -81,21 +86,33 @@ public:
     // 才能自然地写配置。
     void setValue(const QString &key, const QVariant &value) const
     {
-        QSettings().setValue(m_prefix + key, value);
+        m_settings.setValue(m_prefix + key, value);
     }
 
-    void remove(const QString &key) const { QSettings().remove(m_prefix + key); }
+    void remove(const QString &key) const { m_settings.remove(m_prefix + key); }
 
     /// 清空本工具的所有配置项。
     void clear() const
     {
-        QSettings settings;
-        settings.beginGroup(m_prefix);
-        settings.remove(QString());
-        settings.endGroup();
+        m_settings.beginGroup(m_prefix);
+        m_settings.remove(QString());
+        m_settings.endGroup();
     }
 
 private:
+    // ── 为什么是成员，而不是每个方法里各建一个临时 QSettings() ───────────────
+    // 原先每个 value()/setValue() 都临时构造一个 QSettings，析构时各 sync 一次。
+    // 于是 restoreState()/saveState() 里读写 N 个键就要开合 N 次注册表、并触发
+    // N 次落盘。改成成员后一次构造、一次析构，落盘合并成一次，语义不变
+    // （同一实例内读写仍立即互相可见）。
+    //
+    // 声明成 mutable 是为了让上面那批写入方法保持 const —— 调用点的形参是
+    // `const ToolSettings &`（saveState/restoreState 的契约），去掉 const 会
+    // 让现有插件全部编译失败，而按 §4.2 那属于破坏 ABI 的改动。
+    //
+    // QSettings 是 QObject 派生且不可拷贝，所以本类也随之不可拷贝。这恰是想要的：
+    // 它本就是按 const& 传递的句柄，不该被复制。
+    mutable QSettings m_settings;
     QString m_prefix;
 };
 
