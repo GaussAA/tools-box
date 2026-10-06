@@ -386,6 +386,14 @@ ctest --test-dir build -C Debug --output-on-failure
 | `verify_videodl_status.ps1` | 状态栏与进度反馈 |
 | `verify_videodl_logread.ps1` | 日志解析与输出读取 |
 
+**周六 09:30 的自动化（tools-box 每周真机回归巡检）跑哪些**：`build_verify.ps1`
+全量 + `verify_shell.ps1 -Exe <Release 产物>`；`verify_videodl_fetch.ps1` 与
+`verify_videodl_download.ps1` **必跑**（2026-10-06 起从「可选」升为必跑）——
+内核下载与真实下载链路目前**没有自动化单测**（`EngineFetcher` / `DownloadRunner` /
+`DouyinResolver` 三个编排类仍持有 `QNetworkAccessManager` / `QProcess`，测试约定
+不许碰真实网络与真实子进程），所以真实链路就是它们唯一的防线；其余
+`verify_videodl*` 视情况加跑。
+
 `scripts/` 下还有三个不按「验证目标」命名的辅助脚本，一并记在这里免得找不到：
 
 - `run_all.ps1` —— **一键跑完上面那八个自动检查**（空白 / 格式 / 规范 / 行数 /
