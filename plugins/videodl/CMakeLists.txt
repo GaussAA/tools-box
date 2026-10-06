@@ -13,6 +13,8 @@ add_library(videodl_core STATIC
     core/EngineFetchPolicy.h
     core/EngineLocator.cpp
     core/EngineLocator.h
+    core/LineSplitter.cpp
+    core/LineSplitter.h
     core/OutputParsing.cpp
     core/OutputParsing.h)
 

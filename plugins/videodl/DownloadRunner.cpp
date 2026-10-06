@@ -32,8 +32,8 @@ bool DownloadRunner::isRunning() const
 
 void DownloadRunner::start(const QString &ytDlp, const QStringList &args)
 {
+    m_splitter = videodl::LineSplitter();
     m_outputPath.clear();
-    m_pending.clear();
 
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     // yt-dlp 是 Python 打包的：不强制 UTF-8，中文标题在 Windows 控制台下会变问号。
@@ -53,15 +53,10 @@ void DownloadRunner::cancel()
 
 void DownloadRunner::onReadyRead()
 {
-    m_pending += m_process->readAllStandardOutput();
-
-    int newline = -1;
-    while ((newline = m_pending.indexOf('\n')) >= 0) {
-        QByteArray raw = m_pending.left(newline);
-        m_pending.remove(0, newline + 1);
-        if (raw.endsWith('\r')) {
-            raw.chop(1);
-        }
+    // 凑行交给 core/LineSplitter：半行、\r\n 跨块、\r 尾巴都在那里处理且有单测，
+    // 这里只负责把得到的每一行解码后送进 handleLine。
+    const QList<QByteArray> lines = m_splitter.append(m_process->readAllStandardOutput());
+    for (const QByteArray &raw : lines) {
         handleLine(videodl::stripAnsi(videodl::decodeOutput(raw)));
     }
 }
@@ -113,10 +108,10 @@ void DownloadRunner::handleLine(const QString &line)
 
 void DownloadRunner::onFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
-    // 收尾：把缓冲区里最后没带换行的一行也处理掉。
-    if (!m_pending.isEmpty()) {
-        handleLine(videodl::stripAnsi(videodl::decodeOutput(m_pending)));
-        m_pending.clear();
+    // 收尾：最后一行常常没有换行，flush 才能把它取出来。
+    const QByteArray tail = m_splitter.flush();
+    if (!tail.isEmpty()) {
+        handleLine(videodl::stripAnsi(videodl::decodeOutput(tail)));
     }
 
     emit finished(exitCode, exitStatus == QProcess::CrashExit, m_outputPath);

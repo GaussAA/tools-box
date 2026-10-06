@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/LineSplitter.h"
+
 #include <QObject>
 #include <QProcess>
 #include <QString>
@@ -43,6 +45,6 @@ private:
     void handleLine(const QString &line);
 
     QProcess *m_process = nullptr;
-    QByteArray m_pending; ///< 尚未凑成整行的程序输出
+    videodl::LineSplitter m_splitter; ///< 跨块凑行：\r\n 跨块与末行无换行都在它那里处理
     QString m_outputPath; ///< 最近一次识别到的最终产物路径
 };
