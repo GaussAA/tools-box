@@ -31,4 +31,38 @@ QString parseDouyinVideoId(const QString &dom);
 /// 从渲染出的 DOM 里取页面标题，并去掉「 - 抖音」后缀。取不到返回空串。
 QString parseDouyinTitle(const QString &dom);
 
+/// 渲染结局的分类。**顺序即优先级**，与页面里原先的 if 链一一对应。
+///
+/// 单独列出来的原因：这段判定原先埋在 DouyinResolver::onFinished 里，而它恰恰
+/// 出过一次「真因被吃掉」的故障（渲染失败被报成 60 秒超时，见 docs/error_ledger.md
+/// 第 4 条）。把顺序固化成可单测的规则，才不会再退化。
+enum class DouyinRenderOutcome {
+    Resolved,          ///< 正常结束且取到了 video_id
+    Cancelled,         ///< 用户主动取消
+    BrowserFailed,     ///< 浏览器起不来
+    TimedOut,          ///< 渲染超时
+    BrowserCrashed,    ///< 浏览器非零退出或异常终止
+    NoVideoId          ///< 渲染完了但 DOM 里没有 video_id（抖音又改版了）
+};
+
+/// 按事实判定渲染结局。
+///
+/// 判定顺序：取消 → 启动失败 → 超时 → 退出异常 → 没有 video_id。
+/// 前四条互相独立，最后一条只在「正常退出」时才可能被判。
+DouyinRenderOutcome classifyDouyinRender(bool cancelled, bool startFailed, bool timedOut,
+                                         bool exitedNormally, bool hasVideoId);
+
+/// 用 video_id 与画质档位拼出播放接口地址。
+///
+/// 抽出来的理由：这条 URL 会被原样交给 yt-dlp 去取流，拼错（少了 line、ratio
+/// 空串、参数顺序不对）的症状是「下载莫名失败」，与真正的原因隔着好几层。
+QString douyinPlayUrl(const QString &videoId, int quality);
+
+/// 从候选路径里挑一个能用的浏览器可执行文件；都不可用时返回空串。
+///
+/// 候选由调用方给（读环境变量是它的事，这里不碰环境）：跳过「以 / 开头」的
+/// 路径 —— 环境变量缺失时会拼出 `/Microsoft/Edge/...` 这种绝对路径之外的怪串，
+/// 不跳过就会去查一个根本不是路径的字符串。
+QString pickHeadlessBrowser(const QStringList &candidates);
+
 } // namespace videodl

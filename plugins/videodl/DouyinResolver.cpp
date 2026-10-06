@@ -12,9 +12,10 @@ namespace {
 constexpr int kRenderTimeoutMs = 60000;
 
 /// 找一个能用来做无头渲染的浏览器。返回空串表示这台机器上没找到。
-QString findHeadlessBrowser()
+/// 只负责读环境变量拼候选，「挑哪一个」的规则在 core 里（有单测）。
+QStringList browserCandidates()
 {
-    const QStringList candidates{
+    return QStringList{
         qEnvironmentVariable("ProgramFiles(x86)")
             + QStringLiteral("/Microsoft/Edge/Application/msedge.exe"),
         qEnvironmentVariable("ProgramFiles")
@@ -26,15 +27,6 @@ QString findHeadlessBrowser()
         qEnvironmentVariable("ProgramFiles(x86)")
             + QStringLiteral("/Google/Chrome/Application/chrome.exe"),
     };
-    for (const QString &path : candidates) {
-        if (path.startsWith(QLatin1Char('/'))) {
-            continue; // 环境变量缺失时会拼出「/Microsoft/...」这种路径
-        }
-        if (QFileInfo::exists(path)) {
-            return path;
-        }
-    }
-    return QString();
 }
 
 /// 渲染用的独立 profile 目录：用独立的目录，免得去碰用户正在用的浏览器数据。
@@ -78,7 +70,7 @@ bool DouyinResolver::isRunning() const
 
 void DouyinResolver::start(const QString &url, int quality)
 {
-    const QString browser = findHeadlessBrowser();
+    const QString browser = videodl::pickHeadlessBrowser(browserCandidates());
     if (browser.isEmpty()) {
         emit logLine(tr("抖音要靠浏览器渲染页面才能取到播放地址，但这台机器上没找到 "
                         "Edge 或 Chrome。"));
@@ -187,10 +179,33 @@ void DouyinResolver::onFinished(int exitCode, QProcess::ExitStatus exitStatus)
     const QString videoId = videodl::parseDouyinVideoId(dom);
     const QString title = videodl::parseDouyinTitle(dom);
 
-    if (videoId.isEmpty()) {
+    // 结局判定整段在 core（顺序与优先级都有单测）：取消 → 起不来 → 超时 →
+    // 退出异常 → 没有 video_id。原先的 if 链与它一一对应，行为不变。
+    const bool exitedNormally = exitStatus == QProcess::NormalExit && exitCode == 0;
+    const videodl::DouyinRenderOutcome outcome = videodl::classifyDouyinRender(
+        cancelled, startFailed, timedOut, exitedNormally, !videoId.isEmpty());
+
+    switch (outcome) {
+    case videodl::DouyinRenderOutcome::Cancelled:
+        giveUp(tr("已取消。"), tr("已取消。"));
+        return;
+    case videodl::DouyinRenderOutcome::BrowserFailed:
+        // 真因在 errorString 里（路径失效、权限、被安全软件拦下都有可能），
+        // 必须原样带给用户 —— 否则「无法启动」这种提示等于什么都没说。
+        giveUp(tr("无法启动浏览器：%1").arg(m_process->errorString()), tr("无法启动浏览器。"));
+        return;
+    case videodl::DouyinRenderOutcome::TimedOut:
+        giveUp(tr("渲染超时：抖音页面没能在 60 秒内就绪。"), tr("抖音页面渲染超时。"));
+        return;
+    case videodl::DouyinRenderOutcome::BrowserCrashed:
+        giveUp(tr("浏览器渲染失败（退出码 %1）。").arg(exitCode), tr("抖音页面渲染失败。"));
+        return;
+    case videodl::DouyinRenderOutcome::NoVideoId:
         giveUp(tr("页面渲染完了，但里面没有 video_id —— 多半是抖音又改版了。"),
                tr("没能从抖音页面里取到播放地址。"));
         return;
+    case videodl::DouyinRenderOutcome::Resolved:
+        break;
     }
 
     emit logLine(tr("已取到 video_id：%1").arg(videoId));
@@ -198,9 +213,7 @@ void DouyinResolver::onFinished(int exitCode, QProcess::ExitStatus exitStatus)
         emit logLine(tr("标题：%1").arg(title));
     }
 
-    const QString playUrl =
-        QStringLiteral("https://www.douyin.com/aweme/v1/play/?video_id=%1&ratio=%2&line=0")
-            .arg(videoId, videodl::douyinRatio(m_quality));
+    const QString playUrl = videodl::douyinPlayUrl(videoId, m_quality);
     emit logLine(tr("播放地址接口：%1").arg(playUrl));
     emit resolved(playUrl, title);
 }
