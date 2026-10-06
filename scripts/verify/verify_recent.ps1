@@ -3,6 +3,12 @@
 # up in English, and every lookup by Chinese label below would abort with
 # "nav not found" -- a symptom three layers from the cause. See
 # _ui_language.ps1 and docs/error_ledger.md.
+# -Exe points the check at another build. The default is the Debug build, but
+# note that the Qt runtime only exists in an output directory that has had the
+# deploy target run (build_verify.ps1 does that for Release) -- aiming this at a
+# build without the runtime makes the app exit on startup, and the symptom then
+# looks like "the feature is broken" rather than "the app never started".
+param([string]$Exe = "c:/WorkSpace/ProjectSpace/tools-box/build/bin/Debug/ToolBox.exe")
 . (Join-Path $PSScriptRoot "_ui_language.ps1")
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
@@ -84,7 +90,6 @@ Start-Sleep -Milliseconds 200
 Start-Sleep -Milliseconds 200
 Write-Output ("VK_LBUTTON after  = 0x{0:X4}" -f ([W]::LeftButtonState()))
 
-$exe = "c:\WorkSpace\ProjectSpace\tools-box\build\bin\Debug\ToolBox.exe"
 $shots = "c:\WorkSpace\ProjectSpace\tools-box\build\shots"
 $regPath = "HKCU:\Software\ToolBox\ToolBox\ui"
 
@@ -178,12 +183,16 @@ function Click-Item($hwnd, $item, $right) {
 
 # ---------- 1. 清场 ----------
 Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
-Enter-UiLanguage
+# Order matters here: the wipe below deletes the whole ui/ key, so the language guard
+# has to run **after** it. Forced first and wiped second, the app comes up in English
+# (LANG=en_US.UTF-8 in the launching shell) and every lookup by Chinese label silently
+# targets an element that does not exist -- the run then "passes" while testing nothing.
 Start-Sleep -Milliseconds 500
 Remove-Item -Path $regPath -Recurse -Force -ErrorAction SilentlyContinue
 Dump-Reg "after wipe"
 
 # ---------- 2. 首次启动：应该没有收藏/最近使用 ----------
+Enter-UiLanguage
 $proc = Start-Process -FilePath $exe -PassThru
 Start-Sleep -Seconds 3
 $hwnd = Get-Hwnd

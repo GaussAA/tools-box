@@ -3,6 +3,12 @@
 # up in English, and every lookup by Chinese label below would abort with
 # "nav not found" -- a symptom three layers from the cause. See
 # _ui_language.ps1 and docs/error_ledger.md.
+# -Exe points the check at another build. The default is the Debug build, but
+# note that the Qt runtime only exists in an output directory that has had the
+# deploy target run (build_verify.ps1 does that for Release) -- aiming this at a
+# build without the runtime makes the app exit on startup, and the symptom then
+# looks like "the feature is broken" rather than "the app never started".
+param([string]$Exe = "c:/WorkSpace/ProjectSpace/tools-box/build/bin/Debug/ToolBox.exe")
 . (Join-Path $PSScriptRoot "_ui_language.ps1")
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
@@ -44,7 +50,6 @@ public class W {
 $ErrorActionPreference = "Continue"
 [void][W]::SetProcessDPIAware()
 
-$exe    = "c:\WorkSpace\ProjectSpace\tools-box\build\bin\Debug\ToolBox.exe"
 $shots  = "c:\WorkSpace\ProjectSpace\tools-box\build\shots"
 $dlDir  = "c:\WorkSpace\ProjectSpace\tools-box\build\vdl-test"
 $url    = "https://www.bilibili.com/video/BV1GJ411x7h7"
@@ -63,6 +68,13 @@ function Shot($hwnd, $name) {
   $r = New-Object W+RECT
   [void][W]::GetWindowRect($hwnd, [ref]$r)
   $w = $r.Right - $r.Left; $h = $r.Bottom - $r.Top
+  # A minimized / not-yet-mapped window reports an empty rect. Constructing a Bitmap
+  # with 0 throws, and every following line then fails while the script still prints
+  # "shot: <name>" -- a failure that looks like a success in the log. Skip instead.
+  if ($w -le 0 -or $h -le 0) {
+    Write-Output ("shot skipped ({0}): window rect is {1}x{2}" -f $name, $w, $h)
+    return
+  }
   $bmp = New-Object System.Drawing.Bitmap($w, $h)
   $g = [System.Drawing.Graphics]::FromImage($bmp)
   $hdc = $g.GetHdc(); [void][W]::PrintWindow($hwnd, $hdc, 2); $g.ReleaseHdc($hdc)
@@ -118,7 +130,30 @@ foreach ($b in (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Butt
   if ($b.Current.Name -eq $startDl) { $go = $b; break }
 }
 if (-not $go) { Write-Output "ABORT: start button not found"; exit 1 }
+
+# The button only becomes enabled once the page has accepted the address (it validates
+# the URL asynchronously). Clicking a disabled button silently does nothing, and the
+# script then sat there for 150 s and still printed DONE with no output file -- a green
+# result for a download that never started. So: wait for it, and treat "never enabled"
+# as a failure with a pointer to the real cause.
+$enableDeadline = (Get-Date).AddSeconds(20)
+while (-not $go.Current.IsEnabled -and (Get-Date) -lt $enableDeadline) {
+  Start-Sleep -Milliseconds 500
+  $go = $null
+  foreach ($b in (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Button))) {
+    if ($b.Current.Name -eq $startDl) { $go = $b; break }
+  }
+  if (-not $go) { break }
+}
 Write-Output ("start button enabled = {0}" -f $go.Current.IsEnabled)
+if (-not $go.Current.IsEnabled) {
+  Write-Output "ABORT: start button stayed disabled for 20s -- the address was probably rejected (unsupported site, or the site needs cookies)"
+  [void][W]::PostMessage($hwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
+  Start-Sleep -Seconds 1
+  Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
+  Restore-UiLanguage
+  exit 1
+}
 [void](Click-Elem $hwnd $go "start download")
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
@@ -141,12 +176,24 @@ while ($stable -lt 3 -and $sw.Elapsed.TotalSeconds -lt 200) {
 Shot $hwnd "dl_bilibili_done.png"
 
 Write-Output "--- output files:"
-Get-ChildItem $dlDir -File -ErrorAction SilentlyContinue | ForEach-Object {
+$produced = @(Get-ChildItem $dlDir -File -ErrorAction SilentlyContinue |
+              Where-Object { $_.Name -notlike "*.part" })
+$produced | ForEach-Object {
   Write-Output ("   {0}  {1:N0} bytes" -f $_.Name, $_.Length)
 }
 
 [void][W]::PostMessage($hwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
 Start-Sleep -Seconds 2
 Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
-Write-Output "DONE"
 Restore-UiLanguage
+
+# The verdict has to be an exit code, not a hopeful "DONE": this script used to print
+# DONE unconditionally, so a run where nothing was downloaded still looked green. The
+# Saturday automation treats a non-zero exit as a failure, so that is where a missing
+# artifact has to surface.
+if ($produced.Count -gt 0) {
+  Write-Output ("DONE(ALL PASS): {0} file(s) produced" -f $produced.Count)
+  exit 0
+}
+Write-Output "DONE(FAILED): no output file was produced (download never started, was rejected, or the site needs cookies)"
+exit 1
