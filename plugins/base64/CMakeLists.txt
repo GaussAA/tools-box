@@ -5,11 +5,20 @@
 # app/core/PluginScanPolicy.h）。
 configure_file(metadata.json.in "${CMAKE_CURRENT_BINARY_DIR}/metadata.json" @ONLY)
 
+# 编解码的纯逻辑编成静态库，好让测试目标直接链接它（与 jsonfmt 对称，
+# 分层判定标准见 docs/architecture.md §3）。
+add_library(base64_core STATIC
+    core/Base64Codec.cpp
+    core/Base64Codec.h)
+
+target_link_libraries(base64_core PUBLIC Qt6::Core)
+target_include_directories(base64_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+
 add_library(base64_tool MODULE
     Base64Plugin.cpp
     Base64Plugin.h)
 
-target_link_libraries(base64_tool PRIVATE ToolBox::Sdk)
+target_link_libraries(base64_tool PRIVATE ToolBox::Sdk base64_core)
 
 # moc 处理 Q_PLUGIN_METADATA(FILE "metadata.json") 时是按 include 路径找这个文件的，
 # 生成物在构建目录里，所以要把构建目录加进搜索路径。

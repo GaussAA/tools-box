@@ -1,6 +1,7 @@
 #include "Base64Plugin.h"
 
-#include <QByteArray>
+#include "core/Base64Codec.h"
+
 #include <QCheckBox>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -26,9 +27,6 @@ public:
     void saveState(const toolbox::ToolSettings &settings) override;
 
 private:
-    /// 按复选框决定用标准字符集还是 URL 安全字符集。
-    QByteArray::Base64Options currentOptions() const;
-
     QPlainTextEdit *m_source = nullptr;
     QPlainTextEdit *m_result = nullptr;
     QCheckBox *m_urlSafe = nullptr;
@@ -67,15 +65,15 @@ Base64Page::Base64Page(QWidget *parent)
     layout->addWidget(new QLabel(tr("结果"), this));
     layout->addWidget(m_result, 1);
 
+    // 编解码规则在 base64_core（可单测），这里只负责取文本、传参、显示结果。
     // 所有连接都以 this 作为上下文对象，页面销毁时连接自动断开。
     connect(encodeButton, &QPushButton::clicked, this, [this] {
-        const QByteArray encoded = m_source->toPlainText().toUtf8().toBase64(currentOptions());
-        m_result->setPlainText(QString::fromUtf8(encoded));
+        m_result->setPlainText(
+            base64::encodeBase64(m_source->toPlainText(), m_urlSafe->isChecked()));
     });
     connect(decodeButton, &QPushButton::clicked, this, [this] {
-        const QByteArray decoded =
-            QByteArray::fromBase64(m_source->toPlainText().trimmed().toUtf8(), currentOptions());
-        m_result->setPlainText(QString::fromUtf8(decoded));
+        m_result->setPlainText(
+            base64::decodeBase64(m_source->toPlainText(), m_urlSafe->isChecked()));
     });
     connect(swapButton, &QPushButton::clicked, this, [this] {
         m_source->setPlainText(m_result->toPlainText());
@@ -85,11 +83,6 @@ Base64Page::Base64Page(QWidget *parent)
         m_source->clear();
         m_result->clear();
     });
-}
-
-QByteArray::Base64Options Base64Page::currentOptions() const
-{
-    return m_urlSafe->isChecked() ? QByteArray::Base64UrlEncoding : QByteArray::Base64Encoding;
 }
 
 void Base64Page::restoreState(const toolbox::ToolSettings &settings)
