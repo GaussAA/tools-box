@@ -2,6 +2,7 @@
 
 #include "core/EngineCheck.h"
 #include "core/EngineFetchPolicy.h"
+#include "core/EngineInstall.h"
 #include "core/EngineLocator.h"
 #include "core/OutputParsing.h"
 
@@ -270,45 +271,30 @@ void EngineFetcher::finish(bool ok)
         return;
     }
 
-    // 落地之后先做最小完整性校验（偏差 9.12）：没有哈希可对（内核跟站点对抗走，
-    // release 更新频繁，见偏差 9.12），魔数 + 大小下限是最便宜的一道闸，拦住
-    // 「下载到的是 HTML 错误页 / 严重截断的文件」——这类文件不拦，症状会推迟到
-    // 用的时候才出现，且与「下载失败」隔着好几层。
-    {
-        QFile partFile(m_partPath);
-        QByteArray head;
-        qint64 size = 0;
-        if (partFile.open(QIODevice::ReadOnly)) {
-            head = partFile.read(4);
-            size = partFile.size();
-        }
-        const videodl::EngineFileProblem problem = kind == Kind::Ffmpeg
-            ? videodl::checkFfmpegZip(size, head)
-            : videodl::checkYtDlpBinary(size, head);
-        if (problem != videodl::EngineFileProblem::None) {
-            emit logLine(problem == videodl::EngineFileProblem::BadHeader
+    // 落地处置整段在 core/EngineInstall（可单测）：正常就位、坏文件删除、
+    // 替换失败清理，三条路径都用临时目录验证过（tests/tst_engineinstall.cpp）。
+    // 这里只把结论翻译成日志与信号。
+    const videodl::EngineInstallResult install = kind == Kind::Ffmpeg
+        ? videodl::installFfmpegZip(m_partPath, m_targetPath)
+        : videodl::installYtDlp(m_partPath, m_targetPath);
+    if (install.status != videodl::EngineInstallStatus::Installed) {
+        if (install.status == videodl::EngineInstallStatus::RejectedBadFile) {
+            emit logLine(install.problem == videodl::EngineFileProblem::BadHeader
                              ? tr("下载的 %1 文件头不对，不像是可用的文件，已丢弃，请重试。")
                                    .arg(kindLabel())
                              : tr("下载的 %1 只有 %2 字节，不像是完整文件，已丢弃，请重试。")
                                    .arg(kindLabel())
-                                   .arg(size));
+                                   .arg(install.size));
             // 与「保存失败」同一条收尾路径：先复位、再发信号。
-            QFile::remove(m_partPath);
             m_kind = Kind::None;
             reset();
             emit status(tr("%1 下载失败。").arg(label));
-            emit finished(false, kind, m_targetPath);
-            return;
+        } else {
+            emit logLine(tr("保存失败：%1").arg(QDir::toNativeSeparators(m_targetPath)));
+            m_kind = Kind::None;
+            reset();
+            emit status(tr("%1 保存失败。").arg(label));
         }
-    }
-
-    QFile::remove(m_targetPath);
-    if (!QFile::rename(m_partPath, m_targetPath)) {
-        emit logLine(tr("保存失败：%1").arg(QDir::toNativeSeparators(m_targetPath)));
-        QFile::remove(m_partPath);
-        m_kind = Kind::None;
-        reset();
-        emit status(tr("%1 保存失败。").arg(label));
         emit finished(false, kind, m_targetPath);
         return;
     }

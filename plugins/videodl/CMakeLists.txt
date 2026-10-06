@@ -11,6 +11,8 @@ add_library(videodl_core STATIC
     core/EngineCheck.h
     core/EngineFetchPolicy.cpp
     core/EngineFetchPolicy.h
+    core/EngineInstall.cpp
+    core/EngineInstall.h
     core/EngineLocator.cpp
     core/EngineLocator.h
     core/LineSplitter.cpp
