@@ -12,6 +12,14 @@ param([string]$Exe = "c:/WorkSpace/ProjectSpace/tools-box/build/bin/Debug/ToolBo
 . (Join-Path $PSScriptRoot "_ui_language.ps1")
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
+# 判定机制：本脚本此前只打印观察到的值、结尾无条件 DONE 且退出码 0 —— 设置没保存
+# 住、下拉框里没有目标项，它也照样「通过」。现在把真正要紧的几件事变成断言，
+# 结尾按失败数决定退出码（0=通过，1=代码回归，2 由调用前的 ABORT 路径给出）。
+$failed = @()
+function Check($ok, $what) {
+  if ($ok) { Write-Output "PASS: $what" } else { Write-Output "FAIL: $what"; $script:failed += $what }
+}
+
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 
@@ -122,6 +130,7 @@ foreach ($t in (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Text
 }
 Write-Output "--- engine status label:"
 Write-Output $status
+Check (-not [string]::IsNullOrWhiteSpace($status)) "引擎状态标签有文本（不是空白）"
 
 $dlBtn = $null
 $fetchBtns = @()
@@ -132,6 +141,7 @@ foreach ($b in (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Butt
   }
 }
 Write-Output ("start button enabled = {0}" -f $(if ($dlBtn) { $dlBtn.Current.IsEnabled } else { "?" }))
+Check ($null -ne $dlBtn) "页面上存在「开始下载」按钮"
 Write-Output ("kernel buttons: {0}" -f ($fetchBtns -join "; "))
 
 # 静置观察，确认没有任何内核下载被触发
@@ -141,9 +151,18 @@ Snapshot "after 12s idle (expect identical)"
 
 $part = Get-ChildItem $bin -Filter "*.part" -ErrorAction SilentlyContinue
 Write-Output ("leftover .part files = {0}" -f $(if ($part) { ($part.Name -join ",") } else { "none" }))
+# 这个脚本的全部意义就在这条：复用一个已装好的内核时，程序不该自己再下一遍。
+# 静置 12 秒后若出现 .part，说明它在偷偷重下 —— 那正是本脚本要抓的回归。
+Check ($null -eq $part) "静置 12 秒后没有 .part 残留（复用了已装内核，未触发重复下载）"
 
 [void][W]::PostMessage($hwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
 Start-Sleep -Seconds 2
 Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
-Write-Output "DONE"
 Restore-UiLanguage
+
+if ($failed.Count -gt 0) {
+  Write-Output ("DONE(FAILED {0}): {1}" -f $failed.Count, ($failed -join "; "))
+  exit 1
+}
+Write-Output "DONE(ALL PASS)"
+exit 0

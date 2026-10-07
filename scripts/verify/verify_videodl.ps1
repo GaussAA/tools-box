@@ -12,6 +12,57 @@ param([string]$Exe = "c:/WorkSpace/ProjectSpace/tools-box/build/bin/Debug/ToolBo
 . (Join-Path $PSScriptRoot "_ui_language.ps1")
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
+# 判定机制：本脚本此前只打印观察到的值、结尾无条件 DONE 且退出码 0 —— 设置没保存
+# 住、下拉框里没有目标项，它也照样「通过」。现在把真正要紧的几件事变成断言，
+# 结尾按失败数决定退出码（0=通过，1=代码回归，2 由调用前的 ABORT 路径给出）。
+$failed = @()
+function Check($ok, $what) {
+  if ($ok) { Write-Output "PASS: $what" } else { Write-Output "FAIL: $what"; $script:failed += $what }
+}
+
+# 页面字段会随功能增长而变多（共享内核目录落地后输入框从 3 个变成 6 个），所以
+# 不能再用「$edits[2] 是保存目录」这种按下标猜字段的写法 —— 猜错不会报错，只会让
+# 断言测到另一个字段，然后得出「通过」的假象。这里改成按标签文本定位同行右侧的
+# 输入框：字段怎么增删都不影响。
+function Find-EditBesideLabel($hwnd, $labelText) {
+  $ae = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
+  $tc = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+    [System.Windows.Automation.ControlType]::Text)
+  $label = $null
+  foreach ($t in $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $tc)) {
+    if ($t.Current.Name -eq $labelText) { $label = $t; break }
+  }
+  if (-not $label) { return $null }
+  $lr = $label.Current.BoundingRectangle
+  $ec = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+    [System.Windows.Automation.ControlType]::Edit)
+  $best = $null; $bestScore = 1e9
+  foreach ($e in $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $ec)) {
+    $r = $e.Current.BoundingRectangle
+    if ($r.X -lt $lr.X) { continue }        # 必须在标签右侧
+    $dy = [math]::Abs($r.Y - $lr.Y)
+    if ($dy -gt 24) { continue }            # 同一行
+    if ($dy -lt $bestScore) { $bestScore = $dy; $best = $e }
+  }
+  return $best
+}
+
+# QComboBox 在本机暴露的是 ValuePattern（读当前值）与 ExpandCollapsePattern（展开），
+# **不支持 SelectionPattern** —— 旧代码用 GetCurrentPattern(Selection) 读取会抛
+# 「不支持该模式」，于是画质断言永远拿不到值。
+function Get-ComboValue($hwnd) {
+  $ae = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
+  $cc = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+    [System.Windows.Automation.ControlType]::ComboBox)
+  $cb = $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cc) | Select-Object -First 1
+  if (-not $cb) { return "" }
+  try { return $cb.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value }
+  catch { return "" }
+}
+
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 
@@ -153,30 +204,54 @@ Dump-Plugin "after first open"
 
 $edits = Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Edit)
 Write-Output ("-- edit count = {0}" -f $edits.Count)
+Check ($edits.Count -ge 3) "页面有 3 个以上输入框（地址 / 保存目录 / cookies）"
 for ($i = 0; $i -lt $edits.Count; $i++) {
   $vp = $edits[$i].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
   Write-Output ("   edit[{0}] = '{1}'" -f $i, $vp.Current.Value)
 }
 
 # ---------- 2. 改保存目录 + 改画质 ----------
-$dirEdit = if ($edits.Count -ge 3) { $edits[2] } else { $null }
+$dirEdit = Find-EditBesideLabel $hwnd "保存到"
 $newDir = "C:\WorkSpace\ProjectSpace\tools-box\build\shots\dl"
 if ($dirEdit) {
   $v = $dirEdit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
   $v.SetValue($newDir)
   Write-Output ("set saveDir -> {0}" -f $newDir)
 } else { Write-Output "saveDir edit NOT FOUND (expected >= 3 edits)" }
+Check ($null -ne $dirEdit) "找到了保存目录输入框"
 
-$combo = (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::ComboBox) | Select-Object -First 1)
+$combo = Find-ByType $hwnd ([System.Windows.Automation.ControlType]::ComboBox) | Select-Object -First 1
 if ($combo) {
-  $combo.SetFocus()
-  Start-Sleep -Milliseconds 300
-  # 非编辑型 QComboBox：焦点在它身上时按方向键直接改当前项。
-  for ($i = 0; $i -lt 4; $i++) { [System.Windows.Forms.SendKeys]::SendWait("{DOWN}"); Start-Sleep -Milliseconds 200 }
-  $sp = $combo.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern)
-  $sel = $sp.Current.GetSelection()
-  if ($sel.Count -gt 0) { Write-Output ("quality now = '{0}'" -f $sel[0].Current.Name) }
-  else { Write-Output "quality selection unreadable" }
+  $qBefore = Get-ComboValue $hwnd   # 改动之前先读，否则「变了没有」永远比不出来
+  # 旧写法是 SetFocus + 连按 4 次 {DOWN}，实测**画质并没有变** —— 焦点并没有真正
+  # 落到 QComboBox 上，方向键被别处吃掉了，而脚本只打印一句 "quality selection
+  # unreadable" 就当作改完了。改走 UIAutomation 的 ExpandCollapse（已探明本机
+  # QComboBox 暴露 ExpandCollapse + Value，但**不暴露 Selection**），直接点弹层项。
+  $expand = $combo.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
+  $expand.Expand()
+  Start-Sleep -Milliseconds 700
+  $lcond = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+    [System.Windows.Automation.ControlType]::ListItem)
+  $root = [System.Windows.Automation.AutomationElement]::RootElement
+  $picked = $null
+  foreach ($li in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $lcond)) {
+    if ($li.Current.Name -like "*1080p*") { $picked = $li; break }
+  }
+  Check ($null -ne $picked) "画质下拉展开了，能看到 1080p 选项"
+  if ($picked) {
+    # 本脚本没有 Click-Elem（各脚本的辅助函数并不统一），按 Open-VideoDl 的做法
+    # 直接用坐标点击弹层项。
+    $pr = $picked.Current.BoundingRectangle
+    if (Focus $hwnd) {
+      [void][W]::ClickAt([int]($pr.X + $pr.Width / 2), [int]($pr.Y + $pr.Height / 2))
+    }
+    Start-Sleep -Milliseconds 700
+  }
+  $qAfter = Get-ComboValue $hwnd
+  Write-Output ("quality now = '{0}'" -f $qAfter)
+  Check (-not [string]::IsNullOrWhiteSpace($qAfter)) "画质下拉读得出当前值"
+  Check ($qAfter -like "*1080p*") "选中 1080p 后画质下拉显示为 1080p（$qBefore -> $qAfter）"
 } else { Write-Output "quality combo NOT FOUND" }
 Start-Sleep -Milliseconds 500
 Shot $hwnd "v2_changed.png"
@@ -193,22 +268,26 @@ $hwnd2 = Get-Hwnd
 if (-not (Open-VideoDl $hwnd2)) { Write-Output "DONE(abort2)"; exit 1 }
 Shot $hwnd2 "v3_restart.png"
 
-$edits2 = Find-ByType $hwnd2 ([System.Windows.Automation.ControlType]::Edit)
-if ($edits2.Count -ge 3) {
-  $v2 = $edits2[2].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+$dirEdit2 = Find-EditBesideLabel $hwnd2 "保存到"
+if ($dirEdit2) {
+  $v2 = $dirEdit2.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
   Write-Output ("restored saveDir = '{0}'  (expect {1})" -f $v2.Current.Value, $newDir)
+  Check ($v2.Current.Value -eq $newDir) "重启后保存目录已恢复（设置持久化）"
 }
-$combo2 = (Find-ByType $hwnd2 ([System.Windows.Automation.ControlType]::ComboBox) | Select-Object -First 1)
-if ($combo2) {
-  $sp2 = $combo2.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern)
-  $sel2 = $sp2.Current.GetSelection()
-  if ($sel2.Count -gt 0) { Write-Output ("restored quality = '{0}'" -f $sel2[0].Current.Name) }
-}
+$q2 = Get-ComboValue $hwnd2
+Write-Output ("restored quality = '{0}'" -f $q2)
+Check (-not [string]::IsNullOrWhiteSpace($q2)) "重启后画质有选中项（设置持久化）"
 Write-Output "-- page content after restart"
 Dump-PageText $hwnd2
 
 [void][W]::PostMessage($hwnd2, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
 Start-Sleep -Milliseconds 800
 Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
-Write-Output "DONE"
 Restore-UiLanguage
+
+if ($failed.Count -gt 0) {
+  Write-Output ("DONE(FAILED {0}): {1}" -f $failed.Count, ($failed -join "; "))
+  exit 1
+}
+Write-Output "DONE(ALL PASS)"
+exit 0

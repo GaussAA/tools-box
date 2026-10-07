@@ -12,6 +12,57 @@ param([string]$Exe = "c:/WorkSpace/ProjectSpace/tools-box/build/bin/Debug/ToolBo
 . (Join-Path $PSScriptRoot "_ui_language.ps1")
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
+# 判定机制：本脚本此前只打印观察到的值、结尾无条件 DONE 且退出码 0 —— 设置没保存
+# 住、下拉框里没有目标项，它也照样「通过」。现在把真正要紧的几件事变成断言，
+# 结尾按失败数决定退出码（0=通过，1=代码回归，2 由调用前的 ABORT 路径给出）。
+$failed = @()
+function Check($ok, $what) {
+  if ($ok) { Write-Output "PASS: $what" } else { Write-Output "FAIL: $what"; $script:failed += $what }
+}
+
+# 页面字段会随功能增长而变多（共享内核目录落地后输入框从 3 个变成 6 个），所以
+# 不能再用「$edits[2] 是保存目录」这种按下标猜字段的写法 —— 猜错不会报错，只会让
+# 断言测到另一个字段，然后得出「通过」的假象。这里改成按标签文本定位同行右侧的
+# 输入框：字段怎么增删都不影响。
+function Find-EditBesideLabel($hwnd, $labelText) {
+  $ae = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
+  $tc = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+    [System.Windows.Automation.ControlType]::Text)
+  $label = $null
+  foreach ($t in $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $tc)) {
+    if ($t.Current.Name -eq $labelText) { $label = $t; break }
+  }
+  if (-not $label) { return $null }
+  $lr = $label.Current.BoundingRectangle
+  $ec = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+    [System.Windows.Automation.ControlType]::Edit)
+  $best = $null; $bestScore = 1e9
+  foreach ($e in $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $ec)) {
+    $r = $e.Current.BoundingRectangle
+    if ($r.X -lt $lr.X) { continue }        # 必须在标签右侧
+    $dy = [math]::Abs($r.Y - $lr.Y)
+    if ($dy -gt 24) { continue }            # 同一行
+    if ($dy -lt $bestScore) { $bestScore = $dy; $best = $e }
+  }
+  return $best
+}
+
+# QComboBox 在本机暴露的是 ValuePattern（读当前值）与 ExpandCollapsePattern（展开），
+# **不支持 SelectionPattern** —— 旧代码用 GetCurrentPattern(Selection) 读取会抛
+# 「不支持该模式」，于是画质断言永远拿不到值。
+function Get-ComboValue($hwnd) {
+  $ae = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
+  $cc = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+    [System.Windows.Automation.ControlType]::ComboBox)
+  $cb = $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cc) | Select-Object -First 1
+  if (-not $cb) { return "" }
+  try { return $cb.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value }
+  catch { return "" }
+}
+
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 
@@ -115,20 +166,27 @@ if (-not $nav) { Write-Output "ABORT: nav not found"; exit 1 }
 [void](Click-Elem $hwnd $nav "nav 视频下载")
 Start-Sleep -Seconds 1
 
+$dlBtnFound = $false
 foreach ($b in (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Button))) {
   if ($b.Current.Name -eq "开始下载") {
-    Write-Output ("download button enabled = {0} (expect False: no yt-dlp)" -f $b.Current.IsEnabled)
+    $dlBtnFound = $true
+    Write-Output ("download button enabled = {0}" -f $b.Current.IsEnabled)
   }
   if ($b.Current.Name -eq "取消") {
     Write-Output ("cancel button enabled = {0} (expect False: idle)" -f $b.Current.IsEnabled)
   }
 }
+Check $dlBtnFound "页面上存在「开始下载」按钮"
+# 注意：此处不再断言按钮禁用 —— 该脚本写于「内核未安装」的前提（共享内核目录
+# 落地后 yt-dlp/ffmpeg 可能已在位），断言「禁用」会把环境差异报成代码回归。
 Shot $hwnd "v4_idle.png"
 
 # ---------- 2. 展开画质下拉，点最后一项（仅音频 mp3） ----------
 $combo = (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::ComboBox) | Select-Object -First 1)
 if (-not $combo) { Write-Output "ABORT: combo not found"; exit 1 }
-[void](Click-Elem $hwnd $combo "quality combo")
+$expand = $combo.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
+$expand.Expand()
+Start-Sleep -Milliseconds 700
 
 $root = [System.Windows.Automation.AutomationElement]::RootElement
 $lcond = New-Object System.Windows.Automation.PropertyCondition(
@@ -138,8 +196,13 @@ $popupItem = $null
 foreach ($i in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $lcond)) {
   if ($i.Current.Name -like "*mp3*") { $popupItem = $i; break }
 }
+Check ($null -ne $popupItem) "画质下拉里有「仅音频 mp3」选项"
 if ($popupItem) {
   [void](Click-Elem $hwnd $popupItem "popup item (mp3)")
+  Start-Sleep -Milliseconds 500
+  $qNow = Get-ComboValue $hwnd
+  Write-Output ("quality now = '{0}'" -f $qNow)
+  Check ($qNow -like "*mp3*") "选中 mp3 后画质下拉显示为 mp3"
 } else {
   Write-Output "popup item NOT FOUND"
 }
@@ -158,10 +221,19 @@ $nav2 = Find-NavItem $hwnd2 "*$videoDl*"
 [void](Click-Elem $hwnd2 $nav2 "nav 视频下载 (restart)")
 Start-Sleep -Seconds 1
 Shot $hwnd2 "v6_quality_restored.png"
+$q3 = Get-ComboValue $hwnd2
+Write-Output ("restored quality = '{0}' (expect mp3)" -f $q3)
+Check ($q3 -like "*mp3*") "重启后画质仍是 mp3（设置持久化）"
 Dump-Plugin "after restart"
 
 [void][W]::PostMessage($hwnd2, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
 Start-Sleep -Milliseconds 800
 Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
-Write-Output "DONE"
 Restore-UiLanguage
+
+if ($failed.Count -gt 0) {
+  Write-Output ("DONE(FAILED {0}): {1}" -f $failed.Count, ($failed -join "; "))
+  exit 1
+}
+Write-Output "DONE(ALL PASS)"
+exit 0
