@@ -86,7 +86,7 @@ foreach ($line in ($block.Substring($stIdx + "SOURCE_TARGETS".Length) -split "`n
 $listed = @($listed | Sort-Object -Unique)
 
 # ── 2. Targets and their explicitly listed sources (outside tests/) ──────────────
-$cmakeFiles = @(& git -C $repo ls-files "*CMakeLists.txt") | Where-Object { $_ -notmatch "^tests/" }
+$cmakeFiles = @(& git -C $repo ls-files "*CMakeLists.txt") | Where-Object { $_ -notmatch "(^|/)tests/" }
 $cmakeFiles = @($cmakeFiles | Sort-Object -Unique)
 
 $targetRegex = [regex] "(?s)(add_library|qt_add_library|add_executable|qt_add_executable)\s*\(\s*([A-Za-z0-9_.:-]+)\s+([^)]*)\)"

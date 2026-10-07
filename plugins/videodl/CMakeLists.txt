@@ -82,3 +82,23 @@ set_target_properties(videodl_tool PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${TOOLBOX_BIN_DIR}/tools"
     RUNTIME_OUTPUT_DIRECTORY "${TOOLBOX_BIN_DIR}/tools"
     PREFIX "")
+
+# ── 本模块的测试 ──────────────────────────────────────────────────────────────
+# 用例就在被测代码旁边（plugins/videodl/tests/），改这个工具时不必跑到仓根另一头。
+# 这是 D3「模块内聚」的第一个落地模块；其余模块仍留在顶层 tests/，
+# 按 architecture.md §10 的规矩「下次改动时顺带搬」（过渡期，见偏差 9.18）。
+toolbox_add_test(tst_downloadargs videodl_core)
+toolbox_add_test(tst_outputparsing videodl_core)
+toolbox_add_test(tst_douyinsupport videodl_core)
+toolbox_add_test(tst_cookiefile videodl_core)
+toolbox_add_test(tst_enginelocator videodl_core)
+toolbox_add_test(tst_enginecheck videodl_core)
+toolbox_add_test(tst_enginefetchpolicy videodl_core)
+toolbox_add_test(tst_linesplitter videodl_core)
+toolbox_add_test(tst_engineinstall videodl_core)
+
+# 编排层三个：外部通道（子进程 / 网络）经 IChildProcess / IEngineTransport 注入，
+# 测试换成假实现驱动 —— 既不启动子进程也不发网络请求。
+toolbox_add_test(tst_downloadrunner videodl_orch)
+toolbox_add_test(tst_douyinresolver videodl_orch)
+toolbox_add_test(tst_enginefetcher videodl_orch)

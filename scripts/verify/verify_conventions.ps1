@@ -145,7 +145,7 @@ Check ($lateMoc.Count -eq 0) ("moc include is the last line ({0} file(s) with co
 $cjkLiteral = @()
 foreach ($item in $scan) {
   if ($item.Rel -match '(^|/)core/') { continue }
-  if ($item.Rel -like "tests/*")     { continue }
+  if ($item.Rel -match '(^|/)tests/') { continue }
   $m = Select-String -Path $item.Path -Pattern 'QStringLiteral\("[^"]*\p{IsCJKUnifiedIdeographs}'
   foreach ($one in $m) {
     if ($one.Line -notmatch 'tr\(') {

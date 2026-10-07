@@ -1,65 +1,29 @@
 # 单元测试。用 Qt Test + CTest 跑，命令与约定见 docs/workflow.md §5。
 #
-# 被测对象是抽出来的纯逻辑（app/core、plugins/videodl/core），一律不依赖真实网络与
-# 真实子进程。个别确实要装配真实控件的用例（tst_mainwindow / tst_integration）使用
-# offscreen 平台的 QApplication，它们只验证「构造与跨 DLL 装载不崩」，不模拟用户操作
-# ——界面交互仍归 scripts/verify/ 下的手工回归脚本（workflow §5）。
-
-# 测试 exe 落在 build/tests/<Config>/，和主程序不在同一层，按默认搜索路径找不到
-# Qt 的 DLL。这里把 Qt 的 bin 目录前置进 PATH，免得依赖用户机器上的环境变量。
-get_target_property(_qt_core_location Qt6::Core IMPORTED_LOCATION_DEBUG)
-if(NOT _qt_core_location)
-    get_target_property(_qt_core_location Qt6::Core IMPORTED_LOCATION_RELEASE)
-endif()
-
-if(_qt_core_location)
-    get_filename_component(QT_BIN_DIR "${_qt_core_location}" DIRECTORY)
-else()
-    set(QT_BIN_DIR "")
-    message(WARNING "定位不到 Qt6 Core 的运行时目录，测试可能因缺少 Qt DLL 而无法启动")
-endif()
-
-# 一个测试一个可执行文件。额外参数是需要链接的被测静态库。
-function(toolbox_add_test name)
-    add_executable(${name} ${name}.cpp)
-    target_link_libraries(${name} PRIVATE Qt6::Test ${ARGN})
-
-    # 根 CMakeLists 把运行时输出目录统一指到了 bin/<Config>，那是要拷给别人
-    # 的目录，测试程序不该混在里面，这里单独挪到 build/tests/<Config>。
-    set_target_properties(${name} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests/$<CONFIG>")
-
-    add_test(NAME ${name} COMMAND ${name})
-
-    if(QT_BIN_DIR)
-        set_tests_properties(${name} PROPERTIES
-            ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${QT_BIN_DIR}")
-    endif()
-endfunction()
+# 本目录**不再是所有用例的家**。目标形态是「测试跟着被测模块走」：模块的用例放在
+# <模块目录>/tests/ 下，由该模块自己的 CMakeLists.txt 用 toolbox_add_test() 注册
+# （见 docs/architecture.md 迁移计划 D3）。videodl 是第一个搬完的模块。
+#
+# 留在这里的是两类：
+#   * 不属于任何单个模块的用例 —— 外壳装配（tst_mainwindow）、跨 DLL 集成
+#     （tst_integration）、契约层（tst_pluginmeta）；
+#   * 其余模块**尚未搬迁**的用例（base64 / jsonfmt / imgwatermark / app）。
+#     它们按 architecture.md §10 的规矩「下次改动该模块时顺带搬」；搬迁是纯移动，
+#     因为脚本已按全仓扫描，不需要再动（过渡期的双路径查找见偏差 9.18）。
+#
+# 被测对象一律不依赖真实网络与真实子进程。个别确实要装配真实控件的用例
+# （tst_mainwindow / tst_integration）使用 offscreen 平台的 QApplication，
+# 它们只验证「构造与跨 DLL 装载不崩」，不模拟用户操作 —— 界面交互仍归
+# scripts/verify/ 下的手工回归脚本（workflow §5）。
+#
+# toolbox_add_test() 由顶层 cmake/ToolBoxTest.cmake 全局提供：它把可执行文件统一落到
+# build/tests/<Config>/，并把 Qt 的 bin 前置进 PATH，免得依赖用户机器上的环境变量。
 
 toolbox_add_test(tst_toolcatalog ToolBoxCore)
 toolbox_add_test(tst_languagechoice ToolBoxCore)
 toolbox_add_test(tst_jsonformat jsonfmt_core)
 toolbox_add_test(tst_base64 base64_core)
 toolbox_add_test(tst_stego imgwatermark_core)
-toolbox_add_test(tst_downloadargs videodl_core)
-toolbox_add_test(tst_outputparsing videodl_core)
-toolbox_add_test(tst_douyinsupport videodl_core)
-toolbox_add_test(tst_cookiefile videodl_core)
-toolbox_add_test(tst_enginelocator videodl_core)
-toolbox_add_test(tst_enginecheck videodl_core)
-toolbox_add_test(tst_enginefetchpolicy videodl_core)
-toolbox_add_test(tst_linesplitter videodl_core)
-toolbox_add_test(tst_engineinstall videodl_core)
-
-# ── 编排层测试（videodl_orch）─────────────────────────────────────────────────
-# 这三个类的外部通道（子进程 / 网络）经 IChildProcess / IEngineTransport 注入，
-# 所以测试用假的实现来驱动它们 —— 不启动任何真实子进程、不发出任何网络请求，
-# workflow §5 那条约定依然成立。测的是**决策**：哪一行输出对应哪个阶段、
-# 取消与重试撞车时谁赢、哪种结局该报哪种结果。
-toolbox_add_test(tst_downloadrunner videodl_orch)
-toolbox_add_test(tst_douyinresolver videodl_orch)
-toolbox_add_test(tst_enginefetcher videodl_orch)
 
 toolbox_add_test(tst_pluginscanpolicy ToolBoxCore)
 toolbox_add_test(tst_pluginmeta ToolBox::Sdk)

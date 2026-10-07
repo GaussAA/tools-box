@@ -95,6 +95,11 @@ else()
         "${Qt6_VERSION}-${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}")
 endif()
 
+# ── 测试用例的注册入口 ──────────────────────────────────────────────────────
+# 定义全局的 toolbox_add_test()，供 app/ 与 plugins/* 在自己的 CMakeLists.txt 里
+# 注册属于自己的用例 —— 测试跟着被测模块走，见 docs/architecture.md 迁移计划 D3。
+include(cmake/ToolBoxTest.cmake)
+
 add_subdirectory(sdk)
 add_subdirectory(app)
 add_subdirectory(plugins/base64)

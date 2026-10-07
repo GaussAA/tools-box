@@ -127,8 +127,12 @@ foreach ($rel in $cmakeFiles) {
 }
 $orchSources = @($orchSources | Sort-Object -Unique)
 
-$testSources = @(& git -C $repo ls-files "tests/*.cpp") `
-             + @(& git -C $repo ls-files --others --exclude-standard "tests/*.cpp")
+# Repo-wide sweep, not a fixed directory: tests now live next to the code they
+# cover (<module>/tests/tst_*.cpp, see docs/architecture.md D3). Matching on the
+# tst_ prefix anywhere means moving another module's tests needs no script change.
+$testSources = @(& git -C $repo ls-files | Where-Object { $_ -match '(^|/)tst_[^/]+\.cpp$' }) `
+             + @(& git -C $repo ls-files --others --exclude-standard | Where-Object { $_ -match '(^|/)tst_[^/]+\.cpp$' })
+$testSources = @($testSources | Sort-Object -Unique)
 
 # Read as UTF-8 through .NET on purpose: PowerShell 5.1's Get-Content decodes
 # BOM-less UTF-8 with the system ANSI codepage, which mangles the Chinese
@@ -202,11 +206,14 @@ foreach ($lib in $libs) {
 # which makes the check pass on a tree that was never really built for this
 # configuration. CI builds Release only, so Debug is the configuration that
 # actually exists everywhere; the debug-level script (build_verify.ps1) builds both.
-$testObjs = @(Get-ChildItem (Join-Path $build "tests") -Recurse -Filter "tst_*.cpp.obj" -ErrorAction SilentlyContinue |
+# Whole build tree, not just build/tests: a test registered from a module directory
+# puts its object file next to that module's sources (build/plugins/videodl/...),
+# not under build/tests. Debug-only stays, for the reason above.
+$testObjs = @(Get-ChildItem $build -Recurse -Filter "tst_*.cpp.obj" -ErrorAction SilentlyContinue |
                Where-Object { $_.FullName -cmatch '\\Debug\\' })
 if ($testObjs.Count -eq 0) {
   Write-Output ""
-  Write-Output "FAIL: no tests\*.cpp.obj under build\ -- build Debug first (scripts\build_verify.ps1)."
+  Write-Output "FAIL: no tst_*.cpp.obj under build\ -- build Debug first (scripts\build_verify.ps1)."
   exit 1
 }
 $called = New-Object System.Collections.Generic.HashSet[string]
@@ -231,7 +238,7 @@ Write-Output ("checked {0} exported core function(s)" -f $candidates.Count)
 if ($missingFiles.Count -gt 0 -or $untested.Count -gt 0) {
   if ($missingFiles.Count -gt 0) {
     Write-Output ("FAIL: {0} core/orch file(s) have no test case" -f $missingFiles.Count)
-    Write-Output "Add tests/tst_<module>.cpp, register it with toolbox_add_test(), and update the tables in docs/workflow.md section 5."
+    Write-Output "Add <module>/tests/tst_<module>.cpp, register it with toolbox_add_test() from that module's own CMakeLists.txt, and update the tables in docs/workflow.md section 5."
   }
   if ($untested.Count -gt 0) {
     Write-Output ("FAIL: {0} exported core function(s) are not referenced by any test binary:" -f $untested.Count)
