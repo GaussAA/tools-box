@@ -321,6 +321,11 @@ ctest --test-dir build -C Debug --output-on-failure
 | `tst_logger` | [app/core/Logger.*](../app/core/Logger.h)：重定向到文件、install 幂等、级别过滤、环境变量覆盖级别、轮转与备份份数 |
 | `tst_pluginscanpolicy` | [app/core/PluginScanPolicy.*](../app/core/PluginScanPolicy.h)：装载门禁的每条分支（id 格式、abi 一致/缺失/宿主未注入） |
 | `tst_jsonformat` | [jsonfmt/core/JsonFormat.*](../plugins/jsonfmt/core/JsonFormat.h)：JSON 解析与序列化、出错偏移与原因的回传 |
+| `tst_base64` | [base64/core/Base64Codec.*](../plugins/base64/core/Base64Codec.h)：Base64 编解码（中文 UTF-8 往返、标准与 URL 安全字符集、粘贴文本首尾空白） |
+| `tst_enginecheck` | [videodl/core/EngineCheck.*](../plugins/videodl/core/EngineCheck.h)：内核下载的最小完整性校验（PE / Zip 魔数、大小下限——拦住「下到 HTML 错误页或严重截断文件」，见偏差 9.12） |
+| `tst_enginefetchpolicy` | [videodl/core/EngineFetchPolicy.*](../plugins/videodl/core/EngineFetchPolicy.h)：续传 / 重试 / 取消的**决策**（带 Range 却收 200、206 起点错位、重试用尽、用户中途取消），事实与结论分离，core 不碰 `QNetworkReply` |
+| `tst_linesplitter` | [videodl/core/LineSplitter.*](../plugins/videodl/core/LineSplitter.h)：子进程输出的按行切分（半行当整行、`\r\n` 跨块、末行无换行被丢弃——三种在真下载里偶发、极难复现的错法） |
+| `tst_engineinstall` | [videodl/core/EngineInstall.*](../plugins/videodl/core/EngineInstall.h)：内核落地的处置序列（就位、覆盖旧版、坏文件必被删、替换失败清半截），用 `QTemporaryDir` 做真实文件系统验证 |
 | `tst_mainwindow` | 外壳在**无插件**环境下的四条主路径：构造、扫描不存在目录、切页、搜索（不装载任何真实插件） |
 | `tst_integration` | 跨 DLL 真链路：把 base64 / jsonfmt 部署到专属目录，验证 `rescan` → `qobject_cast` → `createPage` 全程可用 |
 | `tst_downloadrunner` | [videodl/DownloadRunner](../plugins/videodl/DownloadRunner.h)：yt-dlp 的哪一行输出对应哪个进度/阶段信号（注入假子进程） |
@@ -416,15 +421,16 @@ ctest --test-dir build -C Debug --output-on-failure
 | `verify_videodl_platform.ps1` | 各站点（B站 / YouTube / 抖音）适配 |
 | `verify_videodl_status.ps1` | 状态栏与进度反馈 |
 | `verify_videodl_logread.ps1` | 日志解析与输出读取 |
-| `pre_commit.ps1` | **git pre-commit 钩子跑的那一个**：把上面七个里不需要构建的检查跑一遍（whitespace / format / conventions / filesize / coretest / translations / docs）。由 `.githooks/pre-commit` 调起，也可单独手跑 |
+| `_ui_language.ps1` | **共享助手，不是检查**：见下面「界面语言守卫」一段 |
+| `pre_commit.ps1` | **git pre-commit 钩子跑的那一个**（在 `scripts/verify/` 下，由 `../../.githooks/pre-commit` 调起，也可单独手跑）：把上面不需要构建的六项跑一遍（whitespace / format / conventions / filesize / translations / docs）。`verify_coretest` 与 `verify_naming` 都需要构建产物，**不进钩子**——每次提交都要求先构建，会训练大家用 `--no-verify`，那比没有钩子更糟；两者由 CI 在「Build Debug」之后保证输入存在。 |
 
 **周六 09:30 的自动化（tools-box 每周真机回归巡检）跑哪些**：`build_verify.ps1`
-全量 + `verify_shell.ps1 -Exe <Release 产物>`；`verify_videodl_fetch.ps1` 与
-`verify_videodl_download.ps1` **必跑**（2026-10-06 起从「可选」升为必跑）——
-内核下载与真实下载链路目前**没有自动化单测**（`EngineFetcher` / `DownloadRunner` /
-`DouyinResolver` 三个编排类仍持有 `QNetworkAccessManager` / `QProcess`，测试约定
-不许碰真实网络与真实子进程），所以真实链路就是它们唯一的防线；其余
-`verify_videodl*` 视情况加跑。
+全量 + `verify_shell.ps1 -Exe <Release 产物>`；`verify_videodl_fetch.ps1`、
+`verify_videodl_download.ps1` 与 `verify_videodl_logread.ps1` **必跑**
+（2026-10-06 起从「可选」升为必跑，10-07 补上 logread）——内核下载与真实下载链路
+**没有自动化单测**：编排层的**决策**虽已进网（见 §5.1 的注入通道），但真实实现
+（`RealChildProcess` / `NetworkEngineTransport`）本身不在单测覆盖内，真实链路就是
+它们唯一的防线；其余 `verify_videodl*` 视情况加跑。报告须按上面那张退出码表分栏。
 
 `scripts/` 下还有几个不按「验证目标」命名的辅助脚本，一并记在这里免得找不到：
 

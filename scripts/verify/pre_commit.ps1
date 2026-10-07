@@ -8,12 +8,17 @@
 #
 # Which checks run here (the ones that are seconds and need no build):
 #   verify_whitespace, verify_format, verify_conventions, verify_filesize,
-#   verify_coretest, verify_translations, verify_docs
+#   verify_translations, verify_docs
 #
 # Deliberately NOT run:
 #   verify_naming -- needs build/compile_commands.json (clang-tidy). It stays in CI
 #   and in run_all.ps1; a hook that requires a full build before every commit would
 #   train people to use --no-verify, which is worse than not having the hook.
+#   verify_coretest -- since 2026-10-07 it reads the Debug build products (the core
+#   libraries' symbol tables and the test object files) to check function-level
+#   coverage, so it needs a build too. It also still does the file-level part, but
+#   that is cheap and does not justify blocking every commit on a build. CI runs it
+#   right after "Build Debug", where the inputs are guaranteed to exist.
 #
 # Nothing here is a substitute for CI: this machine may have a different clang-format
 # or a stale build. CI remains the authority.
@@ -34,7 +39,6 @@ $checks = @(
   "verify_format",
   "verify_conventions",
   "verify_filesize",
-  "verify_coretest",
   "verify_translations",
   "verify_docs"
 )

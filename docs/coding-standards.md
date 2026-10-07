@@ -174,7 +174,7 @@
 | --- | --- | --- |
 | 缩进、行宽、大括号位置、符号对齐、include 排序 | `.clang-format` + `scripts/verify/verify_format.ps1`（`clang-format --dry-run --Werror`） | **已达标**：全仓已于 73b1e4a 归一化（15 文件 / 328 行，字符多重集比对确认只动空格与换行），此后由脚本强制，见 workflow §3.1 |
 | 字符集、缩进风格、末尾空行、行尾空白 | `.editorconfig` + `scripts/verify/verify_whitespace.ps1` | 已配置且有脚本检查（可纳入 CI） |
-| `*.ps1` 带 UTF-8 BOM | `verify_whitespace.ps1` 查每个脚本文件的前三个字节 | 已达标（13 个脚本全部带 BOM；已做去掉 BOM 的反向验证） |
+| `*.ps1` 带 UTF-8 BOM | `verify_whitespace.ps1` 查每个脚本文件的前三个字节 | 已达标（21 个脚本全部带 BOM；已做去掉 BOM 的反向验证） |
 | 换行符统一 LF | `.gitattributes`（`* text=auto eol=lf`） | 已配置（本机 `core.autocrlf=true`，必须靠它兜底） |
 | 层间依赖方向（`plugins` / `app` / `sdk`） | `scripts/verify/verify_conventions.ps1` 查跨层 include；`core/` 静态库只链接 `Qt6::Core`，误用界面类会直接编译失败 | 已达标 |
 | 显式 `tr()` / `QStringLiteral()` | `verify_conventions.ps1` 查 `QString("字面量")` 这类构造，并禁止 UI 目录下出现含中文的 `QStringLiteral`（`core/` 与 `tests/` 豁免） | 已达标（已做注入式反向验证） |

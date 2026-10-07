@@ -10,8 +10,9 @@
 架构。现有工具看 `plugins/` 目录，或直接运行程序看左侧导航。
 
 界面**跟随系统语言**：中文系统显示中文，其余显示英文（译文已随程序打包，不需要额外
-文件）。想固定语言，把配置 `ui/language` 设成 `zh_CN` / `en` 即可，改完重启生效 ——
-详见 [workflow.md §3.3](docs/workflow.md#33-界面语言与翻译)。
+文件）。想固定语言，用菜单 **帮助 → 界面语言**（跟随系统 / 中文 / English）点选即可，
+点完提示重启生效；也可直接改配置 `ui/language`（`zh_CN` / `en`）—— 详见
+[workflow.md §3.3](docs/workflow.md#33-界面语言与翻译)。
 
 ## 快速开始
 
@@ -27,7 +28,8 @@ ctest --test-dir build -C Debug --output-on-failure   # 单元测试
 ```
 
 钩子（**每个 clone 跑一次**）：让 git 用仓库里的 `.githooks/`，此后每次 `git commit`
-会自动跑七个秒级检查，违规直接拦下 —— 免得等 CI 几分钟后才被告知：
+会自动跑六个秒级检查，违规直接拦下 —— 免得等 CI 几分钟后才被告知（需要构建产物的
+`verify_coretest` / `verify_naming` 不在钩子里，由 CI 在构建之后跑）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\install_hooks.ps1
