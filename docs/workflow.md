@@ -440,9 +440,10 @@ ctest --test-dir build -C Debug --output-on-failure
   每次 `git commit` 会自动跑 `pre_commit.ps1`（七个秒级检查），违规直接拦下提交。
   想临时跳过：`git commit --no-verify` —— CI 会跑同一套，所以那只是把失败推后。
 - `run_all.ps1` —— **一键跑完上面那八个自动检查**（空白 / 格式 / 规范 / 行数 /
-  core 测试 / 翻译管道 / 文档 / 命名），按顺序执行、汇总成一个退出码。命名检查需要先构建
-  （缺 `compile_commands.json` 时它**报 FAIL 而不是跳过** —— 那正是它会「静默全绿」
-  的地方）。跑完会列出下面那 10 个只能人工跑的脚本。
+  core 测试 / 翻译管道 / 文档 / 命名），按顺序执行、汇总成一个退出码。其中**两项需要
+  构建**（命名要 `compile_commands.json`，core 测试要 Debug 构建产物），缺输入时它们
+  **报 FAIL 而不是跳过** —— 那正是它们会「静默全绿」的地方。跑完会列出下面那 10 个
+  只能人工跑的脚本。
 - `build_verify.ps1` —— 本机全量：清构建目录 → 配置 → 双配置构建 → 双配置 `ctest` →
   **自动 deploy Qt 运行时**（deploy 目标失败时按 windeployqt 清单手工兜底拷贝，
   受限环境跑不了 windeployqt 也能产出可双击的产物），
