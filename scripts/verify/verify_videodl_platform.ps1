@@ -148,6 +148,24 @@ foreach ($b in (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Butt
   if ($b.Current.Name -eq $startDl) { $go = $b; break }
 }
 if (-not $go) { Write-Output "ABORT: start button not found"; exit 1 }
+# 页面要等地址校验通过才启用「开始下载」；按钮禁用时点击是无效操作，下载根本没
+# 启动，脚本却会一路打印观察到结束 —— 看起来像「跑过了」，实际什么都没验。所以先
+# 等它启用，等不到就以**专用退出码 2** 退出，报告据此归到「站点/环境因素」。
+$enableDeadline = (Get-Date).AddSeconds(20)
+while ($go -and -not $go.Current.IsEnabled -and (Get-Date) -lt $enableDeadline) {
+  Start-Sleep -Milliseconds 500
+  $go = $null
+  foreach ($b in (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Button))) {
+    if ($b.Current.Name -eq $startDl) { $go = $b; break }
+  }
+}
+if ($go -and -not $go.Current.IsEnabled) {
+  Write-Output "ABORT: start button stayed disabled for 20s -- address rejected or the site needs cookies"
+  Write-Output "       这是站点/环境因素，不计入代码回归（退出码 2）"
+  Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
+  Restore-UiLanguage
+  exit 2
+}
 [void](Click-Elem $hwnd $go "start download")
 
 $history = @()

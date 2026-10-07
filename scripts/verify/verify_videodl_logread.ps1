@@ -11,6 +11,15 @@
 # "nav not found" -- a symptom three layers from the cause. See
 # _ui_language.ps1 and docs/error_ledger.md.
 . (Join-Path $PSScriptRoot "_ui_language.ps1")
+# 判定机制：以前这个脚本只打印日志内容、结尾无条件 DONE 且退出码 0 —— 日志里
+# 命令行拼错了、cookie 路径没脱敏，它也照样「通过」。现在把三件真正要紧的事
+# 变成断言：命令行确实执行了、cookie 路径确实被脱敏、降级提示确实出现。
+$failed = @()
+function Check($ok, $what) {
+  if ($ok) { Write-Output "PASS: $what" } else { Write-Output "FAIL: $what"; $script:failed += $what }
+}
+$execLine = -join ([char]0x6267, [char]0x884C)   # "执行"
+
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 
@@ -99,6 +108,26 @@ $go = $null
 foreach ($b in (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Button))) {
   if ($b.Current.Name -eq $startDl) { $go = $b; break }
 }
+# 点之前先确认按钮真的可用：页面要等地址校验通过才启用它，按钮禁用时点击是
+# 无效操作 —— 下载没启动、日志自然是空的，断言会把这个报成「代码回归」，而真因
+# 是站点风控 / 需要 cookies。所以：等它启用，等不到就以**专用退出码 2** 退出，
+# 让报告能把它归到「环境/站点因素」而不是「代码失败」。
+$enableDeadline = (Get-Date).AddSeconds(20)
+while (-not $go.Current.IsEnabled -and (Get-Date) -lt $enableDeadline) {
+  Start-Sleep -Milliseconds 500
+  $go = $null
+  foreach ($b in (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Button))) {
+    if ($b.Current.Name -eq $startDl) { $go = $b; break }
+  }
+  if (-not $go) { break }
+}
+if (-not $go -or -not $go.Current.IsEnabled) {
+  Write-Output "ABORT: start button stayed disabled for 20s -- address rejected or the site needs cookies"
+  Write-Output "       这是站点/环境因素，不计入代码回归（退出码 2）"
+  Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
+  Restore-UiLanguage
+  exit 2
+}
 [void](Click-Elem $hwnd $go)
 
 # yt-dlp 跑完下载还会拉起 ffmpeg 做合并，两个都停了才算收工。
@@ -121,6 +150,13 @@ foreach ($e in (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Edit
 Write-Output ("log length = {0}" -f $log.Length)
 Write-Output "--- first 6 log lines ---"
 ($log -split "`r?`n") | Where-Object { $_.Trim() -ne '' } | Select-Object -First 6 | ForEach-Object { Write-Output ("   {0}" -f $_.Trim()) }
+# 断言 1：确实跑过一次下载（命令行被执行过）
+Check ($log -like "*$execLine*") "日志里有下载命令行（下载确实启动过）"
+# 断言 2：cookie 路径已脱敏 —— 命令行里出现 --cookies 就说明把路径原样带出去了
+Check ($log -notlike "*--cookies*") "命令行里没有 --cookies（cookie 路径已脱敏）"
+# 断言 3：ffmpeg 缺失时应有降级提示（缺了它会让用户以为画质选项失效）
+Check ($log -like "*$normW*") "日志里有降级/提示信息"
+
 Write-Output "--- lines containing the normalization notice or --cookies ---"
 foreach ($l in ($log -split "`r?`n")) {
   if ($l -like "*$normW*" -or $l -like "*--cookies*") { Write-Output ("   {0}" -f $l.Trim()) }
@@ -131,5 +167,11 @@ Write-Output "--- output files ---"
 Get-ChildItem $dlDir -File -ErrorAction SilentlyContinue | ForEach-Object { Write-Output ("   {0}  {1:N0} bytes" -f $_.Name, $_.Length) }
 
 Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
-Write-Output "DONE"
 Restore-UiLanguage
+
+if ($failed.Count -gt 0) {
+  Write-Output ("DONE(FAILED {0}): {1}" -f $failed.Count, ($failed -join "; "))
+  exit 1
+}
+Write-Output "DONE(ALL PASS)"
+exit 0

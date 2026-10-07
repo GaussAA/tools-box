@@ -10,6 +10,15 @@
 # looks like "the feature is broken" rather than "the app never started".
 param([string]$Exe = "c:/WorkSpace/ProjectSpace/tools-box/build/bin/Debug/ToolBox.exe")
 . (Join-Path $PSScriptRoot "_ui_language.ps1")
+# 判定机制：这个脚本以前只打印观察结果、结尾无条件 DONE 且退出码 0 ——
+# 也就是说「收藏没生效」「重启后丢了」这类真问题也会跑出一身绿。改成收集失败项，
+# 结尾按失败数决定退出码，周六自动化才能把它当门禁用。
+$failed = @()
+function Check($ok, $what) {
+  if ($ok) { Write-Output "PASS: $what" } else { Write-Output "FAIL: $what"; $script:failed += $what }
+}
+function Nav-Names($hwnd) { return @((Nav-Items $hwnd) | ForEach-Object { $_.Name }) }
+
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName UIAutomationClient
@@ -200,6 +209,9 @@ Shot $hwnd "n1_fresh.png"
 Dump-Reg "after fresh launch"
 
 $items = Nav-Items $hwnd
+$freshNames = Nav-Names $hwnd
+Check (-not ($freshNames -match "^收藏$")) "干净启动后没有「收藏」分区"
+Check (-not ($freshNames -match "^最近使用$")) "干净启动后没有「最近使用」分区"
 Write-Output "-- nav items (fresh)"
 $items | ForEach-Object { Write-Output ("   '{0}' @ ({1},{2}) {3}x{4}" -f $_.Name, $_.X, $_.Y, $_.W, $_.H) }
 
@@ -210,6 +222,8 @@ Start-Sleep -Seconds 2
 Shot $hwnd "n2_after_click.png"
 Dump-Reg "after click JSON"
 Write-Output "-- nav items (after click)"
+$afterClick = Nav-Names $hwnd
+Check ($afterClick -match "^最近使用$") "点过工具后出现「最近使用」分区"
 Nav-Items $hwnd | ForEach-Object { Write-Output ("   '{0}' @ ({1},{2})" -f $_.Name, $_.X, $_.Y) }
 
 # ---------- 4. 右键同一项 -> 收藏 ----------
@@ -235,6 +249,7 @@ if ($jsonItem) {
     Write-Output ("-- favorites after DOWN+ENTER = '{0}'" -f (Reg-Favorites))
   }
 
+  Check ((Reg-Favorites) -ne "") "收藏写入了配置（favorites 非空）"
   Shot $hwnd "n4_favorited.png"
   Dump-Reg "after favorite"
   Write-Output "-- nav items (after favorite)"
@@ -250,6 +265,9 @@ $hwnd2 = Get-Hwnd
 Shot $hwnd2 "n5_restart.png"
 Dump-Reg "after restart"
 Write-Output "-- nav items (after restart)"
+$afterRestart = Nav-Names $hwnd2
+Check ($afterRestart -match "^收藏$") "重启后「收藏」分区仍在（配置持久化）"
+Check ($afterRestart -match "^最近使用$") "重启后「最近使用」分区仍在（配置持久化）"
 Nav-Items $hwnd2 | ForEach-Object { Write-Output ("   '{0}' @ ({1},{2})" -f $_.Name, $_.X, $_.Y) }
 
 # ---------- 6. 搜索：JSON 同时出现在收藏/最近使用/分类三处，计数应按工具去重 ----------
@@ -264,6 +282,9 @@ if ($edit) {
   Start-Sleep -Seconds 1
   Shot $hwnd2 "n6_search.png"
   Write-Output "-- nav items (search 'json')"
+  $hits = @((Nav-Names $hwnd2) | Where-Object { $_ -like "*JSON*" })
+  Check ($hits.Count -ge 1) "搜索 json 命中 JSON 格式化"
+  Check ($hits.Count -le 3) "搜索结果按工具去重（同一工具最多出现在 收藏/最近使用/分类 三处）"
   Nav-Items $hwnd2 | ForEach-Object { Write-Output ("   '{0}' @ ({1},{2})" -f $_.Name, $_.X, $_.Y) }
 } else {
   Write-Output "search box (Edit) NOT FOUND"
@@ -272,5 +293,11 @@ if ($edit) {
 [void][W]::PostMessage($hwnd2, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
 Start-Sleep -Milliseconds 800
 Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
-Write-Output "DONE"
 Restore-UiLanguage
+
+if ($failed.Count -gt 0) {
+  Write-Output ("DONE(FAILED {0}): {1}" -f $failed.Count, ($failed -join "; "))
+  exit 1
+}
+Write-Output "DONE(ALL PASS)"
+exit 0
