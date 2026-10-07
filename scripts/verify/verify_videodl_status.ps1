@@ -12,6 +12,48 @@ param([string]$Exe = "c:/WorkSpace/ProjectSpace/tools-box/build/bin/Debug/ToolBo
 . (Join-Path $PSScriptRoot "_ui_language.ps1")
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
+# 判定机制：本脚本此前只打印观察到的状态文字与产物清单、结尾无条件 DONE 且
+# 退出码 0 —— 下载卡在解析阶段、什么都没下下来，它也照样「通过」。现在把真正
+# 要紧的几件事变成断言，并按失败数决定退出码（0=通过，1=代码回归，2=环境或
+# 站点因素，由前面的 ABORT 路径给出）。
+$failed = @()
+function Check($ok, $what) {
+  if ($ok) { Write-Output "PASS: $what" } else { Write-Output "FAIL: $what"; $script:failed += $what }
+}
+
+# 页面字段会随功能增长而变多（共享内核目录落地后输入框从 3 个变成 6 个），所以
+# 不能用「$edits[1] 是地址、$edits[2] 是保存目录」这种按下标猜字段的写法 ——
+# 猜错不会报错，只会让脚本往错误的输入框里填地址，然后在「为什么没反应」里
+# 找半天原因。改成按标签文本定位同行右侧的输入框。
+function Find-EditBesideLabel($hwnd, $labelText) {
+  $ae = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
+  $tc = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+    [System.Windows.Automation.ControlType]::Text)
+  $label = $null
+  foreach ($t in $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $tc)) {
+    if ($t.Current.Name -eq $labelText) { $label = $t; break }
+  }
+  if (-not $label) { return $null }
+  $lr = $label.Current.BoundingRectangle
+  $labelMidY = $lr.Y + $lr.Height / 2
+  $ec = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+    [System.Windows.Automation.ControlType]::Edit)
+  # 按**垂直中心距**找最近的输入框，而不是「同行右侧」：页面上两种摆法都存在 ——
+  # 「保存到」「画质」「Cookie 文件」是标签在左、输入框在同一行右侧，而「视频地址」
+  # 的输入框却落在标签的斜上方（中心距约 29px，且 x 在标签左侧）。只认同行右侧会
+  # 漏掉后者，于是「找不到字段」——而按中心距匹配对两者都成立。
+  $best = $null; $bestScore = 1e9
+  foreach ($e in $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $ec)) {
+    $r = $e.Current.BoundingRectangle
+    $dy = [math]::Abs(($r.Y + $r.Height / 2) - $labelMidY)
+    if ($dy -gt 40) { continue }           # 垂直上离得太远，不是这个字段
+    if ($dy -lt $bestScore) { $bestScore = $dy; $best = $e }
+  }
+  return $best
+}
+
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 
@@ -137,10 +179,16 @@ foreach ($t in (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Text
 if (-not $statusElem) { Write-Output "ABORT: status label (ready) not found"; exit 1 }
 Write-Output ("initial status = '{0}'" -f $statusElem.Current.Name)
 
-$edits = Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Edit)
-($edits[1].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)).SetValue($url)
-($edits[2].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)).SetValue($dlDir)
-Write-Output "url + saveDir set"
+$urlEdit = Find-EditBesideLabel $hwnd "视频地址"
+$dirEdit = Find-EditBesideLabel $hwnd "保存到"
+if (-not $urlEdit -or -not $dirEdit) {
+  Write-Output "ABORT: address or saveDir field not found"
+  exit 1
+}
+($urlEdit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)).SetValue($url)
+($dirEdit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)).SetValue($dlDir)
+Check ($urlEdit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $url) "地址已填入视频地址输入框"
+Check ($dirEdit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $dlDir) "保存目录已填入对应输入框"
 
 $go = $null
 foreach ($b in (Find-ByType $hwnd ([System.Windows.Automation.ControlType]::Button))) {
@@ -199,11 +247,25 @@ foreach ($h in $history) { $i++; Write-Output ("   {0}. {1}" -f $i, $h) }
 Write-Output ("final status = '{0}'" -f $last)
 
 Write-Output "--- output files:"
-Get-ChildItem $dlDir -File -ErrorAction SilentlyContinue | ForEach-Object {
+$files = @(Get-ChildItem $dlDir -File -ErrorAction SilentlyContinue)
+$files | ForEach-Object {
   Write-Output ("   {0}  {1:N0} bytes" -f $_.Name, $_.Length)
 }
 
+# 这个脚本的本意就是「盯着状态文字从就绪一路走到完成」，所以三件事都要断言：
+Check ($history.Count -ge 2) ("状态有推进（观察到 {0} 次变化：{1}）" -f $history.Count, ($history -join " -> "))
+Check ($last -like "*$doneW*") ("最终状态是「完成」而不是「失败/超时」：{0}" -f $last)
+Check ($files.Count -ge 1) "下载目录里确实产出了文件"
+$nonEmpty = @($files | Where-Object { $_.Length -gt 0 })
+Check ($nonEmpty.Count -eq $files.Count -and $files.Count -ge 1) "产出的文件都不是 0 字节"
+
 Get-Process -Name ToolBox -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 500
-Write-Output "DONE"
 Restore-UiLanguage
+
+if ($failed.Count -gt 0) {
+  Write-Output ("DONE(FAILED {0}): {1}" -f $failed.Count, ($failed -join "; "))
+  exit 1
+}
+Write-Output "DONE(ALL PASS)"
+exit 0

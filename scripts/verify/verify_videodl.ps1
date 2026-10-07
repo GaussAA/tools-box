@@ -35,15 +35,19 @@ function Find-EditBesideLabel($hwnd, $labelText) {
   }
   if (-not $label) { return $null }
   $lr = $label.Current.BoundingRectangle
+  $labelMidY = $lr.Y + $lr.Height / 2
   $ec = New-Object System.Windows.Automation.PropertyCondition(
     [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
     [System.Windows.Automation.ControlType]::Edit)
+  # 按**垂直中心距**找最近的输入框，而不是「同行右侧」：页面上两种摆法都存在 ——
+  # 「保存到」「画质」「Cookie 文件」是标签在左、输入框在同一行右侧，而「视频地址」
+  # 的输入框却落在标签的斜上方（中心距约 29px，且 x 在标签左侧）。只认同行右侧会
+  # 漏掉后者，于是「找不到字段」——而按中心距匹配对两者都成立。
   $best = $null; $bestScore = 1e9
   foreach ($e in $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $ec)) {
     $r = $e.Current.BoundingRectangle
-    if ($r.X -lt $lr.X) { continue }        # 必须在标签右侧
-    $dy = [math]::Abs($r.Y - $lr.Y)
-    if ($dy -gt 24) { continue }            # 同一行
+    $dy = [math]::Abs(($r.Y + $r.Height / 2) - $labelMidY)
+    if ($dy -gt 40) { continue }           # 垂直上离得太远，不是这个字段
     if ($dy -lt $bestScore) { $bestScore = $dy; $best = $e }
   }
   return $best
