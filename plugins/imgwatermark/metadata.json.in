@@ -1,0 +1,10 @@
+{
+  "toolbox": {
+    "id": "media.image-watermark",
+    "name": "图片数字水印",
+    "category": "媒体工具",
+    "version": "0.1.0",
+    "description": "在图片像素中嵌入肉眼不可见的数字水印，用于版权溯源与内容验证。",
+    "abi": "@TOOLBOX_PLUGIN_ABI@"
+  }
+}

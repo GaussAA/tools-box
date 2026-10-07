@@ -7,7 +7,10 @@ project(ToolBox
 
 # 主程序与所有插件都必须是同一套 Qt、同一个编译器、同一个 C++ 标准。
 # 插件 DLL 与主程序之间共享 QWidget 对象，二进制不兼容会直接崩溃。
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network Test LinguistTools)
+# Concurrent：图片数字水印插件用它把嵌入/提取放到后台线程（大图是CPU 密集型，
+# 放GUI 线程会卡住界面，见 docs/architecture.md §5）。原先只需 Core/Widgets/
+# Network/Test/LinguistTools，是那个插件带进来的。
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Concurrent Test LinguistTools)
 
 # ── C++ 标准：显式钉住 17，不靠 Qt 的默认值 ────────────────────────────────────
 # qt_standard_project_setup() 会在变量未设置时替我们填一个默认值，但那个默认值
@@ -96,6 +99,7 @@ add_subdirectory(sdk)
 add_subdirectory(app)
 add_subdirectory(plugins/base64)
 add_subdirectory(plugins/jsonfmt)
+add_subdirectory(plugins/imgwatermark)
 add_subdirectory(plugins/videodl)
 add_subdirectory(tests)
 
@@ -117,6 +121,8 @@ qt_add_translations(ToolBox
         base64_tool
         jsonfmt_tool
         jsonfmt_core
+        imgwatermark_tool
+        imgwatermark_core
         videodl_tool
         videodl_orch
         videodl_core

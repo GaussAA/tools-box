@@ -85,9 +85,10 @@ if ($Lang -eq "en") {
   $btnOk         = "OK"
   $loadedPrefix  = "tools loaded"
   $loadErrorMark = "These plugins failed to load:"
-  $toolA         = "Base64 Encode / Decode"
-  $toolB         = "JSON Formatter"
-  $toolC         = "Video Downloader"
+  $toolA        = "Base64 Encode / Decode"
+  $toolB        = "JSON Formatter"
+  $toolC        = "Video Downloader"
+  $toolD        = "Image Watermark"
 } else {
   $titleBox     = Chars @(0x5DE5, 0x5177, 0x7BB1)                  # gong ju xiang
   $menuHelp     = Chars @(0x5E2E, 0x52A9)                          # bang zhu
@@ -100,8 +101,9 @@ if ($Lang -eq "en") {
   $toolA        = "Base64 " + (Chars @(0x7F16, 0x89E3, 0x7801))
   $toolB        = "JSON "   + (Chars @(0x683C, 0x5F0F, 0x5316))
   $toolC        = Chars @(0x89C6, 0x9891, 0x4E0B, 0x8F7D)
+  $toolD        = Chars @(0x56FE, 0x7247, 0x6570, 0x5B57, 0x6C34, 0x5370)  # tu pian shu zi shui yin
 }
-$tools        = @($toolA, $toolB, $toolC)
+$tools        = @($toolA, $toolB, $toolC, $toolD)
 
 $exe   = $Exe
 $shots = "c:\WorkSpace\ProjectSpace\tools-box\build\shots"
@@ -245,8 +247,12 @@ foreach ($t in $tools) { Check ($navNames -contains $t) "nav contains '$t'" }
 
 $texts = @(Get-AllText $ae)
 Write-Output ("   home texts: " + ($texts -join " / "))
+# Count comes from the $tools list above, not a literal. A hard-coded "3" silently
+# broke on the 4th plugin (imgwatermark) - the kind of false red that gets
+# "fixed" by editing the wrong number instead of the missing tool.
+$expectedCount = $tools.Count
 $loaded = $texts | Where-Object { $_ -like "*$loadedPrefix*" } | Select-Object -First 1
-Check ($null -ne $loaded -and $loaded -match "3") "home page reports 3 loaded tools"
+Check ($null -ne $loaded -and $loaded -match "$expectedCount") "home page reports $expectedCount loaded tools"
 $loadError = $texts | Where-Object { $_ -like "*$loadErrorMark*" } | Select-Object -First 1
 Check ($null -eq $loadError) "home page shows no plugin load errors"
 

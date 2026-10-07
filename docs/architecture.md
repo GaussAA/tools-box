@@ -117,7 +117,7 @@ tools-box/
 ### 4.1 工具标识
 
 - `ToolMeta::id` 必须匹配 `^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$`，形如 `分类.工具名`。
-- 现有取值：`text.base64`、`dev.json-format`、`media.video-download`。
+- 现有取值：`text.base64`、`dev.json-format`、`media.image-watermark`、`media.video-download`。
 - **id 一旦随版本发布，永久不可更改**——它同时是配置键前缀、收藏/最近使用的持久化
   依据（`ui/favorites`、`ui/recent`）。改名等于让所有用户丢配置。
 - 页面里所有持久化键都以 id 做前缀隔离，插件之间不会串键。
@@ -270,6 +270,10 @@ tools-box/
 | 9.13 | 引擎安装的解压步骤依赖系统自带 `powershell.exe`（`Expand-Archive`） | [EngineFetcher.cpp](../plugins/videodl/EngineFetcher.cpp)（`extractFfmpeg`） | 当初为「不引第三方库」选了系统自带解压 | **已知局限（P2，2026-10-02 实测）**：受限环境（企业安全策略 / 开发沙箱）会拦子进程，界面只报「ffmpeg 安装失败：无法解压。」而不说原因；当晚 ffmpeg 压缩包已下载并通过完整性校验，卡在解压 | 治本方案是改用内嵌的 minizip（单文件、MIT），彻底去掉对 `powershell.exe` 的依赖；未做，等大帅排期 |
 | 9.14 | 「行覆盖率」在本机不可得：MSVC 的 `/FUCOVERAGE` 与随 VS 附带的 `llvm-cov` **格式不兼容** | [verify_coretest.ps1](../scripts/verify/verify_coretest.ps1) 头注、`.workbuddy/g3-coverage-feasibility-2026-10-07.md` | 最初假定「VS 自带 llvm-cov，只差一个开关」 | **已确认为死路（2026-10-07 四组组合实测）**：`/FUCOVERAGE` 编译链接成功、exe 正常退出，但**四种组合都没产出任何 profile**（含 `LLVM_PROFILE_FILE`、把 `PROFILE` 传给 cl 与 link.exe）。根因：`/FUCOVERAGE` 写的是 MSVC 自家的旧式 `.cov` 二进制，而 `llvm-cov` 只认 clang 的 `.profraw`/`.profdata` | 替代路径三条：①**已采用**——`verify_coretest` 从文件级加到**函数级**（读符号表比对「导出的 core 函数」与「测试 obj 实际引用的符号」，零解析零误报，已抓出一个真缺口）；②OpenCppCoverage（吃 MSVC 原生数据，代价是第三方二进制进 CI）；③换 `clang-cl` 工具集（须重验 Qt 兼容 / ccache / CI 矩阵） |
 | 9.15 | `verify_coretest.ps1` 的输入从「源码」改成了「构建产物」 | [verify_coretest.ps1](../scripts/verify/verify_coretest.ps1)、[ci.yml](../.github/workflows/ci.yml) | 函数级覆盖只能问编译器要答案（见 9.14） | **有意接受**：一个依赖构建的门禁，若在没构建时**报 SKIP 就等于假绿**（「因为没东西可看而通过」）。现在输入缺失一律 **FAIL**；CI 步骤相应从「快检段」移到「Build Debug」之后；`run_all` 与 `pre_commit` 里它也不再被当作免构建检查（`pre_commit` 每次提交都要求先构建，会训练大家用 `--no-verify`） | 守住它的是**反向验证**：移走 `tst_base64` 的 Debug obj，门禁必须精确报出 `decodeBase64`/`encodeBase64` 未被引用并 exit 1。另注意**只扫 Debug**：曾因 Debug+Release 同扫，注入的 Debug obj 被 Release 顶替、门禁仍假绿 |
+
+| 9.16 | `plugins/imgwatermark/core/DctBasis.h` 是**含定义的头文件**（定义放在匿名 namespace 里），仅由 `Stego.cpp` 一个 TU 包含 | [DctBasis.h](../plugins/imgwatermark/core/DctBasis.h) | 拆文件是为了把 `Stego.cpp` 压回 600 行门禁以内（543 行，格式化后），而 DCT 基底设施（正逆变换、块读写、比特调制）恰好是清晰的独立边界 | **有意接受（2026-10-07）**：单消费者下匿名 namespace 语义正确、符号不外泄。风险是**日后出现第二个消费者时，每个 TU 各留一份副本、静默膨胀**；头文件注释已写明「若出现第二个消费者需改成 inline 并去掉 namespace」 | `verify_coretest` 只扫 `core/*.cpp`，故本头文件**无需**被测试 include —— 实测一旦 include，clang-tidy 立刻报它的 6 个函数在该 TU 里 unused |
+
+| 9.17 | 数字水印的「自动水印文本」（文件名 + 尺寸 + 体积 + 时间的拼接）写在页面 .cpp 里，**无法单测** | [WatermarkText.cpp](../plugins/imgwatermark/WatermarkText.cpp) | 它与界面无关、却是本工具唯一的溯源信息生成处；而 tools-box 对「可测性缺口」的态度是「能挪进 core 就挪」（architecture §3）| **已消除（P3，2026-10-07）**：抽成 `WatermarkText.h/.cpp`，签名改为显式参数（原先收 `QFileInfo`，测试就得造临时文件），由 `tst_stego` 的 `autoWatermarkTextCarriesTraceableFields()` 与 `outputFormatsCoverLosslessAndLossy()` 盯住 | 顺带把 `ImgWatermarkPlugin.cpp` 从 631 行降到 578 行，回到 `verify_filesize.ps1` 的 600 行门禁以内（不必登记豁免） |
 
 ## 10. 目标架构与迁移计划
 

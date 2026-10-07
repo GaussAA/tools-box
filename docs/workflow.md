@@ -322,6 +322,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | `tst_pluginscanpolicy` | [app/core/PluginScanPolicy.*](../app/core/PluginScanPolicy.h)：装载门禁的每条分支（id 格式、abi 一致/缺失/宿主未注入） |
 | `tst_jsonformat` | [jsonfmt/core/JsonFormat.*](../plugins/jsonfmt/core/JsonFormat.h)：JSON 解析与序列化、出错偏移与原因的回传 |
 | `tst_base64` | [base64/core/Base64Codec.*](../plugins/base64/core/Base64Codec.h)：Base64 编解码（中文 UTF-8 往返、标准与 URL 安全字符集、粘贴文本首尾空白） |
+| `tst_stego` | [imgwatermark/core/Stego.*](../plugins/imgwatermark/core/Stego.h) 与 [StegoPayload.*](../plugins/imgwatermark/core/StegoPayload.h)：载荷四道闸（魔数/版本/长度/CRC32）、CRC32 标准向量、容量与尺寸的对应关系，以及端到端往返（PNG 无损、JPEG 有损、冗余带被整片破坏后仍可解、纯色图不得解出假水印、原图不被修改） |
 | `tst_enginecheck` | [videodl/core/EngineCheck.*](../plugins/videodl/core/EngineCheck.h)：内核下载的最小完整性校验（PE / Zip 魔数、大小下限——拦住「下到 HTML 错误页或严重截断文件」，见偏差 9.12） |
 | `tst_enginefetchpolicy` | [videodl/core/EngineFetchPolicy.*](../plugins/videodl/core/EngineFetchPolicy.h)：续传 / 重试 / 取消的**决策**（带 Range 却收 200、206 起点错位、重试用尽、用户中途取消），事实与结论分离，core 不碰 `QNetworkReply` |
 | `tst_linesplitter` | [videodl/core/LineSplitter.*](../plugins/videodl/core/LineSplitter.h)：子进程输出的按行切分（半行当整行、`\r\n` 跨块、末行无换行被丢弃——三种在真下载里偶发、极难复现的错法） |
