@@ -28,7 +28,7 @@ Qt 安装相关的已知坑（历史踩过的，不要再试）：
 ## 2. 源码树里什么进版本控制
 
 进版本控制：`CMakeLists.txt`、`CMakePresets.json`、`README.md`、`docs/`、`scripts/`、
-`sdk/`、`app/`、`plugins/`、`tests/`、`.github/`（CI 配置）、`translations/`
+`cmake/`、`sdk/`、`app/`、`plugins/`、`tests/`、`.github/`（CI 配置）、`translations/`
 （`.ts` 译文，见 §3.3），以及五份工具配置 `.clang-format`、`.clang-tidy`、
 `.editorconfig`、`.gitattributes`、`.git-blame-ignore-revs`。
 
@@ -333,8 +333,13 @@ ctest --test-dir build -C Debug --output-on-failure
 | `tst_douyinresolver` | [videodl/DouyinResolver](../plugins/videodl/DouyinResolver.h)：渲染结局的编排侧 —— DOM 收全、真因上报、拼直链（注入假子进程） |
 | `tst_enginefetcher` | [videodl/EngineFetcher](../plugins/videodl/EngineFetcher.h)：续传 / 重试 / 取消 / 放弃的状态机（注入假传输） |
 
-新增用例：在 `tests/` 下加一个 `tst_<模块名>.cpp`，用
+新增用例：**放在被测模块自己的 `tests/` 子目录下**（`plugins/<工具名>/tests/`、
+`app/tests/`、`sdk/tests/`），用该模块 `CMakeLists.txt` 里的
 `toolbox_add_test(tst_<模块名> <被测静态库>)` 注册，并同步本表。
+`videodl` 是第一个这样组织的模块（见 architecture.md 迁移计划 D3）；尚未搬迁的模块
+仍留在顶层 `tests/`，按「下次改动该模块时顺带搬」推进。
+真正跨模块的用例（`tst_integration`）与外壳装配用例（`tst_mainwindow`）留在顶层
+`tests/` —— 它们不属于任何一个工具，塞进模块反而制造假归属。
 
 约定：
 
@@ -346,8 +351,9 @@ ctest --test-dir build -C Debug --output-on-failure
   `core/` 再测，而不是加一个 GUI 用例糊过去。
 - **不允许**依赖真实网络与真实子进程。这条约定没有松动 —— 松动的是另一件事：
   见下面「编排层怎么测」。
-- 测试可执行文件落在 `build/tests/<Config>/`，不混进要分发的 `bin/<Config>/`；
-  测试进程的 `PATH` 由 `tests/CMakeLists.txt` 前置 Qt 的 `bin` 目录，
+- 测试可执行文件落在 `build/tests/<Config>/`，不混进要分发的 `bin/<Config>/` ——
+  源码在哪个目录都不影响这一点，由 `toolbox_add_test()` 统一设置；
+  测试进程的 `PATH` 由同一个函数前置 Qt 的 `bin` 目录，
   因此没跑过 `deploy` 的干净构建也能直接启动。
 - 界面与真实下载链路用 `scripts/verify/` 下的脚本验证（清单见 §8），
   它们属于**手工回归**，不替代单元测试。

@@ -99,7 +99,8 @@
   不用 `QString("...")` 的隐式转换。
 - **`tr()` 的完备性有机械检查兜底**（`verify_conventions.ps1` 第 7 条）：UI 目录下
   不允许出现含中文的 `QStringLiteral` —— 中文字面量几乎必然是界面文案。`core/` 与
-  `tests/` 豁免（那里可能有真正的中文常量：解析用的后缀、测试样本）。
+  任何 `tests/` 目录豁免（含模块内的 `<模块>/tests/`）：那里可能有真正的中文常量
+  （解析用的后缀、测试样本）。
   这条规则是有来历的：base64 插件的界面文案曾经**全部**是 `QStringLiteral`，而本节
   当时写着「已全量做到」，评审没看出来，原来的检查也只查 `QString("字面量")`。
   加译文（[workflow.md §3.3](./workflow.md#33-界面语言与翻译)）时才暴露出来。
@@ -177,7 +178,7 @@
 | `*.ps1` 带 UTF-8 BOM | `verify_whitespace.ps1` 查每个脚本文件的前三个字节 | 已达标（21 个脚本全部带 BOM；已做去掉 BOM 的反向验证） |
 | 换行符统一 LF | `.gitattributes`（`* text=auto eol=lf`） | 已配置（本机 `core.autocrlf=true`，必须靠它兜底） |
 | 层间依赖方向（`plugins` / `app` / `sdk`） | `scripts/verify/verify_conventions.ps1` 查跨层 include；`core/` 静态库只链接 `Qt6::Core`，误用界面类会直接编译失败 | 已达标 |
-| 显式 `tr()` / `QStringLiteral()` | `verify_conventions.ps1` 查 `QString("字面量")` 这类构造，并禁止 UI 目录下出现含中文的 `QStringLiteral`（`core/` 与 `tests/` 豁免） | 已达标（已做注入式反向验证） |
+| 显式 `tr()` / `QStringLiteral()` | `verify_conventions.ps1` 查 `QString("字面量")` 这类构造，并禁止 UI 目录下出现含中文的 `QStringLiteral`（`core/` 与任意 `tests/` 目录豁免） | 已达标（已做注入式反向验证） |
 | 新式信号槽语法 | `verify_conventions.ps1` 排除 `SIGNAL(` / `SLOT(` | 已达标 |
 | QSettings 键命名空间（`ui/*` 与 `plugin/<id>/*`） | `verify_conventions.ps1` 查裸字符串键；正常路径由 `ToolSettings` 封装 | 已达标 |
 | 头文件 `#pragma once` | `verify_conventions.ps1` 查每个 `.h` 的前三行 | 已达标 |

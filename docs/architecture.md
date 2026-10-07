@@ -27,6 +27,7 @@ tools-box/
 ├── CMakePresets.json       唯一构建入口（MSVC 2022 x64 / Qt 6.12.0 / Ninja Multi-Config）
 ├── docs/                   本目录：架构、规范、流程
 ├── scripts/verify/         开发期手工验证脚本（powershell）
+├── cmake/                  CMake 公共片段：`toolbox_add_test()` 等全局函数
 ├── sdk/                    契约层：纯头文件 INTERFACE 库，无二进制
 │   └── ToolBoxPlugin.h     唯一契约：ToolMeta / ToolSettings / IToolPage / IToolPlugin
 ├── app/                    外壳层：主程序
@@ -36,10 +37,12 @@ tools-box/
 │   └── ToolRegistry.*      插件扫描与装载（与 MainWindow 一起编成静态库 ToolBoxApp）
 ├── plugins/<工具名>/        工具层：一个工具 = 一个 MODULE 库（DLL）
 │   ├── core/               该工具的纯逻辑（无 QWidget 依赖），编成 <工具名>_core
+│   ├── tests/              该工具自己的用例（目标形态，见 §10 D3）
 │   └── *Orchestration*     编排层（可选）：把外部事件翻译成界面信号。
 │                           编成 <工具名>_orch，外部通道经接口注入，故可测。
 │                           详见 §3.1
-└── tests/                  Qt Test 用例，一个测试一个目标，由 CTest 驱动
+└── tests/                  不属于任何单个模块的用例（外壳装配 / 跨 DLL 集成 /
+                            契约层），以及尚未搬迁的旧用例（见 §10 D3）
 ```
 
 `core/` 是约定的名字：**看到它就知道这里不放界面**。工具如果还没有独立逻辑，可以
@@ -274,6 +277,7 @@ tools-box/
 | 9.16 | `plugins/imgwatermark/core/DctBasis.h` 是**含定义的头文件**（定义放在匿名 namespace 里），仅由 `Stego.cpp` 一个 TU 包含 | [DctBasis.h](../plugins/imgwatermark/core/DctBasis.h) | 拆文件是为了把 `Stego.cpp` 压回 600 行门禁以内（543 行，格式化后），而 DCT 基底设施（正逆变换、块读写、比特调制）恰好是清晰的独立边界 | **有意接受（2026-10-07）**：单消费者下匿名 namespace 语义正确、符号不外泄。风险是**日后出现第二个消费者时，每个 TU 各留一份副本、静默膨胀**；头文件注释已写明「若出现第二个消费者需改成 inline 并去掉 namespace」 | `verify_coretest` 只扫 `core/*.cpp`，故本头文件**无需**被测试 include —— 实测一旦 include，clang-tidy 立刻报它的 6 个函数在该 TU 里 unused |
 
 | 9.17 | 数字水印的「自动水印文本」（文件名 + 尺寸 + 体积 + 时间的拼接）写在页面 .cpp 里，**无法单测** | [WatermarkText.cpp](../plugins/imgwatermark/WatermarkText.cpp) | 它与界面无关、却是本工具唯一的溯源信息生成处；而 tools-box 对「可测性缺口」的态度是「能挪进 core 就挪」（architecture §3）| **已消除（P3，2026-10-07）**：抽成 `WatermarkText.h/.cpp`，签名改为显式参数（原先收 `QFileInfo`，测试就得造临时文件），由 `tst_stego` 的 `autoWatermarkTextCarriesTraceableFields()` 与 `outputFormatsCoverLosslessAndLossy()` 盯住 | 顺带把 `ImgWatermarkPlugin.cpp` 从 631 行降到 578 行，回到 `verify_filesize.ps1` 的 600 行门禁以内（不必登记豁免） |
+| 9.18 | `toolbox_add_test()` 按**两个位置**找测试源码：`<当前目录>/tests/<name>.cpp`，找不到再看 `<当前目录>/<name>.cpp` | [cmake/ToolBoxTest.cmake](../cmake/ToolBoxTest.cmake) | D3 分批推进期间，`plugins/videodl/tests/`（已搬）与顶层 `tests/`（未搬）**并存**，函数必须两处都认 | **有意接受（2026-10-08）**：只认目标形态会让未搬迁的模块在配置期失败；只认旧位置则模块永远无法内聚。两条都找不到时**配置期 FATAL_ERROR** —— 静默跳过会让用例悄悄消失，那比报错糟 | 所有模块搬完即删第二条，届时只认 `<模块>/tests/`。判据：顶层 `tests/` 里只剩 `tst_mainwindow` / `tst_integration` / `tst_pluginmeta` 三个「不属于单个模块」的用例 |
 
 ## 10. 目标架构与迁移计划
 
@@ -378,6 +382,43 @@ plugins/videodl/
 预期大：`buildYtDlpArgs` 这批规则（画质档位、无 ffmpeg 降级、模板转义）**本来就该是
 纯逻辑**，抽进 `core/` 之后第一次有了测试（`tst_downloadargs`），验收标准 3 的
 真实下载回归仍属手工（见 workflow §8）。
+
+### D3 · 模块内聚：测试跟着被测代码走（进行中，2026-10-08 起）
+
+**起因**：本项目的分层是按**技术**切的（`sdk` / `app` / `plugins` / `tests`）。业务代码
+早已按模块聚合（`plugins/<工具名>/` 自带 `core/` 与界面），唯独测试另起一层 —— 改一个
+工具时，它的用例在仓根另一头，「改了 `core/` 忘了补测试」没有任何物理距离上的提醒。
+
+**目标形态**：一个模块的测试放在 `<模块目录>/tests/` 下，由该模块自己的
+`CMakeLists.txt` 用 `toolbox_add_test()` 注册。这是前端「模块化单体 / 垂直切片」里最
+值得借的那一条 —— 内聚与就近，与语言无关。
+
+**明确不做的那一半**：模块化单体的另一半是「单一部署单元」（模块间编译期链接、一个
+二进制）。本项目是插件式**运行时**装载，插件 DLL 独立分发是 §1 的核心约束，那一半
+**不予采纳** —— 这不是没做到，是取舍。同理，模块间的通信仍只有 `sdk/` 一条契约，
+不引入通用模块通信总线（现在只有外壳一个消费者，那是过度设计）。
+
+机制：
+
+- `toolbox_add_test()` 由顶层 [cmake/ToolBoxTest.cmake](../cmake/ToolBoxTest.cmake)
+  提供。定义在 `tests/` 下时它是目录局部函数，模块看不见 —— 提升成全局函数，模块才
+  能自己管自己的测试。它把可执行文件统一落到 `build/tests/<Config>/`（不混进交付目录
+  `bin/<Config>/`），并把 Qt 的 `bin` 前置进 `PATH`。
+- 源码查找顺序：`<当前目录>/tests/<name>.cpp` → `<当前目录>/<name>.cpp`。第二条只为
+  过渡期保留（偏差 9.18）；两条都找不到就**配置期失败**，静默跳过会让用例悄悄消失。
+- 门禁脚本（`verify_coretest` / `verify_conventions` / `verify_translations`）已改为
+  **按全仓匹配 `tst_*.cpp` 与任意 `tests/` 目录**，不再钉死 `tests/` 这一个路径。所以
+  后续搬模块是纯移动、零脚本成本 —— 这一条正是本计划敢分批推进的前提。
+
+**触发条件：与功能改动绑定**（§10 总原则）—— 哪个模块因新需求被改动，顺带完成它的
+搬迁，不为搬迁单独排期。**第一个落地的是 `videodl`**（12 个用例，2026-10-08）。
+
+验收标准：
+
+1. 搬完的模块，`<模块>/tests/` 下的用例数与原本属于它的用例数一致，双配置 `ctest` 全绿；
+2. `verify_coretest.ps1` 报出的「已覆盖 core 函数」数量不比搬迁前少 —— obj 挪了位置，
+   函数级门禁不能因此漏判；
+3. `scripts/verify/run_all.ps1` 全通过。
 
 ## 相关文档
 
