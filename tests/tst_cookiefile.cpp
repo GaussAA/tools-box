@@ -1,5 +1,6 @@
 #include "core/CookieFile.h"
 
+#include <QDir>
 #include <QFile>
 #include <QTemporaryDir>
 #include <QTest>
@@ -16,6 +17,7 @@ private slots:
     void normalizeFixesSubdomainFlagAndDropsMalformedRows();
     void normalizeReportsZeroCountsWhenSourceMissing();
     void normalizeFailsWhenTargetIsUnwritable();
+    void normalizedCookiesPathIsStableAndUnderTempDir();
 };
 
 namespace {
@@ -111,6 +113,24 @@ void TestCookieFile::normalizeFailsWhenTargetIsUnwritable()
     QVERIFY(videodl::normalizeCookies(
                 sourcePath, temp.path() + QStringLiteral("/missing-dir/out.txt"), &fixed, &dropped)
                 .isEmpty());
+}
+
+void TestCookieFile::normalizedCookiesPathIsStableAndUnderTempDir()
+{
+    const QString path = videodl::normalizedCookiesPath();
+
+    // 页面在「删除 cookie 文件」时用这个路径定位文件，生产代码里调了三处
+    // （VideoDlPlugin.cpp）。所以它必须稳定：两次调用同一个进程内要一致，
+    // 否则清理会删不掉上一次留下的文件。
+    QCOMPARE(videodl::normalizedCookiesPath(), path);
+
+    // 落在临时目录而不是用户主目录：cookie 文件是运行期产物，不该出现在
+    // 用户会长期保留的地方，也不该写进安装目录（那常常是只读的）。
+    QVERIFY(path.startsWith(QDir::tempPath()));
+    QVERIFY(!path.isEmpty());
+
+    // 文件名固定：名字散落在多处，进程重启后仍要指向同一个文件。
+    QVERIFY(path.endsWith(QStringLiteral("/toolbox-cookies.txt")));
 }
 
 QTEST_APPLESS_MAIN(TestCookieFile)

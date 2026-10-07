@@ -26,7 +26,7 @@ $checks = @(
   @{ Name = "verify_format";        NeedsBuild = $false }
   @{ Name = "verify_conventions";   NeedsBuild = $false }
   @{ Name = "verify_filesize";      NeedsBuild = $false }
-  @{ Name = "verify_coretest";      NeedsBuild = $false }
+  @{ Name = "verify_coretest";      NeedsBuild = $true  }
   @{ Name = "verify_translations";  NeedsBuild = $false }
   @{ Name = "verify_docs";          NeedsBuild = $false }
   @{ Name = "verify_naming";        NeedsBuild = $true  }
@@ -52,6 +52,20 @@ foreach ($check in $checks) {
     Write-Output ("SKIP: {0} needs build/compile_commands.json -- build first (cmake --build --preset debug)" -f $name)
     $failed += $name
     continue
+  }
+
+  # verify_coretest reads the Debug build products (the core libraries' symbol
+  # tables and the test object files) rather than compile_commands.json, so the
+  # generic NeedsBuild test above does not cover it. Same principle: a gate that
+  # cannot see its input must say so rather than pass.
+  if ($name -eq "verify_coretest") {
+    $debugObjs = @(Get-ChildItem (Join-Path $here "..\..\build\tests") -Recurse -Filter "tst_*.cpp.obj" -ErrorAction SilentlyContinue |
+                    Where-Object { $_.FullName -match '\\Debug\\' })
+    if ($debugObjs.Count -eq 0) {
+      Write-Output "SKIP: verify_coretest needs a Debug build (build\tests\**\Debug\tst_*.cpp.obj) -- run scripts\build_verify.ps1 first"
+      $failed += $name
+      continue
+    }
   }
 
   Write-Output ("=== {0} ===" -f $name)

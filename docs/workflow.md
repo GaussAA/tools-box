@@ -404,7 +404,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | `verify_conventions.ps1` | 可机械判定的编码规范：旧式 `SIGNAL()/SLOT()`、`QString("字面量")`、跨层 include、裸字符串 QSettings 键、头文件缺 `#pragma once`、`#include "Xxx.moc"` 之后还有代码（可纳入 CI） |
 | `verify_docs.ps1` | 文档一致性：所有纳入版本控制的 `*.md`（含根目录 `README.md`）相对链接目标存在、`#锚点` 能落到标题、`docs/` 内无孤立文档（§10 第 5 条，可纳入 CI） |
 | `verify_filesize.ps1` | 单文件规模：源码超过 600 行且未在脚本内的豁免表登记即失败，豁免须写明理由、结论所在文档与自己的上限（coding-standards §2 / §12，可纳入 CI） |
-| `verify_coretest.ps1` | `*/core/` 下的每个源文件都必须被某个测试 include（workflow §5「core 必须有测试」的机械化下限；行覆盖率需要 VS Enterprise 等第三方工具，本机不具备，故只查「测到没有」） |
+| `verify_coretest.ps1` | **需要构建**。两级检查：①`*/core/`（及 orch 层，见 §3.1）每个源文件都被某个测试 include；②**每个导出的 core 函数都被某个测试二进制真正引用**——读 `*_core.lib` 的符号表拿到有哪些函数，再读 `build/tests/**/Debug/tst_*.cpp.obj` 的未定义符号拿到测试实际调用了谁，两者取差。行覆盖率在本机不具备（VS Community 不带 Code Coverage，且 MSVC 的 `/FUCOVERAGE` 与 `llvm-cov` 格式不兼容、实测取不到 profile），故止步于「测到没有」 |
 | `verify_translations.ps1` | 翻译管道：凡源码含 `tr()` 的目标必须列入顶层 `qt_add_translations` 的 `SOURCE_TARGETS`（§4 第 9 步的机械化——漏列不会让任何东西变红，只会让 lupdate 静默看不见该目标的字符串、既有英文译文被判 `vanished`，抽 ToolBoxApp 静态库时真实发生过一次） |
 | `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译。`-Exe` 可指向别处的构建产物（验收打包结果，§9）；`-Lang en\|zh` 断言对应语言的界面（§3.3） |
 | `verify_recent.ps1` | 收藏 / 最近使用 / 配置持久化 / 搜索 |
@@ -475,19 +475,20 @@ ctest --test-dir build -C Debug --output-on-failure
 > 链路 —— 那几项只能靠人。
 
 ```powershell
-# 1) 七个不依赖构建、秒级的检查，都返回 0 才继续
+# 1) 六个不依赖构建、秒级的检查，都返回 0 才继续
 #    （嫌逐个敲麻烦就直接跑 run_all.ps1，它跑的是同一套，见 §8）
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_whitespace.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_format.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_conventions.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_filesize.ps1
-powershell -ExecutionPolicy Bypass -File scripts\verify\verify_coretest.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_translations.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_docs.ps1
-#    命名检查要 build/compile_commands.json，所以只能排在构建之后
+#    命名检查要 build/compile_commands.json，core 测试检查要 Debug 构建产物
+#    （它读符号表），所以两者只能排在构建之后
 
 # 2) 构建 + 把 Qt 运行时收进输出目录（Qt 的 DLL 靠这一步产生，缺了就打不出可用的包）
 cmake --build --preset release
+powershell -ExecutionPolicy Bypass -File scripts\verify\verify_coretest.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify\verify_naming.ps1
 cmake --build build --config Release --target deploy
 

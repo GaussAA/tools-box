@@ -75,11 +75,6 @@ jobs:
       - name: Source file size
         run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_filesize.ps1
 
-      # workflow §5 的「core/ 必须有测试」此前只是文档里的一句话，没有任何东西在查 ——
-      # 加一个没有测试的 core 模块，所有检查照样全绿。
-      - name: Core modules have tests
-        run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_coretest.ps1
-
       # 「凡含 tr() 的目标必须列入 SOURCE_TARGETS」——漏列不会让任何东西变红，只会让
       # lupdate 静默看不见该目标的字符串、既有英文译文被判 vanished（抽 ToolBoxApp
       # 静态库时真实发生过一次，27 条）。
@@ -182,6 +177,16 @@ jobs:
 
       - name: Build Release
         run: cmake --build --preset release
+
+      # workflow §5 的「core/ 必须有测试」此前只是文档里的一句话，没有任何东西在查 ——
+      # 加一个没有测试的 core 模块，所有检查照样全绿。
+      #
+      # 这个检查放在构建之后，因为它读的是编译产物：core 静态库的符号表给出有哪些
+      # 导出函数，测试目标文件的未定义符号给出测试实际调用了谁（2026-10-07 起从文件
+      # 级加到函数级）。放在构建之前会永远拿不到输入 —— 门禁「因为没东西可看而通过」
+      # 正是本项目反复在防的假绿。
+      - name: Core modules have tests
+        run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_coretest.ps1
 
       # /W4 /permissive- /WX 已开，告警即错误，所以「构建通过」本身就等于 0 告警。
       - name: Unit tests (Debug)
