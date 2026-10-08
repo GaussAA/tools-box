@@ -7,10 +7,10 @@
 #
 #   toolbox_add_test(<name> <被测库>...)
 #
-# 测试源码的查找顺序（两条都留着，是过渡期需要，见偏差 9.18）：
-#   1. <当前目录>/tests/<name>.cpp   目标形态：模块内聚的测试
-#   2. <当前目录>/<name>.cpp         过渡期仍留在顶层 tests/ 的用例
-# 两条都找不到就配置期失败 —— 静默跳过只会让用例悄悄消失，那比报错糟得多。
+# 测试源码固定在 <当前目录>/tests/<name>.cpp —— 也就是注册它的那个模块的 tests/
+# 子目录。找不到就配置期失败：静默跳过会让用例悄悄消失，那比报错糟得多。
+# （D3 收官后删掉了过渡期的第二条查找路径 <当前目录>/<name>.cpp，
+# 见 docs/architecture.md 偏差 9.18 的注销记录。）
 #
 # 可执行文件一律落在 build/tests/<Config>/，与源码在哪个目录无关：
 #   - 不混进要分发的 bin/<Config>/（那是交付目录）；
@@ -45,18 +45,11 @@ function(_toolbox_qt_bin_dir out_var)
 endfunction()
 
 function(toolbox_add_test name)
-  set(_src "")
-  foreach(_candidate "tests/${name}.cpp" "${name}.cpp")
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_candidate}")
-      set(_src "${CMAKE_CURRENT_SOURCE_DIR}/${_candidate}")
-      break()
-    endif()
-  endforeach()
-
-  if(NOT _src)
+  set(_src "${CMAKE_CURRENT_SOURCE_DIR}/tests/${name}.cpp")
+  if(NOT EXISTS "${_src}")
     message(FATAL_ERROR
-        "toolbox_add_test(${name}): 找不到 ${name}.cpp。期望它在 "
-        "${CMAKE_CURRENT_SOURCE_DIR}/tests/ 或 ${CMAKE_CURRENT_SOURCE_DIR}/ 下。")
+        "toolbox_add_test(${name}): 找不到 ${_src}。"
+        "用例必须放在注册它的那个模块的 tests/ 子目录下（D3 已收官，无过渡路径）。")
   endif()
 
   add_executable(${name} "${_src}")

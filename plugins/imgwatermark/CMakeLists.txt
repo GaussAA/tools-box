@@ -42,3 +42,7 @@ set_target_properties(imgwatermark_tool PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${TOOLBOX_BIN_DIR}/tools"
     RUNTIME_OUTPUT_DIRECTORY "${TOOLBOX_BIN_DIR}/tools"
     PREFIX "")
+
+# ── 本模块的测试 ──────────────────────────────────────────────────────────────
+# D3 收官：用例在 imgwatermark/tests/ 下，与 videodl 同一形态。
+toolbox_add_test(tst_stego imgwatermark_core)

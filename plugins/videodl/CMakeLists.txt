@@ -85,8 +85,7 @@ set_target_properties(videodl_tool PROPERTIES
 
 # ── 本模块的测试 ──────────────────────────────────────────────────────────────
 # 用例就在被测代码旁边（plugins/videodl/tests/），改这个工具时不必跑到仓根另一头。
-# 这是 D3「模块内聚」的第一个落地模块；其余模块仍留在顶层 tests/，
-# 按 architecture.md §10 的规矩「下次改动时顺带搬」（过渡期，见偏差 9.18）。
+# 这是 D3「模块内聚」的第一个落地模块；D3 收官后其余模块也已同形态归位。
 toolbox_add_test(tst_downloadargs videodl_core)
 toolbox_add_test(tst_outputparsing videodl_core)
 toolbox_add_test(tst_douyinsupport videodl_core)

@@ -172,7 +172,13 @@ $headerFiles += @(Get-ChildItem (Join-Path $repo "plugins") -Recurse -Filter *.h
                   Where-Object { $_.FullName -cmatch '\\core\\' -or $_.Directory.Name -eq "videodl" })
 $headerText = ($headerFiles | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
 
-$libs = @(Get-ChildItem $build -Recurse -Filter "*_core.lib" -ErrorAction SilentlyContinue |
+# "*core*.lib", NOT "*_core.lib": the shell's own library is ToolBoxCore.lib --
+# no underscore -- and an underscore-only pattern silently dropped every
+# app/core module (ToolCatalog / LanguageChoice / Logger / PluginScanPolicy)
+# from the function-level check. Found by reverse-verifying the D3 test move:
+# with all app-side test objects removed the check still passed, which is only
+# possible if those objects' functions were never candidates to begin with.
+$libs = @(Get-ChildItem $build -Recurse -Filter "*core*.lib" -ErrorAction SilentlyContinue |
           Where-Object { $_.FullName -cmatch '\\Debug\\' })
 if ($libs.Count -eq 0) {
   Write-Output ""
