@@ -28,7 +28,7 @@ Qt 安装相关的已知坑（历史踩过的，不要再试）：
 ## 2. 源码树里什么进版本控制
 
 进版本控制：`CMakeLists.txt`、`CMakePresets.json`、`README.md`、`docs/`、`scripts/`、
-`cmake/`、`sdk/`、`app/`、`plugins/`、`tests/`、`.github/`（CI 配置）、`translations/`
+`cmake/`、`sdk/`、`app/`、`plugins/`、`.github/`（CI 配置）、`translations/`
 （`.ts` 译文，见 §3.3），以及五份工具配置 `.clang-format`、`.clang-tidy`、
 `.editorconfig`、`.gitattributes`、`.git-blame-ignore-revs`。
 
@@ -336,10 +336,8 @@ ctest --test-dir build -C Debug --output-on-failure
 新增用例：**放在被测模块自己的 `tests/` 子目录下**（`plugins/<工具名>/tests/`、
 `app/tests/`、`sdk/tests/`），用该模块 `CMakeLists.txt` 里的
 `toolbox_add_test(tst_<模块名> <被测静态库>)` 注册，并同步本表。
-`videodl` 是第一个这样组织的模块（见 architecture.md 迁移计划 D3）；尚未搬迁的模块
-仍留在顶层 `tests/`，按「下次改动该模块时顺带搬」推进。
-真正跨模块的用例（`tst_integration`）与外壳装配用例（`tst_mainwindow`）留在顶层
-`tests/` —— 它们不属于任何一个工具，塞进模块反而制造假归属。
+唯一的例外是 `tst_integration`：它真正横跨外壳与插件，留在顶层 `tests/` ——
+塞进任何一侧都会制造假归属。
 
 约定：
 

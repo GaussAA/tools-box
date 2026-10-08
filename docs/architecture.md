@@ -37,12 +37,11 @@ tools-box/
 │   └── ToolRegistry.*      插件扫描与装载（与 MainWindow 一起编成静态库 ToolBoxApp）
 ├── plugins/<工具名>/        工具层：一个工具 = 一个 MODULE 库（DLL）
 │   ├── core/               该工具的纯逻辑（无 QWidget 依赖），编成 <工具名>_core
-│   ├── tests/              该工具自己的用例（目标形态，见 §10 D3）
+│   ├── tests/              该工具自己的用例（见 §10 D3；全部用例都住在模块里）
 │   └── *Orchestration*     编排层（可选）：把外部事件翻译成界面信号。
 │                           编成 <工具名>_orch，外部通道经接口注入，故可测。
 │                           详见 §3.1
-└── tests/                  不属于任何单个模块的用例（外壳装配 / 跨 DLL 集成 /
-                            契约层），以及尚未搬迁的旧用例（见 §10 D3）
+（顶层 `tests/` 目录已随 D3 收官删除 —— 全仓 22 个用例都在各自模块的 `tests/` 下。）
 ```
 
 `core/` 是约定的名字：**看到它就知道这里不放界面**。工具如果还没有独立逻辑，可以
@@ -277,7 +276,7 @@ tools-box/
 | 9.16 | `plugins/imgwatermark/core/DctBasis.h` 是**含定义的头文件**（定义放在匿名 namespace 里），仅由 `Stego.cpp` 一个 TU 包含 | [DctBasis.h](../plugins/imgwatermark/core/DctBasis.h) | 拆文件是为了把 `Stego.cpp` 压回 600 行门禁以内（543 行，格式化后），而 DCT 基底设施（正逆变换、块读写、比特调制）恰好是清晰的独立边界 | **有意接受（2026-10-07）**：单消费者下匿名 namespace 语义正确、符号不外泄。风险是**日后出现第二个消费者时，每个 TU 各留一份副本、静默膨胀**；头文件注释已写明「若出现第二个消费者需改成 inline 并去掉 namespace」 | `verify_coretest` 只扫 `core/*.cpp`，故本头文件**无需**被测试 include —— 实测一旦 include，clang-tidy 立刻报它的 6 个函数在该 TU 里 unused |
 
 | 9.17 | 数字水印的「自动水印文本」（文件名 + 尺寸 + 体积 + 时间的拼接）写在页面 .cpp 里，**无法单测** | [WatermarkText.cpp](../plugins/imgwatermark/WatermarkText.cpp) | 它与界面无关、却是本工具唯一的溯源信息生成处；而 tools-box 对「可测性缺口」的态度是「能挪进 core 就挪」（architecture §3）| **已消除（P3，2026-10-07）**：抽成 `WatermarkText.h/.cpp`，签名改为显式参数（原先收 `QFileInfo`，测试就得造临时文件），由 `tst_stego` 的 `autoWatermarkTextCarriesTraceableFields()` 与 `outputFormatsCoverLosslessAndLossy()` 盯住 | 顺带把 `ImgWatermarkPlugin.cpp` 从 631 行降到 578 行，回到 `verify_filesize.ps1` 的 600 行门禁以内（不必登记豁免） |
-| 9.18 | `toolbox_add_test()` 按**两个位置**找测试源码：`<当前目录>/tests/<name>.cpp`，找不到再看 `<当前目录>/<name>.cpp` | [cmake/ToolBoxTest.cmake](../cmake/ToolBoxTest.cmake) | D3 分批推进期间，`plugins/videodl/tests/`（已搬）与顶层 `tests/`（未搬）**并存**，函数必须两处都认 | **有意接受（2026-10-08）**：只认目标形态会让未搬迁的模块在配置期失败；只认旧位置则模块永远无法内聚。两条都找不到时**配置期 FATAL_ERROR** —— 静默跳过会让用例悄悄消失，那比报错糟 | 所有模块搬完即删第二条，届时只认 `<模块>/tests/`。判据：顶层 `tests/` 里只剩 `tst_mainwindow` / `tst_integration` / `tst_pluginmeta` 三个「不属于单个模块」的用例 |
+| ~~9.18~~ | ~~`toolbox_add_test()` 按**两个位置**找测试源码~~ | [cmake/ToolBoxTest.cmake](../cmake/ToolBoxTest.cmake) | D3 分批推进期间，`plugins/videodl/tests/`（已搬）与顶层 `tests/`（未搬）**并存**，函数必须两处都认 | **已消除（P2，2026-10-08 当日收官）**：其余模块当天全部跟进搬迁，第二条查找路径已删，现在**只认** `<模块>/tests/<name>.cpp`，找不到即配置期 FATAL_ERROR —— 它第一次上岗就拦下了 `tests/tests/` 这个路径拼接错误。原注销判据（顶层 `tests/` 只剩不属单个模块的用例）更进一步：连 `tst_integration` 都归属了 `app/tests/`，顶层 `tests/` 目录整个消失 | 无 |
 
 ## 10. 目标架构与迁移计划
 
@@ -383,7 +382,7 @@ plugins/videodl/
 纯逻辑**，抽进 `core/` 之后第一次有了测试（`tst_downloadargs`），验收标准 3 的
 真实下载回归仍属手工（见 workflow §8）。
 
-### D3 · 模块内聚：测试跟着被测代码走（进行中，2026-10-08 起）
+### D3 · 模块内聚：测试跟着被测代码走（已完成，2026-10-08）
 
 **起因**：本项目的分层是按**技术**切的（`sdk` / `app` / `plugins` / `tests`）。业务代码
 早已按模块聚合（`plugins/<工具名>/` 自带 `core/` 与界面），唯独测试另起一层 —— 改一个
@@ -404,14 +403,20 @@ plugins/videodl/
   提供。定义在 `tests/` 下时它是目录局部函数，模块看不见 —— 提升成全局函数，模块才
   能自己管自己的测试。它把可执行文件统一落到 `build/tests/<Config>/`（不混进交付目录
   `bin/<Config>/`），并把 Qt 的 `bin` 前置进 `PATH`。
-- 源码查找顺序：`<当前目录>/tests/<name>.cpp` → `<当前目录>/<name>.cpp`。第二条只为
-  过渡期保留（偏差 9.18）；两条都找不到就**配置期失败**，静默跳过会让用例悄悄消失。
+- 源码固定在 `<当前目录>/tests/<name>.cpp` —— 注册它的那个模块的 tests/ 子目录；
+  找不到就**配置期失败**，静默跳过会让用例悄悄消失。顶层 `tests/` 目录因此**整个
+  消失**：连 `tst_integration` 都归属了 `app/tests/`（它测的是外壳的装载机制，
+  插件 DLL 只是它自己部署的测试夹具），不再存在「目录名已经叫 tests」的特例注册点
+  —— 事实上正是这条配置期门禁在第一次配置时就拦下了 `tests/tests/` 这个路径拼接
+  错误，它第一次上岗就抓到了一个真问题。
 - 门禁脚本（`verify_coretest` / `verify_conventions` / `verify_translations`）已改为
   **按全仓匹配 `tst_*.cpp` 与任意 `tests/` 目录**，不再钉死 `tests/` 这一个路径。所以
   后续搬模块是纯移动、零脚本成本 —— 这一条正是本计划敢分批推进的前提。
 
-**触发条件：与功能改动绑定**（§10 总原则）—— 哪个模块因新需求被改动，顺带完成它的
-搬迁，不为搬迁单独排期。**第一个落地的是 `videodl`**（12 个用例，2026-10-08）。
+**进度（2026-10-08 当日收官）**：`videodl` 试点（12 个用例）落地后，其余模块当天
+全部跟进 —— app 5 个、sdk 1 个、base64 / jsonfmt / imgwatermark 各 1 个。顶层
+`tests/` 目录已删除，全仓 22 个用例全部位于各自模块的 `tests/` 下，与「按技术分层」
+的旧目录结构彻底告别。
 
 验收标准：
 
