@@ -425,6 +425,16 @@ plugins/videodl/
    函数级门禁不能因此漏判；
 3. `scripts/verify/run_all.ps1` 全通过。
 
+**C 门禁（2026-10-08 落地）**：布局若无门禁守着，会悄悄退回去。新增
+[verify_moduleboundaries.ps1](../scripts/verify/verify_moduleboundaries.ps1)
+查三件事：①**插件互不 include** —— conventions 只查**层间**（plugins/app/sdk），
+模块之间是空白，而「一个插件伸手进另一个插件的 core/」恰恰是插件布局要防的那种
+耦合（include 按真实文件解析落到谁家才算数，字符串形似不误报）；②每个
+`tst_*.cpp` 必须被**所属模块**的 CMakeLists 用 `toolbox_add_test()` 注册 ——
+没注册的测试文件是静默漏测，ctest 少跑一个用例而无任何东西变红；③测试必须住在
+`<模块>/tests/` 下。已挂 pre-commit 钩子、`run_all.ps1` 与 CI。四条探针路径
+（跨模块 include / 孤儿测试 / 幽灵注册 / 错位测试）各自反向验证过。
+
 ## 相关文档
 
 - [coding-standards.md](./coding-standards.md) —— 命名、内存、信号槽等编码规则

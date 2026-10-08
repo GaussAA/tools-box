@@ -7,8 +7,8 @@
 # in 3 files, and the fix had to be a separate formatting-only commit.
 #
 # Which checks run here (the ones that are seconds and need no build):
-#   verify_whitespace, verify_format, verify_conventions, verify_filesize,
-#   verify_translations, verify_docs
+#   verify_whitespace, verify_format, verify_conventions, verify_moduleboundaries,
+#   verify_filesize, verify_translations, verify_docs
 #
 # Deliberately NOT run:
 #   verify_naming -- needs build/compile_commands.json (clang-tidy). It stays in CI
@@ -38,6 +38,7 @@ $checks = @(
   "verify_whitespace",
   "verify_format",
   "verify_conventions",
+  "verify_moduleboundaries",
   "verify_filesize",
   "verify_translations",
   "verify_docs"

@@ -84,6 +84,13 @@ jobs:
       - name: Docs consistency
         run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_docs.ps1
 
+      # 模块边界门禁（plan C，2026-10-08）：插件互不 include（verify_conventions 只查
+      # 层间 plugins/app/sdk，不查插件互相）、每个 tst_*.cpp 必须被所属模块的
+      # CMakeLists 用 toolbox_add_test() 注册（防「文件在、注册无」的静默漏测）、
+      # 测试必须住在 <模块>/tests/ 下。不需要构建产物，放在快检段。
+      - name: Module boundaries
+        run: powershell -ExecutionPolicy Bypass -File scripts\verify\verify_moduleboundaries.ps1
+
       # ── 构建 ──
 
       # 官方源，**不要**开 mirror。本项目吃过镜像的亏：清华源的 Qt 包已损坏会报

@@ -412,9 +412,10 @@ ctest --test-dir build -C Debug --output-on-failure
 | `verify_format.ps1` | 格式：全部 C++ 源文件与 `.clang-format` 一致（`clang-format --dry-run --Werror`，只读不写）（§3.1，可纳入 CI） |
 | `verify_naming.ps1` | 命名：`m_` / `s_` / `g_` / `k` 前缀与大小写（clang-tidy `readability-identifier-naming`，工具钉在 LLVM 22.1 线上）。**需先构建**，所以在 CI 里排在构建之后（§3.2） |
 | `verify_conventions.ps1` | 可机械判定的编码规范：旧式 `SIGNAL()/SLOT()`、`QString("字面量")`、跨层 include、裸字符串 QSettings 键、头文件缺 `#pragma once`、`#include "Xxx.moc"` 之后还有代码（可纳入 CI） |
+| `verify_moduleboundaries.ps1` | **模块边界**（plan C，2026-10-08）：①插件互不 include——conventions 只查**层间**（plugins/app/sdk），这里查**模块间**（include 按真实文件解析落到谁家，字符串形似不算）；②每个 `tst_*.cpp` 必须被**所属模块**的 CMakeLists 用 `toolbox_add_test()` 注册——没注册的测试文件是静默漏测，ctest 少跑一个用例而无任何东西变红；③测试必须住在 `<模块>/tests/` 下（D3 的终态布局）（可纳入 CI） |
 | `verify_docs.ps1` | 文档一致性：所有纳入版本控制的 `*.md`（含根目录 `README.md`）相对链接目标存在、`#锚点` 能落到标题、`docs/` 内无孤立文档（§10 第 5 条，可纳入 CI） |
 | `verify_filesize.ps1` | 单文件规模：源码超过 600 行且未在脚本内的豁免表登记即失败，豁免须写明理由、结论所在文档与自己的上限（coding-standards §2 / §12，可纳入 CI） |
-| `verify_coretest.ps1` | **需要构建**。两级检查：①`*/core/`（及 orch 层，见 §3.1）每个源文件都被某个测试 include；②**每个导出的 core 函数都被某个测试二进制真正引用**——读 `*_core.lib` 的符号表拿到有哪些函数，再读 `build/tests/**/Debug/tst_*.cpp.obj` 的未定义符号拿到测试实际调用了谁，两者取差。行覆盖率在本机不具备（VS Community 不带 Code Coverage，且 MSVC 的 `/FUCOVERAGE` 与 `llvm-cov` 格式不兼容、实测取不到 profile），故止步于「测到没有」 |
+| `verify_coretest.ps1` | **需要构建**。两级检查：①`*/core/`（及 orch 层，见 §3.1）每个源文件都被某个测试 include；②**每个导出的 core 函数都被某个测试二进制真正引用**——读 `*core*.lib` 的符号表拿到有哪些函数（**不能用 `*_core.lib`**：外壳的库叫 `ToolBoxCore.lib`，名字里没有下划线，旧 Filter 让 app/core 的函数整个漏出候选集，2026-10-08 由反向验证揭出），再读 `build/**/Debug/tst_*.cpp.obj`（测试随模块走后 obj 在模块那一侧，须全树扫）的未定义符号拿到测试实际调用了谁，两者取差。行覆盖率在本机不具备（VS Community 不带 Code Coverage，且 MSVC 的 `/FUCOVERAGE` 与 `llvm-cov` 格式不兼容、实测取不到 profile），故止步于「测到没有」 |
 | `verify_translations.ps1` | 翻译管道：凡源码含 `tr()` 的目标必须列入顶层 `qt_add_translations` 的 `SOURCE_TARGETS`（§4 第 9 步的机械化——漏列不会让任何东西变红，只会让 lupdate 静默看不见该目标的字符串、既有英文译文被判 `vanished`，抽 ToolBoxApp 静态库时真实发生过一次） |
 | `verify_shell.ps1` | 外壳冒烟：插件装载数量、主程序版本号、Qt 对话框中文翻译。`-Exe` 可指向别处的构建产物（验收打包结果，§9）；`-Lang en\|zh` 断言对应语言的界面（§3.3） |
 | `verify_recent.ps1` | 收藏 / 最近使用 / 配置持久化 / 搜索 |
@@ -427,7 +428,7 @@ ctest --test-dir build -C Debug --output-on-failure
 | `verify_videodl_status.ps1` | 状态栏与进度反馈 |
 | `verify_videodl_logread.ps1` | 日志解析与输出读取 |
 | `_ui_language.ps1` | **共享助手，不是检查**：见下面「界面语言守卫」一段 |
-| `pre_commit.ps1` | **git pre-commit 钩子跑的那一个**（在 `scripts/verify/` 下，由 `../../.githooks/pre-commit` 调起，也可单独手跑）：把上面不需要构建的六项跑一遍（whitespace / format / conventions / filesize / translations / docs）。`verify_coretest` 与 `verify_naming` 都需要构建产物，**不进钩子**——每次提交都要求先构建，会训练大家用 `--no-verify`，那比没有钩子更糟；两者由 CI 在「Build Debug」之后保证输入存在。 |
+| `pre_commit.ps1` | **git pre-commit 钩子跑的那一个**（在 `scripts/verify/` 下，由 `../../.githooks/pre-commit` 调起，也可单独手跑）：把上面不需要构建的七项跑一遍（whitespace / format / conventions / moduleboundaries / filesize / translations / docs）。`verify_coretest` 与 `verify_naming` 都需要构建产物，**不进钩子**——每次提交都要求先构建，会训练大家用 `--no-verify`，那比没有钩子更糟；两者由 CI 在「Build Debug」之后保证输入存在。 |
 
 **周六 09:30 的自动化（tools-box 每周真机回归巡检）跑哪些**：`build_verify.ps1`
 全量 + `verify_shell.ps1 -Exe <Release 产物>`；`verify_videodl_fetch.ps1`、
@@ -442,7 +443,7 @@ ctest --test-dir build -C Debug --output-on-failure
 - `install_hooks.ps1` —— **让 git 用仓库里 `.githooks/` 目录里的钩子**（`git config
   core.hooksPath .githooks`）。**每个 clone 跑一次即可**：`core.hooksPath` 是本地仓库
   设置，git 没有让 clone 继承它的机制，这是 git 的限制而不是我们的选择。启用之后
-  每次 `git commit` 会自动跑 `pre_commit.ps1`（七个秒级检查），违规直接拦下提交。
+  每次 `git commit` 会自动跑 `pre_commit.ps1`（八个秒级检查），违规直接拦下提交。
   想临时跳过：`git commit --no-verify` —— CI 会跑同一套，所以那只是把失败推后。
 - `run_all.ps1` —— **一键跑完上面那八个自动检查**（空白 / 格式 / 规范 / 行数 /
   core 测试 / 翻译管道 / 文档 / 命名），按顺序执行、汇总成一个退出码。其中**两项需要
@@ -510,7 +511,7 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 
 完整清单：
 
-1. 跑上面第 1 步的七个脚本，构建之后再补跑命名检查
+1. 跑上面第 1 步的八个脚本，构建之后再补跑命名检查
    （[§3.2](#32-命名检查clang-tidy)）：八个都返回 0 才继续（一条命令：`run_all.ps1`）；
 2. 按 §6 确认版本号单一来源 —— 打包配置里没有再写一份版本号，
    `CPACK_PACKAGE_VERSION` 取的就是顶层 `project(... VERSION ...)`；

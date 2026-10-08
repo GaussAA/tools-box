@@ -197,7 +197,7 @@
 信号槽 / 字符串字面量 / QSettings 键」「`#pragma once` / moc 位置」分别下移到了
 编译器和 `scripts/verify/` 的四个脚本，「命名前后缀」下移到了 clang-tidy，
 「缩进 / 行宽 / 大括号 / include 排序」下移到了 clang-format（先做一次性归一化，
-再用脚本锁住）。**七个脚本都已在 CI 里跑**（push / PR 时，见
+再用脚本锁住）。**八个脚本都已在 CI 里跑**（push / PR 时，见
 [workflow.md §11](./workflow.md#11-持续集成ci)），所以「本地忘了跑」不再等于「没人跑」。
 两个 clang 工具的版本策略不同，但都**钉得住**：格式化器钉精确版本（换版本会改变输出
 字节，所以必须逐字节一致），clang-tidy 钉 LLVM 22.1 线（换线才可能改变命名判定，同一

@@ -28,7 +28,7 @@ ctest --test-dir build -C Debug --output-on-failure   # 单元测试
 ```
 
 钩子（**每个 clone 跑一次**）：让 git 用仓库里的 `.githooks/`，此后每次 `git commit`
-会自动跑六个秒级检查，违规直接拦下 —— 免得等 CI 几分钟后才被告知（需要构建产物的
+会自动跑七个秒级检查，违规直接拦下 —— 免得等 CI 几分钟后才被告知（需要构建产物的
 `verify_coretest` / `verify_naming` 不在钩子里，由 CI 在构建之后跑）：
 
 ```powershell
@@ -80,7 +80,7 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 - **纯逻辑必须能被单元测试覆盖**：凡是能脱离 `QWidget` 表达的逻辑都放进 `*/core/`，
   编成只链接 `Qt6::Core` 的静态库 —— 误用界面类会**直接编译失败**，不需要靠 grep 兜底。
 - **格式、空白与命名由脚本强制**：全仓已用 clang-format 归一化并锁住，`scripts/verify/`
-  下的七个脚本负责把关（格式与命名各钉一个工具版本，版本不符直接失败，不给假绿）。
+  下的八个脚本负责把关（格式与命名各钉一个工具版本，版本不符直接失败，不给假绿）。
   嫌逐个敲麻烦就跑 `scripts/verify/run_all.ps1`，它按顺序跑完这一套。
 - **单文件规模也有脚本盯着**：源码超过 600 行必须拆分，或登记豁免并写明理由与上限
   （`scripts/verify/verify_filesize.ps1`）—— 只写在评审结论里的话，文件下次又会悄悄长回去。

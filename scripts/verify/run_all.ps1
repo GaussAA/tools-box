@@ -1,6 +1,6 @@
 ﻿# Runs every automatic check in scripts/verify, in the order they should run.
 #
-# Why this exists: the eight checks were only ever invoked one by one, by hand, from
+# Why this exists: the nine checks were only ever invoked one by one, by hand, from
 # whatever paragraph of docs/workflow.md the reader happened to find first. On a
 # machine that has never run them the natural outcome is "ran two of them and moved
 # on". One command that runs all of them, in order, and reports a single verdict
@@ -22,14 +22,15 @@ $here = $PSScriptRoot
 
 # name -> whether it needs a build first
 $checks = @(
-  @{ Name = "verify_whitespace";    NeedsBuild = $false }
-  @{ Name = "verify_format";        NeedsBuild = $false }
-  @{ Name = "verify_conventions";   NeedsBuild = $false }
-  @{ Name = "verify_filesize";      NeedsBuild = $false }
-  @{ Name = "verify_coretest";      NeedsBuild = $true  }
-  @{ Name = "verify_translations";  NeedsBuild = $false }
-  @{ Name = "verify_docs";          NeedsBuild = $false }
-  @{ Name = "verify_naming";        NeedsBuild = $true  }
+  @{ Name = "verify_whitespace";        NeedsBuild = $false }
+  @{ Name = "verify_format";            NeedsBuild = $false }
+  @{ Name = "verify_conventions";       NeedsBuild = $false }
+  @{ Name = "verify_moduleboundaries";  NeedsBuild = $false }
+  @{ Name = "verify_filesize";          NeedsBuild = $false }
+  @{ Name = "verify_coretest";          NeedsBuild = $true  }
+  @{ Name = "verify_translations";      NeedsBuild = $false }
+  @{ Name = "verify_docs";              NeedsBuild = $false }
+  @{ Name = "verify_naming";            NeedsBuild = $true  }
 )
 
 $compileCommands = Join-Path $repo "build/compile_commands.json"
@@ -57,12 +58,14 @@ foreach ($check in $checks) {
   # verify_coretest reads the Debug build products (the core libraries' symbol
   # tables and the test object files) rather than compile_commands.json, so the
   # generic NeedsBuild test above does not cover it. Same principle: a gate that
-  # cannot see its input must say so rather than pass.
+  # cannot see its input must say so rather than pass. Scan the whole build tree
+  # (not just build\tests): since plan D3, a test registered from a module puts
+  # its object file next to that module's sources (build\plugins\..., build\app\...).
   if ($name -eq "verify_coretest") {
-    $debugObjs = @(Get-ChildItem (Join-Path $here "..\..\build\tests") -Recurse -Filter "tst_*.cpp.obj" -ErrorAction SilentlyContinue |
+    $debugObjs = @(Get-ChildItem (Join-Path $repo "build") -Recurse -Filter "tst_*.cpp.obj" -ErrorAction SilentlyContinue |
                     Where-Object { $_.FullName -match '\\Debug\\' })
     if ($debugObjs.Count -eq 0) {
-      Write-Output "SKIP: verify_coretest needs a Debug build (build\tests\**\Debug\tst_*.cpp.obj) -- run scripts\build_verify.ps1 first"
+      Write-Output "SKIP: verify_coretest needs a Debug build (build\**\Debug\tst_*.cpp.obj) -- run scripts\build_verify.ps1 first"
       $failed += $name
       continue
     }
