@@ -19,7 +19,10 @@ add_library(imgwatermark_core STATIC
     core/StegoPayload.h)
 
 target_link_libraries(imgwatermark_core PUBLIC Qt6::Gui)
-target_include_directories(imgwatermark_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+
+# PRIVATE, not PUBLIC (plan B): see plugins/base64/CMakeLists.txt. Own tests
+# get the module root from toolbox_add_test().
+target_include_directories(imgwatermark_core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 configure_file(metadata.json.in "${CMAKE_CURRENT_BINARY_DIR}/metadata.json" @ONLY)
 

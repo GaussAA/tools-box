@@ -20,6 +20,15 @@
 #   R3  Every tst_*.cpp must live in <module>/tests/ (plan D3's final layout,
 #       where even the top-level tests/ directory was dissolved).
 #
+#   R4  No CMakeLists.txt may put another module's directory on an include
+#       path. Plan B made module include directories PRIVATE, so linking a
+#       foreign library no longer grants its headers -- R4 closes the
+#       remaining hole: explicitly adding the foreign directory by hand.
+#       Together they move the module boundary from "a script that notices"
+#       to "the compiler refuses" (verified 2026-10-08: a probe target that
+#       linked base64_core and included its internal header failed with
+#       C1083 before this gate was even consulted).
+#
 # Needs no build. See docs/architecture.md plan D3 and the C-gate notes.
 #
 # NOTE: this file must keep its UTF-8 BOM (see verify_whitespace.ps1).
@@ -38,11 +47,15 @@ function Check([bool]$ok, [string]$msg) {
 
 # ---- module mapping --------------------------------------------------------
 
-# Returns the module id of a repo-relative path, or $null for "not in a module".
+# Returns the module id of a repo-relative path (file OR directory), or $null
+# for "not in a module". The (/$) alternatives matter: R4 feeds *directory*
+# paths like "plugins/videodl" (a CMakeLists.txt minus its filename), which
+# the original "plugins/([^/]+)/" form silently rejected -- found because the
+# R4 probe verification came back green when it had to be red.
 function Get-ModuleOf([string]$rel) {
-  if ($rel -match '^plugins/([^/]+)/') { return "plugins/" + $Matches[1] }
-  if ($rel -match '^app/')  { return "app" }
-  if ($rel -match '^sdk/')  { return "sdk" }
+  if ($rel -match '^plugins/([^/]+)(/|$)') { return "plugins/" + $Matches[1] }
+  if ($rel -match '^app(/|$)')  { return "app" }
+  if ($rel -match '^sdk(/|$)')  { return "sdk" }
   return $null
 }
 
@@ -155,6 +168,25 @@ foreach ($name in ($regs.Keys | Sort-Object)) {
   }
 }
 Write-Output ("R2/R3 test registration : {0} hit(s) over {1} test file(s), {2} registration(s)" -f $hits23, $tstFiles.Count, $regs.Count)
+
+# ---- R4: no foreign module directory on any include path --------------------
+
+$hits4 = 0
+foreach ($cm in $cmakeFiles) {
+  $cmModule = Get-ModuleOf ($cm -replace '/[^/]*$', '')
+  if (-not $cmModule) { continue }   # top-level CMakeLists adds subdirectories, not include paths
+
+  $text = [System.IO.File]::ReadAllText((Join-Path $repo $cm))
+  foreach ($line in ($text -split "`n")) {
+    if ($line -notmatch 'include_directories') { continue }
+    foreach ($m in [regex]::Matches($line, '(?<![!\$])\b(plugins/[A-Za-z0-9_-]+|app|sdk)\b')) {
+      if ($m.Groups[1].Value -eq $cmModule) { continue }
+      $hits4 += 1
+      Check $false ("{0} puts foreign module path '{1}' on an include path (R4)" -f $cm, $m.Groups[1].Value)
+    }
+  }
+}
+Write-Output ("R4 foreign include paths : {0} hit(s)" -f $hits4)
 
 # ---- verdict ----------------------------------------------------------------
 

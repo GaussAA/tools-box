@@ -12,7 +12,13 @@ add_library(base64_core STATIC
     core/Base64Codec.h)
 
 target_link_libraries(base64_core PUBLIC Qt6::Core)
-target_include_directories(base64_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+
+# PRIVATE, not PUBLIC (plan B): no other module may include this module's
+# headers, and linking the library must not silently hand out the include
+# path either. Own tests get the module root from toolbox_add_test(); a
+# foreign module that explicitly adds this path is caught by
+# verify_moduleboundaries R4.
+target_include_directories(base64_core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_library(base64_tool MODULE
     Base64Plugin.cpp

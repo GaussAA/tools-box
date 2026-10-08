@@ -435,6 +435,23 @@ plugins/videodl/
 `<模块>/tests/` 下。已挂 pre-commit 钩子、`run_all.ps1` 与 CI。四条探针路径
 （跨模块 include / 孤儿测试 / 幽灵注册 / 错位测试）各自反向验证过。
 
+**B 档（2026-10-08 落地）**：把边界从「脚本事后发现」升级成「编译器当场拒绝」。
+落地前先摸清了消费关系，结论让方案大幅缩水：**当前唯一的跨模块头文件出口就是
+`sdk/`**——插件之间、插件与外壳之间零头文件依赖（运行时经 `QPluginLoader`
+装配），所以不需要为没有消费者的模块硬造 `api/` 目录，只需要一件事：
+
+- 全部模块库（`*_core`、`videodl_orch`、`ToolBoxCore`、`ToolBoxApp`）的
+  `target_include_directories` 从 PUBLIC 改 **PRIVATE** —— 链接别人的库不再
+  附赠它的头文件路径，跨模块 include 直接 C1083。
+- 自家测试的 include 路径由 `toolbox_add_test()` 自动加上注册目录（模块根），
+  测内部实现是天经地义，不受影响。
+- `sdk` 保持 INTERFACE：它就是对外契约本体，不用再包一层。
+- **编译期强制已实测**：一个显式链接 `base64_core` 并 include 其内部头的探针
+  目标，PRIVATE 化之前能编过（PUBLIC 路径随链接传播），之后 `fatal error C1083`。
+- `verify_moduleboundaries` 补 **R4**（CMakeLists 不得把其它模块目录列为 include
+  路径）封住「显式加路径」的绕法。R4 的探针反向验证还揪出门禁自身一个 bug：
+  模块判定正则要求尾斜杠，喂目录路径时整体失明 —— 反向验证的意义第三次显现。
+
 ## 相关文档
 
 - [coding-standards.md](./coding-standards.md) —— 命名、内存、信号槽等编码规则

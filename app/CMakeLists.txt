@@ -16,8 +16,10 @@ target_link_libraries(ToolBoxCore PUBLIC Qt6::Core)
 # CMakeLists.txt 的 TOOLBOX_PLUGIN_ABI）， PluginScanPolicy 用它做装载前的门禁。
 target_compile_definitions(ToolBoxCore PRIVATE TOOLBOX_HOST_ABI="${TOOLBOX_PLUGIN_ABI}")
 
-# 把头文件目录暴露出去，测试目标才能 #include "core/ToolCatalog.h"
-target_include_directories(ToolBoxCore PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+# PRIVATE, not PUBLIC (plan B): the shell is never included by anyone (plugins
+# may not reach into app), so no include path needs to leave this module. Own
+# tests get the module root from toolbox_add_test().
+target_include_directories(ToolBoxCore PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # 把「外壳界面 + 插件装载」抽成一个静态库，让烟雾测试能直接链接它，
 # 而不必把 MainWindow.cpp / ToolRegistry.cpp 重复编译两份（见 docs/best-practices-assessment.md §3.4）。
@@ -29,8 +31,8 @@ qt_add_library(ToolBoxApp STATIC
     ToolRegistry.cpp
     ToolRegistry.h)
 target_link_libraries(ToolBoxApp PUBLIC ToolBox::Sdk ToolBoxCore Qt6::Widgets)
-# 暴露 app 目录，使测试目标能 #include "MainWindow.h" / "ToolRegistry.h"。
-target_include_directories(ToolBoxApp PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+# PRIVATE, not PUBLIC (plan B): see ToolBoxCore above.
+target_include_directories(ToolBoxApp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 qt_add_executable(ToolBox
     main.cpp)

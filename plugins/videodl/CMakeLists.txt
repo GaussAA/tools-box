@@ -22,8 +22,9 @@ add_library(videodl_core STATIC
 
 target_link_libraries(videodl_core PUBLIC Qt6::Core)
 
-# 把头文件目录暴露出去，测试目标才能 #include "core/OutputParsing.h"
-target_include_directories(videodl_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+# PRIVATE, not PUBLIC (plan B): see plugins/base64/CMakeLists.txt. Own tests
+# get the module root from toolbox_add_test().
+target_include_directories(videodl_core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # ── 编排层 ────────────────────────────────────────────────────────────────────
 # 「把外部世界的事件翻译成界面信号」的那一层：DownloadRunner（yt-dlp 输出 → 进度）、
@@ -54,8 +55,9 @@ qt_add_library(videodl_orch STATIC
 
 target_link_libraries(videodl_orch PUBLIC videodl_core Qt6::Core Qt6::Network)
 
-# 暴露本目录，使测试目标能 #include "DownloadRunner.h" / "IChildProcess.h"。
-target_include_directories(videodl_orch PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+# PRIVATE, not PUBLIC (plan B): see plugins/base64/CMakeLists.txt. Own tests
+# get the module root from toolbox_add_test().
+target_include_directories(videodl_orch PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # 视频下载插件本体。相比其它工具它多依赖一个 Qt 模块：
 # Qt6::Network —— 用来在首次使用时把 yt-dlp / ffmpeg 下载到 tools/bin

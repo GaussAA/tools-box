@@ -8,7 +8,10 @@ add_library(jsonfmt_core STATIC
     core/JsonFormat.h)
 
 target_link_libraries(jsonfmt_core PUBLIC Qt6::Core)
-target_include_directories(jsonfmt_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+
+# PRIVATE, not PUBLIC (plan B): see plugins/base64/CMakeLists.txt for the
+# rationale -- no include path leaks to whoever links this library.
+target_include_directories(jsonfmt_core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # 同 base64：abi 字段由构建注入，不手写（见 app/core/PluginScanPolicy.h）。
 configure_file(metadata.json.in "${CMAKE_CURRENT_BINARY_DIR}/metadata.json" @ONLY)

@@ -55,6 +55,13 @@ function(toolbox_add_test name)
   add_executable(${name} "${_src}")
   target_link_libraries(${name} PRIVATE Qt6::Test ${ARGN})
 
+  # The module root goes on the test's own include path (PRIVATE): tests may
+  # reach their module's internals by design, but since plan B the module
+  # libraries advertise no include directories at all -- linking a foreign
+  # module's library does NOT bring its headers with it, so a cross-module
+  # include cannot compile by accident.
+  target_include_directories(${name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+
   set_target_properties(${name} PROPERTIES
       RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests/$<CONFIG>")
 
