@@ -3,6 +3,8 @@
 #include "core/Base64Codec.h"
 
 #include <QCheckBox>
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
@@ -27,9 +29,19 @@ public:
     void saveState(const toolbox::ToolSettings &settings) override;
 
 private:
+    /// 把解码失败的原因翻成人话。
+    ///
+    /// 之所以值得单独一个函数：Qt 的解码器对非法输入是宽容的（跳过不认识的字符
+    /// 照解），改之前界面会把「输入压根不是 Base64」显示成一串问号，用户只会以为
+    /// 是自己粘错了。现在失败要说出**是哪一种失败**，这话只有界面该说（它是文案），
+    /// 判定本身在 core 里。
+    QString decodeFailureText(base64::DecodeError error, const QString &input, bool urlSafe) const;
+
     QPlainTextEdit *m_source = nullptr;
     QPlainTextEdit *m_result = nullptr;
     QCheckBox *m_urlSafe = nullptr;
+    QLabel *m_hint = nullptr;
+    QPushButton *m_copy = nullptr;
 };
 
 Base64Page::Base64Page(QWidget *parent)
@@ -44,6 +56,10 @@ Base64Page::Base64Page(QWidget *parent)
     m_result->setPlaceholderText(tr("结果"));
     m_result->setReadOnly(true);
 
+    // 结果为空时不允许复制：点了没反应比按钮灰着更让人困惑。
+    m_copy = new QPushButton(tr("复制结果"), this);
+    m_copy->setEnabled(false);
+
     auto *encodeButton = new QPushButton(tr("编码 →"), this);
     auto *decodeButton = new QPushButton(tr("← 解码"), this);
     auto *swapButton = new QPushButton(tr("结果转原文"), this);
@@ -53,36 +69,97 @@ Base64Page::Base64Page(QWidget *parent)
     buttons->addWidget(encodeButton);
     buttons->addWidget(decodeButton);
     buttons->addStretch(1);
+    buttons->addWidget(m_copy);
     buttons->addWidget(swapButton);
     buttons->addWidget(clearButton);
 
     m_urlSafe = new QCheckBox(tr("URL 安全字符集（用 - _ 代替 + /）"), this);
 
+    m_hint = new QLabel(this);
+    m_hint->setWordWrap(true);
+
     layout->addWidget(new QLabel(tr("原文"), this));
     layout->addWidget(m_source, 1);
     layout->addLayout(buttons);
     layout->addWidget(m_urlSafe);
+    layout->addWidget(m_hint);
     layout->addWidget(new QLabel(tr("结果"), this));
     layout->addWidget(m_result, 1);
 
     // 编解码规则在 base64_core（可单测），这里只负责取文本、传参、显示结果。
     // 所有连接都以 this 作为上下文对象，页面销毁时连接自动断开。
     connect(encodeButton, &QPushButton::clicked, this, [this] {
+        m_hint->clear();
         m_result->setPlainText(
             base64::encodeBase64(m_source->toPlainText(), m_urlSafe->isChecked()));
     });
+
     connect(decodeButton, &QPushButton::clicked, this, [this] {
-        m_result->setPlainText(
-            base64::decodeBase64(m_source->toPlainText(), m_urlSafe->isChecked()));
+        const bool urlSafe = m_urlSafe->isChecked();
+        const base64::DecodeResult decoded =
+            base64::decodeBase64Checked(m_source->toPlainText(), urlSafe);
+        if (!decoded.ok) {
+            m_result->clear();
+            m_hint->setText(decodeFailureText(decoded.error, m_source->toPlainText(), urlSafe));
+            return;
+        }
+        m_hint->clear();
+        m_result->setPlainText(decoded.text);
     });
+
+    connect(m_copy, &QPushButton::clicked, this, [this] {
+        const QString text = m_result->toPlainText();
+        if (text.isEmpty()) {
+            return;
+        }
+        QGuiApplication::clipboard()->setText(text);
+        // 说一句「复制好了」：剪贴板没有任何视觉反馈，不说用户会怀疑有没有生效。
+        m_hint->setText(tr("已复制结果到剪贴板。"));
+    });
+
+    // 复制按钮的可用状态跟着结果走，省得在每处 setPlainText 之后单独维护。
+    connect(m_result, &QPlainTextEdit::textChanged, this,
+            [this] { m_copy->setEnabled(!m_result->toPlainText().isEmpty()); });
+
     connect(swapButton, &QPushButton::clicked, this, [this] {
         m_source->setPlainText(m_result->toPlainText());
         m_result->clear();
+        m_hint->clear();
     });
+
     connect(clearButton, &QPushButton::clicked, this, [this] {
         m_source->clear();
         m_result->clear();
+        m_hint->clear();
     });
+}
+
+QString Base64Page::decodeFailureText(base64::DecodeError error, const QString &input,
+                                      bool urlSafe) const
+{
+    switch (error) {
+    case base64::DecodeError::Empty:
+        return tr("先在原文框里粘贴要解码的 Base64。");
+
+    case base64::DecodeError::BadLength:
+        return tr("不像 Base64：去掉首尾空白后是 %1 个字符，必须能被 4 整除"
+                  "（多半是粘贴时被截断了）。")
+            .arg(input.trimmed().size());
+
+    case base64::DecodeError::BadCharacter:
+        // 最常见的一种错：字符集勾错了。URL 安全的 `-` `_` 在标准字符集里就是
+        // 非法字符，只说「含非法字符」用户还得自己猜。
+        if (!urlSafe && (input.contains(QLatin1Char('-')) || input.contains(QLatin1Char('_')))) {
+            return tr("含标准字符集之外的字符（- 或 _）。这串像是 URL 安全 Base64，"
+                      "试试勾上「URL 安全字符集」。");
+        }
+        return tr("含当前字符集之外的字符，看起来不是有效的 Base64。");
+
+    case base64::DecodeError::None:
+        break;
+    }
+
+    return {};
 }
 
 void Base64Page::restoreState(const toolbox::ToolSettings &settings)
@@ -101,7 +178,7 @@ toolbox::ToolMeta Base64Plugin::meta() const
     info.id = QStringLiteral("text.base64");
     info.name = tr("Base64 编解码");
     info.category = tr("文本编码");
-    info.version = QStringLiteral("0.2.0");
+    info.version = QStringLiteral("0.3.0");
     info.description = tr("UTF-8 文本与 Base64 互转，支持 URL 安全字符集。");
     // 图标来自插件自身的资源（由 CMakeLists.txt 里的 qt_add_resources 打进 DLL）。
     info.icon = QIcon(QStringLiteral(":/icons/base64.svg"));

@@ -29,4 +29,49 @@ QString decodeBase64(const QString &text, bool urlSafe)
     return QString::fromUtf8(decoded);
 }
 
+DecodeResult decodeBase64Checked(const QString &text, bool urlSafe)
+{
+    DecodeResult result;
+
+    // 与 decodeBase64() 保持一致地先去首尾空白，否则「粘贴带了换行」会被误判为非法字符。
+    const QString trimmed = text.trimmed();
+    if (trimmed.isEmpty()) {
+        result.error = DecodeError::Empty;
+        return result;
+    }
+
+    // Base64 以 4 个字符为一组，长度不是 4 的倍数说明输入被截断或压根不是 Base64。
+    if (trimmed.size() % 4 != 0) {
+        result.error = DecodeError::BadLength;
+        return result;
+    }
+
+    const QString alphabet = urlSafe
+        ? QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
+        : QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/");
+
+    int padding = 0;
+    for (int i = 0; i < trimmed.size(); ++i) {
+        const QChar ch = trimmed.at(i);
+        if (ch == QLatin1Char('=')) {
+            // 补位最多两个，且只能出现在末尾 —— 早于末尾两位就说明是乱写的。
+            if (i < trimmed.size() - 2) {
+                result.error = DecodeError::BadCharacter;
+                return result;
+            }
+            ++padding;
+            continue;
+        }
+        // 补位之后不该再出现别的字符；字符必须在字符集内。
+        if (padding > 0 || !alphabet.contains(ch)) {
+            result.error = DecodeError::BadCharacter;
+            return result;
+        }
+    }
+
+    result.ok = true;
+    result.text = decodeBase64(trimmed, urlSafe);
+    return result;
+}
+
 } // namespace base64
