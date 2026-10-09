@@ -56,6 +56,7 @@ const QString kLastToolKey = QStringLiteral("ui/lastToolId");
 const QString kFavoritesKey = QStringLiteral("ui/favorites");
 const QString kRecentKey = QStringLiteral("ui/recent");
 const QString kUiLanguageKey = QStringLiteral("ui/language");
+const QString kWindowGeometryKey = QStringLiteral("ui/geometry");
 
 /// 插件没提供图标时，用工具名首字符画一个圆角占位图标。
 /// 色相由名字哈希决定，保证同一个工具每次启动颜色都一样。
@@ -90,7 +91,16 @@ MainWindow::MainWindow(QWidget *parent)
     , m_registry(new ToolRegistry(this))
 {
     setWindowTitle(tr("工具箱"));
-    resize(1024, 700);
+
+    // 窗口大小与位置沿用上次会话；没有记录（首次启动，或配置被清过）才用默认尺寸。
+    // 放在 buildUi() 之前恢复，是为了让布局直接按最终尺寸排一次，而不是先按
+    // 1024x700 排好再被拉一遍。
+    const QByteArray savedGeometry = QSettings().value(kWindowGeometryKey).toByteArray();
+    if (savedGeometry.isEmpty()) {
+        resize(1024, 700);
+    } else {
+        restoreGeometry(savedGeometry);
+    }
 
     // 收藏和最近使用必须在 reloadTools() 之前读回来：reloadTools() 会把
     // 内存里的这两个列表原样写回配置（用来剔除失效的工具 id），
@@ -194,6 +204,9 @@ void MainWindow::buildMenus()
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     saveAllToolStates();
+    // 存几何而不是尺寸：saveGeometry() 连最大化状态和停靠位置一起记下来，
+    // 下次启动能原样还回去（restoreGeometry 在构造函数里，见那里）。
+    QSettings().setValue(kWindowGeometryKey, saveGeometry());
     QMainWindow::closeEvent(event);
 }
 

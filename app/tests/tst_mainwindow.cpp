@@ -39,6 +39,7 @@ private slots:
     void switchToHomePageDoesNotCrash();
     void searchFilterDoesNotCrash();
     void languageMenuReflectsConfiguredChoice();
+    void remembersWindowGeometryAcrossSessions();
 };
 
 namespace {
@@ -157,6 +158,34 @@ void TestMainWindow::languageMenuReflectsConfiguredChoice()
         QVERIFY(!findAction(language, QStringLiteral("跟随系统"))->isChecked());
     }
     QSettings().remove(QStringLiteral("ui/language"));
+}
+
+// 窗口几何：上次拖好的大小与位置要沿用，首次启动（无配置）才用默认尺寸。
+// 用「另造一个顶层窗口」的办法拿到一份真实的几何字节，尺寸刻意取成与默认
+// 1024x700 不同的 777x555 —— 这样「还原了」与「忽略了配置」一眼可辨，
+// 不会出现「两者恰好一样所以断言白写」的假绿。
+void TestMainWindow::remembersWindowGeometryAcrossSessions()
+{
+    QSettings().remove(QStringLiteral("ui/geometry"));
+
+    QWidget sample;
+    sample.resize(777, 555);
+    const QByteArray saved = sample.saveGeometry();
+    QVERIFY2(!saved.isEmpty(), "样本窗口没能给出几何数据");
+
+    QSettings().setValue(QStringLiteral("ui/geometry"), saved);
+    {
+        MainWindow w;
+        QCOMPARE(w.size(), QSize(777, 555));
+    }
+
+    // 抹掉配置后必须回到默认尺寸，而不是把上一轮的残留读出来 —— 顺带确认
+    // 上面那条断言不是碰巧成立。
+    QSettings().remove(QStringLiteral("ui/geometry"));
+    {
+        MainWindow w;
+        QCOMPARE(w.size(), QSize(1024, 700));
+    }
 }
 
 int main(int argc, char *argv[])
