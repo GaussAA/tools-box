@@ -6,11 +6,13 @@
 #include "core/StegoPayload.h"
 
 #include <QCheckBox>
+#include <QClipboard>
 #include <QComboBox>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -450,11 +452,18 @@ void ImgWatermarkPage::onExtracted(const imgwatermark::ExtractResult &result)
         return;
     }
     const QString text = QString::fromUtf8(result.payload);
-    setStatus(tr("✓ 提取成功（第 %1 条带校验通过）：%2").arg(result.recoveredStripes).arg(text));
-    QMessageBox::information(
-        this, tr("提取成功"),
-        tr("水印内容：\n\n%1\n\n提取到了肉眼看不见的数据 —— 这正是数字水印与可见水印的区别。")
-            .arg(text));
+
+    // 提取出来的水印多半要拿去比对或登记，直接放进剪贴板省掉一次手选 ——
+    // QMessageBox 里的文字是选不中的，不说一句用户也不知道已经能粘了。
+    QGuiApplication::clipboard()->setText(text);
+
+    setStatus(tr("✓ 提取成功（第 %1 条带校验通过）：%2 —— 已复制到剪贴板")
+                  .arg(result.recoveredStripes)
+                  .arg(text));
+    QMessageBox::information(this, tr("提取成功"),
+                             tr("水印内容：\n\n%1\n\n（已复制到剪贴板）\n\n"
+                                "提取到了肉眼看不见的数据 —— 这正是数字水印与可见水印的区别。")
+                                 .arg(text));
 }
 
 void ImgWatermarkPage::saveResult()
