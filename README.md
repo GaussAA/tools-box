@@ -80,7 +80,7 @@ cpack --config build\CPackConfig.cmake -C Release -B build\package
 - **纯逻辑必须能被单元测试覆盖**：凡是能脱离 `QWidget` 表达的逻辑都放进 `*/core/`，
   编成只链接 `Qt6::Core` 的静态库 —— 误用界面类会**直接编译失败**，不需要靠 grep 兜底。
 - **格式、空白与命名由脚本强制**：全仓已用 clang-format 归一化并锁住，`scripts/verify/`
-  下的八个脚本负责把关（格式与命名各钉一个工具版本，版本不符直接失败，不给假绿）。
+  下的九个脚本负责把关（格式与命名各钉一个工具版本，版本不符直接失败，不给假绿）。
   嫌逐个敲麻烦就跑 `scripts/verify/run_all.ps1`，它按顺序跑完这一套。
 - **单文件规模也有脚本盯着**：源码超过 600 行必须拆分，或登记豁免并写明理由与上限
   （`scripts/verify/verify_filesize.ps1`）—— 只写在评审结论里的话，文件下次又会悄悄长回去。
