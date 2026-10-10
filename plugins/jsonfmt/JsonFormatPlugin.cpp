@@ -4,12 +4,20 @@
 
 #include <QClipboard>
 #include <QComboBox>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QKeySequence>
 #include <QLabel>
+#include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QShortcut>
+#include <QUrl>
 #include <QVBoxLayout>
 
 /// 工具页面：JSON 格式化 / 压缩。
@@ -28,8 +36,16 @@ public:
     void restoreState(const toolbox::ToolSettings &settings) override;
     void saveState(const toolbox::ToolSettings &settings) override;
 
+protected:
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
+
 private:
+    /// 拖进来的文件最多读 1 MB。再大只会把界面卡住。
+    static constexpr qint64 kMaxDropBytes = 1024 * 1024;
+
     void convert(bool compact);
+    void readDroppedFile(const QString &path);
 
     QPlainTextEdit *m_source = nullptr;
     QPlainTextEdit *m_result = nullptr;
@@ -41,10 +57,12 @@ private:
 JsonFormatPage::JsonFormatPage(QWidget *parent)
     : QWidget(parent)
 {
+    setAcceptDrops(true);
+
     auto *layout = new QVBoxLayout(this);
 
     m_source = new QPlainTextEdit(this);
-    m_source->setPlaceholderText(tr("在这里粘贴 JSON"));
+    m_source->setPlaceholderText(tr("在这里粘贴 JSON —— 也可以把 .json 文件拖进来"));
 
     m_result = new QPlainTextEdit(this);
     m_result->setPlaceholderText(tr("结果"));
@@ -68,6 +86,10 @@ JsonFormatPage::JsonFormatPage(QWidget *parent)
     auto *compactButton = new QPushButton(tr("压缩"), this);
     auto *clearButton = new QPushButton(tr("清空"), this);
 
+    // 快捷键写在 tooltip 里，否则没人知道它们存在。
+    beautifyButton->setToolTip(tr("格式化（Ctrl+Enter）"));
+    compactButton->setToolTip(tr("压缩（Ctrl+Shift+Enter）"));
+
     auto *options = new QHBoxLayout;
     options->addWidget(new QLabel(tr("缩进"), this));
     options->addWidget(m_indent);
@@ -89,6 +111,19 @@ JsonFormatPage::JsonFormatPage(QWidget *parent)
     connect(beautifyButton, &QPushButton::clicked, this, [this] { convert(false); });
     connect(compactButton, &QPushButton::clicked, this, [this] { convert(true); });
 
+    // 大回车与小键盘回车各接一个，否则用另一块键盘的人会觉得快捷键时灵时不灵。
+    for (const auto &keys : {QKeySequence(QKeyCombination(Qt::ControlModifier, Qt::Key_Return)),
+                             QKeySequence(QKeyCombination(Qt::ControlModifier, Qt::Key_Enter))}) {
+        auto *shortcut = new QShortcut(keys, this);
+        connect(shortcut, &QShortcut::activated, beautifyButton, &QPushButton::click);
+    }
+    for (const auto &keys :
+         {QKeySequence(QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_Return)),
+          QKeySequence(QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_Enter))}) {
+        auto *shortcut = new QShortcut(keys, this);
+        connect(shortcut, &QShortcut::activated, compactButton, &QPushButton::click);
+    }
+
     connect(m_copy, &QPushButton::clicked, this, [this] {
         const QString text = m_result->toPlainText();
         if (text.isEmpty()) {
@@ -108,6 +143,54 @@ JsonFormatPage::JsonFormatPage(QWidget *parent)
         m_result->clear();
         m_hint->clear();
     });
+}
+
+void JsonFormatPage::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    }
+}
+
+void JsonFormatPage::dropEvent(QDropEvent *event)
+{
+    const QList<QUrl> urls = event->mimeData()->urls();
+    if (urls.isEmpty()) {
+        return;
+    }
+    const QString path = urls.first().toLocalFile();
+    if (path.isEmpty()) {
+        return;
+    }
+    readDroppedFile(path);
+    event->acceptProposedAction();
+}
+
+void JsonFormatPage::readDroppedFile(const QString &path)
+{
+    const QFileInfo info(path);
+
+    if (info.size() > kMaxDropBytes) {
+        m_hint->setText(tr("「%1」有 %2 KB，超过 1 MB —— 再大只会把界面卡住。")
+                            .arg(info.fileName())
+                            .arg(info.size() / 1024));
+        return;
+    }
+
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        m_hint->setText(tr("读不到「%1」：%2").arg(info.fileName(), file.errorString()));
+        return;
+    }
+
+    const QByteArray bytes = file.readAll();
+    if (bytes.contains('\0')) {
+        m_hint->setText(tr("「%1」不像文本文件（含二进制内容）。").arg(info.fileName()));
+        return;
+    }
+
+    m_source->setPlainText(QString::fromUtf8(bytes));
+    m_hint->setText(tr("已读入 %1（%2 字节）").arg(info.fileName()).arg(bytes.size()));
 }
 
 void JsonFormatPage::convert(bool compact)
