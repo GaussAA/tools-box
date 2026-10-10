@@ -32,6 +32,10 @@ $exemptions = @{
     Limit = 800
     Why   = "deviation 9.2 / plan D2 in docs/architecture.md: parsing rules are in plugins/videodl/core, the engine downloader is EngineFetcher.h, and the runner / resolver are DownloadRunner.h / DouyinResolver.h; the page is UI-only and must not grow back past this"
   }
+  "plugins/imgwatermark/ImgWatermarkPlugin.cpp" = @{
+    Limit = 700
+    Why   = "deviation 9.19 in docs/architecture.md: DCT/embedding logic is in core/Stego.cpp and core/StegoPayload.cpp, the traceable watermark text is WatermarkText.cpp, so what remains is UI assembly plus view-state refresh; splitting it further would mean moving the page class into a header, which is an org-wide choice across all four plugins and belongs on its own schedule"
+  }
 }
 
 $sources = @(& git -C $repo ls-files "*.cpp" "*.h" "*.hpp") `

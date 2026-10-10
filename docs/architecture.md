@@ -277,6 +277,7 @@ tools-box/
 
 | 9.17 | 数字水印的「自动水印文本」（文件名 + 尺寸 + 体积 + 时间的拼接）写在页面 .cpp 里，**无法单测** | [WatermarkText.cpp](../plugins/imgwatermark/WatermarkText.cpp) | 它与界面无关、却是本工具唯一的溯源信息生成处；而 tools-box 对「可测性缺口」的态度是「能挪进 core 就挪」（architecture §3）| **已消除（P3，2026-10-07）**：抽成 `WatermarkText.h/.cpp`，签名改为显式参数（原先收 `QFileInfo`，测试就得造临时文件），由 `tst_stego` 的 `autoWatermarkTextCarriesTraceableFields()` 与 `outputFormatsCoverLosslessAndLossy()` 盯住 | 顺带把 `ImgWatermarkPlugin.cpp` 从 631 行降到 578 行，回到 `verify_filesize.ps1` 的 600 行门禁以内（不必登记豁免） |
 | ~~9.18~~ | ~~`toolbox_add_test()` 按**两个位置**找测试源码~~ | [cmake/ToolBoxTest.cmake](../cmake/ToolBoxTest.cmake) | D3 分批推进期间，`plugins/videodl/tests/`（已搬）与顶层 `tests/`（未搬）**并存**，函数必须两处都认 | **已消除（P2，2026-10-08 当日收官）**：其余模块当天全部跟进搬迁，第二条查找路径已删，现在**只认** `<模块>/tests/<name>.cpp`，找不到即配置期 FATAL_ERROR —— 它第一次上岗就拦下了 `tests/tests/` 这个路径拼接错误。原注销判据（顶层 `tests/` 只剩不属单个模块的用例）更进一步：连 `tst_integration` 都归属了 `app/tests/`，顶层 `tests/` 目录整个消失 | 无 |
+| 9.19 | `plugins/imgwatermark/ImgWatermarkPlugin.cpp` 630 行，**超出 600 行门禁**，登记豁免（上限 700）而非拆分 | [ImgWatermarkPlugin.cpp](../plugins/imgwatermark/ImgWatermarkPlugin.cpp)、[verify_filesize.ps1](../scripts/verify/verify_filesize.ps1) | 加入拖放后把「选择图片…」与拖放共用为 `loadSourceFile()`，净增约 50 行；该文件剩下的确是 UI 装配与视图状态刷新（像素运算在 `core/Stego.cpp`，溯源文本在 `WatermarkText.cpp`） | **有意接受（P2，2026-10-10）**：再往下拆就要把页面类从 .cpp 移进 .h（否则新文件看不到成员），而四个插件目前都是「类定义在 .cpp + `#include "xxx.moc"`」这一套；为一个文件改变四个插件的组织方式，属跨插件的风格决策，应单独排期（同偏差 9.7 的判据：等它成为普遍痛点） | 上限 700 由 `verify_filesize.ps1` 盯住，超了立刻 FAIL。**触发拆分的信号**：再来 ~70 行就必须拆，届时顺带评估「插件页面是否统一改为类声明进 .h」 |
 
 ## 10. 目标架构与迁移计划
 
