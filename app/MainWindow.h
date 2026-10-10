@@ -40,6 +40,8 @@ private slots:
     void onNavContextMenu(const QPoint &pos);
     void reloadTools();
     void showAbout();
+    void clearFavorites();
+    void clearRecent();
 
 private:
     /// 一个已加载工具在外壳里需要的全部信息，用来重建导航。
@@ -76,6 +78,8 @@ private:
     const ToolEntry *findTool(const QString &toolId) const;
 
     ToolRegistry *m_registry = nullptr;
+    QAction *m_clearFavorites = nullptr; ///< 列表为空时置灰，见 rebuildNav()
+    QAction *m_clearRecent = nullptr;
     QLineEdit *m_search = nullptr;
     QListWidget *m_nav = nullptr;
     QStackedWidget *m_stack = nullptr;

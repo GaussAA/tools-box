@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 
 #include "ToolBoxPlugin.h"
+#include "ToolIcons.h"
 #include "ToolRegistry.h"
 #include "core/ToolCatalog.h"
 
@@ -8,7 +9,6 @@
 #include <QActionGroup>
 #include <QApplication>
 #include <QCloseEvent>
-#include <QColor>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFont>
@@ -21,9 +21,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
-#include <QPainter>
 #include <QPalette>
-#include <QPixmap>
 #include <QSet>
 #include <QSettings>
 #include <QStackedWidget>
@@ -57,32 +55,6 @@ const QString kFavoritesKey = QStringLiteral("ui/favorites");
 const QString kRecentKey = QStringLiteral("ui/recent");
 const QString kUiLanguageKey = QStringLiteral("ui/language");
 const QString kWindowGeometryKey = QStringLiteral("ui/geometry");
-
-/// 插件没提供图标时，用工具名首字符画一个圆角占位图标。
-/// 色相由名字哈希决定，保证同一个工具每次启动颜色都一样。
-QIcon fallbackToolIcon(const QString &name)
-{
-    constexpr int kSize = 48;
-
-    QPixmap pixmap(kSize, kSize);
-    pixmap.fill(Qt::transparent);
-
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor::fromHsv(static_cast<int>(qHash(name) % 360u), 140, 200));
-    painter.drawRoundedRect(QRectF(2, 2, kSize - 4, kSize - 4), 12, 12);
-
-    QFont font = painter.font();
-    font.setPixelSize(26);
-    font.setBold(true);
-    painter.setFont(font);
-    painter.setPen(Qt::white);
-    painter.drawText(pixmap.rect(), Qt::AlignCenter,
-                     name.isEmpty() ? QStringLiteral("?") : name.left(1).toUpper());
-
-    return QIcon(pixmap);
-}
 
 } // namespace
 
@@ -161,6 +133,11 @@ void MainWindow::buildMenus()
     fileMenu->addAction(tr("打开插件目录"), this, [] {
         QDesktopServices::openUrl(QUrl::fromLocalFile(ToolRegistry::defaultPluginDir()));
     });
+    fileMenu->addSeparator();
+    // 收藏和最近使用此前只能逐个右键取消，攒多了就清不动。可用状态由
+    // rebuildNav() 跟着列表维护 —— 空着的时候不让人点。
+    m_clearFavorites = fileMenu->addAction(tr("清空收藏"), this, &MainWindow::clearFavorites);
+    m_clearRecent = fileMenu->addAction(tr("清空最近使用"), this, &MainWindow::clearRecent);
     fileMenu->addSeparator();
     fileMenu->addAction(tr("退出"), QKeySequence::Quit, this, &QWidget::close);
 
@@ -312,7 +289,7 @@ void MainWindow::rebuildNav()
 
     auto addTool = [this](const ToolEntry &tool) {
         auto *item = new QListWidgetItem(tool.name, m_nav);
-        item->setIcon(tool.icon.isNull() ? fallbackToolIcon(tool.name) : tool.icon);
+        item->setIcon(tool.icon.isNull() ? toolbox::fallbackToolIcon(tool.name) : tool.icon);
         item->setData(kPageIndexRole, tool.pageIndex);
         item->setData(kToolIdRole, tool.id);
         item->setData(kSearchTextRole, tool.searchText);
@@ -369,6 +346,14 @@ void MainWindow::rebuildNav()
     m_nav->setCurrentRow(row);
 
     m_applyingFilter = wasApplying;
+
+    // 列表空了就把清空入口置灰：点了没反应比按钮灰着更让人困惑。
+    if (m_clearFavorites) {
+        m_clearFavorites->setEnabled(!m_favorites.isEmpty());
+    }
+    if (m_clearRecent) {
+        m_clearRecent->setEnabled(!m_recent.isEmpty());
+    }
 
     // 导航项全换了，之前算出来的隐藏状态要重算一遍。
     applyFilter(m_search->text().trimmed());
@@ -493,6 +478,32 @@ void MainWindow::toggleFavorite(const QString &toolId)
     // 收藏分区会增删，导航结构直接重建。rebuildNav 会把选中行还原回
     // m_currentToolId，所以用户视觉上不会跳到别处。
     rebuildNav();
+}
+
+void MainWindow::clearFavorites()
+{
+    if (m_favorites.isEmpty()) {
+        return;
+    }
+    m_favorites.clear();
+    QSettings().setValue(kFavoritesKey, m_favorites);
+
+    // 重建导航会把「收藏」分区整个去掉，并把清空动作置灰。
+    rebuildNav();
+    statusBar()->showMessage(tr("已清空收藏。"));
+}
+
+void MainWindow::clearRecent()
+{
+    if (m_recent.isEmpty()) {
+        return;
+    }
+    m_recent.clear();
+    QSettings().setValue(kRecentKey, m_recent);
+
+    rebuildNav();
+    // 不清 m_currentToolId：清空历史不该把用户正在看的页面也换掉。
+    statusBar()->showMessage(tr("已清空最近使用。"));
 }
 
 void MainWindow::onNavContextMenu(const QPoint &pos)

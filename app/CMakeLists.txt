@@ -28,6 +28,8 @@ target_include_directories(ToolBoxCore PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 qt_add_library(ToolBoxApp STATIC
     MainWindow.cpp
     MainWindow.h
+    ToolIcons.cpp
+    ToolIcons.h
     ToolRegistry.cpp
     ToolRegistry.h)
 target_link_libraries(ToolBoxApp PUBLIC ToolBox::Sdk ToolBoxCore Qt6::Widgets)

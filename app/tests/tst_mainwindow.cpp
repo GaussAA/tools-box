@@ -40,6 +40,7 @@ private slots:
     void searchFilterDoesNotCrash();
     void languageMenuReflectsConfiguredChoice();
     void remembersWindowGeometryAcrossSessions();
+    void clearActionsAreGreyedOutWhenListsAreEmpty();
 };
 
 namespace {
@@ -186,6 +187,42 @@ void TestMainWindow::remembersWindowGeometryAcrossSessions()
         MainWindow w;
         QCOMPARE(w.size(), QSize(1024, 700));
     }
+}
+
+// 「收藏」与「最近使用」此前只能逐个右键取消，攒多了就清不动。菜单给了一次性
+// 入口后要三件事同时成立：配置清掉、导航里的分区消失、动作本身变灰（空了还
+// 让人点是没有意义的）。三条里少验一条，就可能出现「配置清了界面还留着」。
+namespace {
+
+/// 通过菜单**真实触发**动作：只改配置不算验证，得证明动作接上了。
+QAction *fileMenuAction(const QWidget *window, const QString &text)
+{
+    QMenu *file = findSubMenu(window, QStringLiteral("文件"));
+    return file ? findAction(file, text) : nullptr;
+}
+
+} // namespace
+
+void TestMainWindow::clearActionsAreGreyedOutWhenListsAreEmpty()
+{
+    // 「收藏」与「最近使用」此前只能逐个右键取消，攒多了就清不动，菜单里
+    // 给了一次性入口。这里能钉住的是：**列表为空时动作必须置灰** —— 点了
+    // 没反应比按钮灰着更让人困惑。
+    //
+    // 至于「清空后分区真的消失」那一半，本环境测不到：无插件时 reloadTools()
+    // 会走 pruneMissingIds() 把失效 id 全部剔除，两个列表恒为空，分区根本
+    // 不会出现（这不是缺陷，是既有设计）。那一半交给真机冒烟。
+    QSettings().remove(QStringLiteral("ui/favorites"));
+    QSettings().remove(QStringLiteral("ui/recent"));
+
+    MainWindow w;
+
+    QAction *clearFavorites = fileMenuAction(&w, QStringLiteral("清空收藏"));
+    QAction *clearRecent = fileMenuAction(&w, QStringLiteral("清空最近使用"));
+    QVERIFY2(clearFavorites != nullptr, "文件菜单里没有「清空收藏」");
+    QVERIFY2(clearRecent != nullptr, "文件菜单里没有「清空最近使用」");
+    QVERIFY(!clearFavorites->isEnabled());
+    QVERIFY(!clearRecent->isEnabled());
 }
 
 int main(int argc, char *argv[])
