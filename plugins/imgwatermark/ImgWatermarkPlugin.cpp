@@ -8,6 +8,8 @@
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
@@ -17,12 +19,14 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSlider>
 #include <QSpinBox>
 #include <QThread>
+#include <QUrl>
 #include <QVBoxLayout>
 #include <QtConcurrent>
 
@@ -57,9 +61,17 @@ public:
     void restoreState(const toolbox::ToolSettings &settings) override;
     void saveState(const toolbox::ToolSettings &settings) override;
 
+protected:
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
+
 private:
     void buildUi();
     void pickImage();
+    /// 把指定路径的图片读成当前原图。「选择图片…」与拖放共用这一条路径：
+    /// 同样的格式校验、同样的大小上限、同样的报错措辞 —— 各写一份迟早会
+    /// 长出两套行为。返回是否成功，失败时自己已经把原因告诉用户了。
+    bool loadSourceFile(const QString &path);
     void startEmbed();
     void startExtract();
     void saveResult();
@@ -111,6 +123,8 @@ private:
 ImgWatermarkPage::ImgWatermarkPage(QWidget *parent)
     : QWidget(parent)
 {
+    // 这个工具最顺手的用法就是把图片直接拖进来，不必先点「选择图片…」。
+    setAcceptDrops(true);
     buildUi();
 }
 
@@ -267,7 +281,33 @@ void ImgWatermarkPage::pickImage()
     if (path.isEmpty()) {
         return;
     }
+    loadSourceFile(path);
+}
 
+void ImgWatermarkPage::dragEnterEvent(QDragEnterEvent *event)
+{
+    // 只接文件：往这里拖一段文字没有意义。
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    }
+}
+
+void ImgWatermarkPage::dropEvent(QDropEvent *event)
+{
+    const QList<QUrl> urls = event->mimeData()->urls();
+    if (urls.isEmpty()) {
+        return;
+    }
+    const QString path = urls.first().toLocalFile();
+    if (path.isEmpty()) {
+        return;
+    }
+    loadSourceFile(path);
+    event->acceptProposedAction();
+}
+
+bool ImgWatermarkPage::loadSourceFile(const QString &path)
+{
     const QFileInfo info(path);
 
     // 格式先判：让用户拿到「这不对」比让他等几秒再看到同样的话要好。
@@ -277,7 +317,7 @@ void ImgWatermarkPage::pickImage()
         QMessageBox::warning(this, tr("不支持的格式"),
                              tr("「%1」不是支持的图片格式。\n\n仅支持：PNG、JPEG、BMP、WebP。")
                                  .arg(info.fileName()));
-        return;
+        return false;
     }
 
     if (info.size() > kMaxFileSizeMB * 1024 * 1024) {
@@ -286,7 +326,7 @@ void ImgWatermarkPage::pickImage()
                                 "水印嵌入需要逐像素运算，过大的图片处理时间过长。")
                                  .arg(info.size() / (1024 * 1024))
                                  .arg(kMaxFileSizeMB));
-        return;
+        return false;
     }
 
     QImage loaded(path);
@@ -294,7 +334,7 @@ void ImgWatermarkPage::pickImage()
         QMessageBox::warning(
             this, tr("无法读取图片"),
             tr("读取「%1」失败。文件可能已损坏，或不是有效的图片。").arg(info.fileName()));
-        return;
+        return false;
     }
 
     m_source = loaded;
@@ -313,6 +353,7 @@ void ImgWatermarkPage::pickImage()
     m_textEdit->setEnabled(m_customText->isChecked());
     refreshCapacityHint();
     setStatus(tr("已载入 %1×%2，可嵌入水印").arg(m_source.width()).arg(m_source.height()));
+    return true;
 }
 
 void ImgWatermarkPage::refreshCapacityHint()
