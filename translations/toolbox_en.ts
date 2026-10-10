@@ -799,32 +799,32 @@ Note: JPEG is lossy — if the strength is too low, one re-save may lose it. Use
         <translation>Result copied to the clipboard.</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="175"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="174"/>
         <source>「%1」有 %2 KB，超过 1 MB —— 再大只会把界面卡住。</source>
         <translation>&quot;%1&quot; is %2 KB, over the 1 MB limit - anything bigger would just freeze the window.</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="181"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="182"/>
         <source>读不到「%1」：%2</source>
         <translation>Cannot read &quot;%1&quot;: %2</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="187"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="188"/>
         <source>「%1」不像文本文件（含二进制内容）。</source>
         <translation>&quot;%1&quot; does not look like a text file (it contains binary data).</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="192"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="193"/>
         <source>已读入 %1（%2 字节）</source>
         <translation>Loaded %1 (%2 bytes)</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="206"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="207"/>
         <source>解析失败：第 %1 行第 %2 列 —— %3</source>
         <translation>Parse error: line %1, column %2 - %3</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="212"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="213"/>
         <source>解析失败：偏移 %1 —— %2</source>
         <translation>Parse failed: offset %1 — %2</translation>
     </message>
@@ -883,7 +883,7 @@ Note: JPEG is lossy — if the strength is too low, one re-save may lose it. Use
     <name>MainWindow</name>
     <message>
         <location filename="../app/MainWindow.cpp" line="93"/>
-        <location filename="../app/MainWindow.cpp" line="537"/>
+        <location filename="../app/MainWindow.cpp" line="576"/>
         <source>工具箱</source>
         <translation>Toolbox</translation>
     </message>
@@ -908,119 +908,139 @@ Note: JPEG is lossy — if the strength is too low, one re-save may lose it. Use
         <translation>Open plugin folder</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="165"/>
+        <location filename="../app/MainWindow.cpp" line="167"/>
+        <source>清空收藏</source>
+        <translation>Clear favorites</translation>
+    </message>
+    <message>
+        <location filename="../app/MainWindow.cpp" line="168"/>
+        <source>清空最近使用</source>
+        <translation>Clear recent</translation>
+    </message>
+    <message>
+        <location filename="../app/MainWindow.cpp" line="170"/>
         <source>退出</source>
         <translation>Quit</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="167"/>
+        <location filename="../app/MainWindow.cpp" line="172"/>
         <source>帮助</source>
         <translation>Help</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="172"/>
-        <location filename="../app/MainWindow.cpp" line="197"/>
+        <location filename="../app/MainWindow.cpp" line="177"/>
+        <location filename="../app/MainWindow.cpp" line="202"/>
         <source>界面语言</source>
         <translation>Interface language</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="187"/>
+        <location filename="../app/MainWindow.cpp" line="192"/>
         <source>跟随系统</source>
         <translation>Follow system</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="188"/>
+        <location filename="../app/MainWindow.cpp" line="193"/>
         <source>中文</source>
         <translation>中文</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="189"/>
+        <location filename="../app/MainWindow.cpp" line="194"/>
         <source>English</source>
         <translation>English</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="197"/>
+        <location filename="../app/MainWindow.cpp" line="202"/>
         <source>语言设置已保存，重启程序后生效。</source>
         <translation>Language preference saved. Restart the app to apply it.</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="201"/>
+        <location filename="../app/MainWindow.cpp" line="206"/>
         <source>关于</source>
         <translation>About</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="236"/>
+        <location filename="../app/MainWindow.cpp" line="241"/>
         <source>其他</source>
         <translation>Other</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="271"/>
+        <location filename="../app/MainWindow.cpp" line="276"/>
         <source>已加载 %1 个工具 · 插件目录 %2</source>
         <translation>%1 tools loaded · plugin folder %2</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="322"/>
-        <location filename="../app/MainWindow.cpp" line="324"/>
+        <location filename="../app/MainWindow.cpp" line="327"/>
+        <location filename="../app/MainWindow.cpp" line="329"/>
         <source>首页</source>
         <translation>Home</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="329"/>
+        <location filename="../app/MainWindow.cpp" line="334"/>
         <source>收藏</source>
         <translation>Favorites</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="338"/>
+        <location filename="../app/MainWindow.cpp" line="343"/>
         <source>最近使用</source>
         <translation>Recent</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="439"/>
+        <location filename="../app/MainWindow.cpp" line="452"/>
         <source>没有匹配「%1」的工具</source>
         <translation>No tools match “%1”</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="441"/>
+        <location filename="../app/MainWindow.cpp" line="454"/>
         <source>匹配到 %1 个工具</source>
         <translation>%1 tool(s) matched</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="516"/>
+        <location filename="../app/MainWindow.cpp" line="521"/>
+        <source>已清空收藏。</source>
+        <translation>Favorites cleared.</translation>
+    </message>
+    <message>
+        <location filename="../app/MainWindow.cpp" line="534"/>
+        <source>已清空最近使用。</source>
+        <translation>Recent list cleared.</translation>
+    </message>
+    <message>
+        <location filename="../app/MainWindow.cpp" line="555"/>
         <source>取消收藏</source>
         <translation>Remove from favorites</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="516"/>
+        <location filename="../app/MainWindow.cpp" line="555"/>
         <source>加入收藏</source>
         <translation>Add to favorites</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="538"/>
+        <location filename="../app/MainWindow.cpp" line="577"/>
         <source>已加载 &lt;b&gt;%1&lt;/b&gt; 个工具。</source>
         <translation>&lt;b&gt;%1&lt;/b&gt; tools loaded.</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="539"/>
+        <location filename="../app/MainWindow.cpp" line="578"/>
         <source>在左侧右键任意工具，可以把它加进「收藏」。</source>
         <translation>Right-click any tool on the left to add it to Favorites.</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="541"/>
+        <location filename="../app/MainWindow.cpp" line="580"/>
         <source>要收录新工具，把插件 DLL 放进下面的目录，再按 F5 重新加载：&lt;br&gt;&lt;code&gt;%1&lt;/code&gt;</source>
         <translation>To add a tool, drop its plugin DLL into the folder below and press F5:&lt;br&gt;&lt;code&gt;%1&lt;/code&gt;</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="552"/>
+        <location filename="../app/MainWindow.cpp" line="591"/>
         <source>以下插件加载失败：</source>
         <translation>These plugins failed to load:</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="561"/>
+        <location filename="../app/MainWindow.cpp" line="600"/>
         <source>关于工具箱</source>
         <translation>About Toolbox</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="562"/>
+        <location filename="../app/MainWindow.cpp" line="601"/>
         <source>&lt;b&gt;工具箱&lt;/b&gt; %1&lt;br&gt;&lt;br&gt;基于 Qt %2 构建的插件式桌面工具箱。&lt;br&gt;每个工具都是一个独立 DLL 插件，放进 tools 目录即可生效。</source>
         <translation>&lt;b&gt;Toolbox&lt;/b&gt; %1&lt;br&gt;&lt;br&gt;A plugin-based desktop toolbox built with Qt %2.&lt;br&gt;Every tool is a separate DLL plugin; drop one into the tools folder and it appears.</translation>
     </message>
