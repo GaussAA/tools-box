@@ -1,5 +1,4 @@
-# 又一个工具插件。注意这个插件没有任何资源文件，
-# 图标交给外壳用工具名首字符兜底生成。
+# 又一个工具插件。图标跟 base64 一样编进插件自己的资源里，插件拷到哪都带着。
 #
 # 解析与序列化的纯逻辑编成静态库，好让测试目标直接链接它
 # （分层判定标准见 docs/architecture.md §3）。
@@ -24,6 +23,12 @@ target_link_libraries(jsonfmt_tool PRIVATE ToolBox::Sdk jsonfmt_core)
 
 # Q_PLUGIN_METADATA 的 FILE 是按 include 路径找的，生成物在构建目录里。
 target_include_directories(jsonfmt_tool PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+
+# 图标编进插件自己的资源里，不需要额外文件。
+qt_add_resources(jsonfmt_tool "jsonfmt_icons"
+    PREFIX "/"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}"
+    FILES "icons/jsonfmt.svg")
 
 set_target_properties(jsonfmt_tool PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${TOOLBOX_BIN_DIR}/tools"

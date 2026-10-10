@@ -3,7 +3,7 @@
     "id": "dev.json-format",
     "name": "JSON 格式化",
     "category": "开发辅助",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "格式化、压缩 JSON，并提示语法错误位置。",
     "abi": "@TOOLBOX_PLUGIN_ABI@"
   }

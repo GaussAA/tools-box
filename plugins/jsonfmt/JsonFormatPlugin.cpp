@@ -3,12 +3,153 @@
 #include "core/JsonFormat.h"
 
 #include <QClipboard>
+#include <QComboBox>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QVBoxLayout>
+
+/// 工具页面：JSON 格式化 / 压缩。
+///
+/// 它除了是界面，还实现了 toolbox::IToolPage —— 外壳会在页面创建后调用
+/// restoreState()，在窗口关闭或重载插件前调用 saveState()，所以插件自己
+/// 不用操心 QSettings 的键名，也不会和别的插件串键。
+class JsonFormatPage : public QWidget, public toolbox::IToolPage
+{
+    Q_OBJECT
+    Q_INTERFACES(toolbox::IToolPage)
+
+public:
+    explicit JsonFormatPage(QWidget *parent = nullptr);
+
+    void restoreState(const toolbox::ToolSettings &settings) override;
+    void saveState(const toolbox::ToolSettings &settings) override;
+
+private:
+    void convert(bool compact);
+
+    QPlainTextEdit *m_source = nullptr;
+    QPlainTextEdit *m_result = nullptr;
+    QLabel *m_hint = nullptr;
+    QComboBox *m_indent = nullptr;
+    QPushButton *m_copy = nullptr;
+};
+
+JsonFormatPage::JsonFormatPage(QWidget *parent)
+    : QWidget(parent)
+{
+    auto *layout = new QVBoxLayout(this);
+
+    m_source = new QPlainTextEdit(this);
+    m_source->setPlaceholderText(tr("在这里粘贴 JSON"));
+
+    m_result = new QPlainTextEdit(this);
+    m_result->setPlaceholderText(tr("结果"));
+    m_result->setReadOnly(true);
+
+    // 顺序与 jsonfmt::Indent 一致，项的 data 存枚举值 —— 存配置只存下标，
+    // 万一将来插入新样式，靠 data 认而不是靠下标猜。
+    m_indent = new QComboBox(this);
+    m_indent->addItem(tr("2 空格"), static_cast<int>(jsonfmt::Indent::TwoSpaces));
+    m_indent->addItem(tr("4 空格"), static_cast<int>(jsonfmt::Indent::FourSpaces));
+    m_indent->addItem(tr("Tab"), static_cast<int>(jsonfmt::Indent::Tab));
+    m_indent->setCurrentIndex(static_cast<int>(jsonfmt::Indent::FourSpaces));
+
+    m_hint = new QLabel(this);
+    m_hint->setWordWrap(true);
+
+    m_copy = new QPushButton(tr("复制结果"), this);
+    m_copy->setEnabled(false);
+
+    auto *beautifyButton = new QPushButton(tr("格式化"), this);
+    auto *compactButton = new QPushButton(tr("压缩"), this);
+    auto *clearButton = new QPushButton(tr("清空"), this);
+
+    auto *options = new QHBoxLayout;
+    options->addWidget(new QLabel(tr("缩进"), this));
+    options->addWidget(m_indent);
+    options->addStretch(1);
+
+    auto *buttons = new QHBoxLayout;
+    buttons->addWidget(beautifyButton);
+    buttons->addWidget(compactButton);
+    buttons->addStretch(1);
+    buttons->addWidget(m_copy);
+    buttons->addWidget(clearButton);
+
+    layout->addWidget(m_source, 1);
+    layout->addLayout(options);
+    layout->addLayout(buttons);
+    layout->addWidget(m_hint);
+    layout->addWidget(m_result, 1);
+
+    connect(beautifyButton, &QPushButton::clicked, this, [this] { convert(false); });
+    connect(compactButton, &QPushButton::clicked, this, [this] { convert(true); });
+
+    connect(m_copy, &QPushButton::clicked, this, [this] {
+        const QString text = m_result->toPlainText();
+        if (text.isEmpty()) {
+            return;
+        }
+        QGuiApplication::clipboard()->setText(text);
+        // 剪贴板没有视觉反馈，不说一句用户会怀疑有没有生效。
+        m_hint->setText(tr("已复制结果到剪贴板。"));
+    });
+
+    // 复制按钮的可用状态跟着结果走，省得在每处 setPlainText 之后单独维护。
+    connect(m_result, &QPlainTextEdit::textChanged, this,
+            [this] { m_copy->setEnabled(!m_result->toPlainText().isEmpty()); });
+
+    connect(clearButton, &QPushButton::clicked, this, [this] {
+        m_source->clear();
+        m_result->clear();
+        m_hint->clear();
+    });
+}
+
+void JsonFormatPage::convert(bool compact)
+{
+    const QString source = m_source->toPlainText();
+    const jsonfmt::Indent indent = static_cast<jsonfmt::Indent>(m_indent->currentData().toInt());
+    const jsonfmt::FormatResult formatted = jsonfmt::formatJson(source, compact, indent);
+
+    if (!formatted.ok) {
+        m_result->clear();
+        // 报行列而不是裸偏移：用户要去的是「第几行第几列」，偏移数没法和编辑器对上。
+        const jsonfmt::ErrorLocation at = jsonfmt::locateError(source, formatted.errorOffset);
+        if (at.line > 0) {
+            m_hint->setText(tr("解析失败：第 %1 行第 %2 列 —— %3")
+                                .arg(at.line)
+                                .arg(at.column)
+                                .arg(formatted.errorText));
+        } else {
+            m_hint->setText(
+                tr("解析失败：偏移 %1 —— %2").arg(formatted.errorOffset).arg(formatted.errorText));
+        }
+        return;
+    }
+
+    m_hint->clear();
+    m_result->setPlainText(formatted.text);
+}
+
+void JsonFormatPage::restoreState(const toolbox::ToolSettings &settings)
+{
+    const int index =
+        settings.value(QStringLiteral("indent"), static_cast<int>(jsonfmt::Indent::FourSpaces))
+            .toInt();
+    if (index >= 0 && index < m_indent->count()) {
+        m_indent->setCurrentIndex(index);
+    }
+}
+
+void JsonFormatPage::saveState(const toolbox::ToolSettings &settings)
+{
+    settings.setValue(QStringLiteral("indent"), m_indent->currentIndex());
+}
 
 toolbox::ToolMeta JsonFormatPlugin::meta() const
 {
@@ -16,78 +157,15 @@ toolbox::ToolMeta JsonFormatPlugin::meta() const
     info.id = QStringLiteral("dev.json-format");
     info.name = tr("JSON 格式化");
     info.category = tr("开发辅助");
-    info.version = QStringLiteral("0.1.0");
+    info.version = QStringLiteral("0.2.0");
     info.description = tr("格式化、压缩 JSON，并提示语法错误位置。");
-    // 这里故意不设置 icon，外壳会自己生成首字符占位图标。
+    info.icon = QIcon(QStringLiteral(":/icons/jsonfmt.svg"));
     return info;
 }
 
 QWidget *JsonFormatPlugin::createPage(QWidget *parent)
 {
-    auto *page = new QWidget(parent);
-    auto *layout = new QVBoxLayout(page);
-
-    auto *source = new QPlainTextEdit(page);
-    source->setPlaceholderText(tr("在这里粘贴 JSON"));
-
-    auto *result = new QPlainTextEdit(page);
-    result->setPlaceholderText(tr("结果"));
-    result->setReadOnly(true);
-
-    auto *hint = new QLabel(page);
-
-    auto *beautifyButton = new QPushButton(tr("格式化"), page);
-    auto *compactButton = new QPushButton(tr("压缩"), page);
-    auto *copyButton = new QPushButton(tr("复制结果"), page);
-    auto *clearButton = new QPushButton(tr("清空"), page);
-    // 没有结果时不让点：点了毫无反馈比按钮灰着更让人困惑。
-    copyButton->setEnabled(false);
-
-    auto *buttons = new QHBoxLayout;
-    buttons->addWidget(beautifyButton);
-    buttons->addWidget(compactButton);
-    buttons->addStretch(1);
-    buttons->addWidget(copyButton);
-    buttons->addWidget(clearButton);
-
-    layout->addWidget(source, 1);
-    layout->addLayout(buttons);
-    layout->addWidget(hint);
-    layout->addWidget(result, 1);
-
-    // 解析与序列化在 core/JsonFormat.h 里（可单测），这里只把结果翻成界面文案 ——
-    // 文案要 tr()，属于 View。
-    const auto convert = [source, result, hint, copyButton](bool compact) {
-        const jsonfmt::FormatResult formatted = jsonfmt::formatJson(source->toPlainText(), compact);
-        if (!formatted.ok) {
-            result->clear();
-            copyButton->setEnabled(false);
-            hint->setText(
-                tr("解析失败：偏移 %1 —— %2").arg(formatted.errorOffset).arg(formatted.errorText));
-            return;
-        }
-        hint->clear();
-        result->setPlainText(formatted.text);
-        copyButton->setEnabled(!formatted.text.isEmpty());
-    };
-
-    connect(beautifyButton, &QPushButton::clicked, page, [convert] { convert(false); });
-    connect(compactButton, &QPushButton::clicked, page, [convert] { convert(true); });
-    connect(copyButton, &QPushButton::clicked, page, [result, hint] {
-        const QString text = result->toPlainText();
-        if (text.isEmpty()) {
-            return;
-        }
-        QGuiApplication::clipboard()->setText(text);
-        // 剪贴板没有视觉反馈，不说一句用户会怀疑有没有生效。
-        hint->setText(tr("已复制结果到剪贴板。"));
-    });
-    connect(clearButton, &QPushButton::clicked, page, [source, result, hint, copyButton] {
-        source->clear();
-        result->clear();
-        hint->clear();
-        copyButton->setEnabled(false);
-    });
-
-    return page;
+    return new JsonFormatPage(parent);
 }
+
+#include "JsonFormatPlugin.moc"
