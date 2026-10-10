@@ -377,8 +377,8 @@
     <name>ImgWatermarkPage</name>
     <message>
         <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="125"/>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="511"/>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="513"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="510"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="512"/>
         <source>尚未选择图片</source>
         <translation>No image selected</translation>
     </message>
@@ -512,7 +512,7 @@ Embedding works pixel by pixel, so very large images take too long.</translation
     </message>
     <message>
         <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="311"/>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="515"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="514"/>
         <source>尚未处理</source>
         <translation>Not processed yet</translation>
     </message>
@@ -593,7 +593,7 @@ Embedding works pixel by pixel, so very large images take too long.</translation
         <translation>✓ Extracted (strip %1 passed verification): %2 — copied to the clipboard</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="465"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="464"/>
         <source>水印内容：
 
 %1
@@ -614,7 +614,7 @@ Data invisible to the eye — this is what distinguishes a digital watermark fro
         <translation type="vanished">✓ Extracted (strip %1 passed verification): %2</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="464"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="463"/>
         <source>提取成功</source>
         <translation>Extraction succeeded</translation>
     </message>
@@ -631,37 +631,37 @@ Data invisible to the eye — this is what distinguishes a digital watermark fro
 Data invisible to the eye — this is what distinguishes a digital watermark from a visible one.</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="478"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="477"/>
         <source>另存为</source>
         <translation>Save as</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="491"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="490"/>
         <source>保存失败</source>
         <translation>Save failed</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="492"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="491"/>
         <source>写入「%1」失败。请检查目标目录是否有写入权限，以及磁盘空间是否充足。</source>
         <translation>Failed to write &quot;%1&quot;. Check the folder&apos;s write permission and free disk space.</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="494"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="493"/>
         <source>✗ 保存失败：%1</source>
         <translation>✗ Save failed: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="498"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="497"/>
         <source>✓ 已保存：%1</source>
         <translation>✓ Saved: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="500"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="499"/>
         <source>已保存</source>
         <translation>Saved</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="501"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="500"/>
         <source>水印已写入「%1」。
 
 提示：JPEG 是有损格式，水印强度不足时转存一次就可能提取不到；需要长期保真请用 PNG。</source>
@@ -670,7 +670,7 @@ Data invisible to the eye — this is what distinguishes a digital watermark fro
 Note: JPEG is lossy — if the strength is too low, one re-save may lose it. Use PNG when you need long-term fidelity.</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="517"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="516"/>
         <source>已清空</source>
         <translation>Cleared</translation>
     </message>
@@ -678,77 +678,137 @@ Note: JPEG is lossy — if the strength is too low, one re-save may lose it. Use
 <context>
     <name>ImgWatermarkPlugin</name>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="576"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="575"/>
         <source>图片数字水印</source>
         <translation>Image Watermark</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="577"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="576"/>
         <source>媒体工具</source>
         <translation>Media tools</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="580"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="579"/>
         <source>在图片像素中嵌入肉眼不可见的数字水印，用于版权溯源与内容验证（可再提取回来）。</source>
         <translation>Embed an invisible digital watermark in image pixels for copyright tracing and content verification (and extract it back).</translation>
     </message>
 </context>
 <context>
-    <name>JsonFormatPlugin</name>
+    <name>JsonFormatPage</name>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="17"/>
-        <source>JSON 格式化</source>
-        <translation>JSON Formatter</translation>
-    </message>
-    <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="18"/>
-        <source>开发辅助</source>
-        <translation>Developer tools</translation>
-    </message>
-    <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="20"/>
-        <source>格式化、压缩 JSON，并提示语法错误位置。</source>
-        <translation>Format and minify JSON, and point out where syntax errors are.</translation>
-    </message>
-    <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="31"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="47"/>
         <source>在这里粘贴 JSON</source>
         <translation>Paste JSON here</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="34"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="50"/>
         <source>结果</source>
         <translation>Result</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="39"/>
-        <source>格式化</source>
-        <translation>Format</translation>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="56"/>
+        <source>2 空格</source>
+        <translation>2 spaces</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="40"/>
-        <source>压缩</source>
-        <translation>Minify</translation>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="57"/>
+        <source>4 空格</source>
+        <translation>4 spaces</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="41"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="58"/>
+        <source>Tab</source>
+        <translation>Tab</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="64"/>
         <source>复制结果</source>
         <translation>Copy result</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="42"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="67"/>
+        <source>格式化</source>
+        <translation>Format</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="68"/>
+        <source>压缩</source>
+        <translation>Minify</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="69"/>
         <source>清空</source>
         <translation>Clear</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="66"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="72"/>
+        <source>缩进</source>
+        <translation>Indent</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="99"/>
+        <source>已复制结果到剪贴板。</source>
+        <translation>Result copied to the clipboard.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="124"/>
+        <source>解析失败：第 %1 行第 %2 列 —— %3</source>
+        <translation>Parse error: line %1, column %2 - %3</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="130"/>
         <source>解析失败：偏移 %1 —— %2</source>
         <translation>Parse failed: offset %1 — %2</translation>
     </message>
+</context>
+<context>
+    <name>JsonFormatPlugin</name>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="83"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="159"/>
+        <source>JSON 格式化</source>
+        <translation>JSON Formatter</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="160"/>
+        <source>开发辅助</source>
+        <translation>Developer tools</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="162"/>
+        <source>格式化、压缩 JSON，并提示语法错误位置。</source>
+        <translation>Format and minify JSON, and point out where syntax errors are.</translation>
+    </message>
+    <message>
+        <source>在这里粘贴 JSON</source>
+        <translation type="vanished">Paste JSON here</translation>
+    </message>
+    <message>
+        <source>结果</source>
+        <translation type="vanished">Result</translation>
+    </message>
+    <message>
+        <source>格式化</source>
+        <translation type="vanished">Format</translation>
+    </message>
+    <message>
+        <source>压缩</source>
+        <translation type="vanished">Minify</translation>
+    </message>
+    <message>
+        <source>复制结果</source>
+        <translation type="vanished">Copy result</translation>
+    </message>
+    <message>
+        <source>清空</source>
+        <translation type="vanished">Clear</translation>
+    </message>
+    <message>
+        <source>解析失败：偏移 %1 —— %2</source>
+        <translation type="vanished">Parse failed: offset %1 — %2</translation>
+    </message>
+    <message>
         <source>已复制结果到剪贴板。</source>
-        <translation>Result copied to the clipboard.</translation>
+        <translation type="vanished">Result copied to the clipboard.</translation>
     </message>
 </context>
 <context>
