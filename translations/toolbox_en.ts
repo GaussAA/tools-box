@@ -4,73 +4,107 @@
 <context>
     <name>Base64Page</name>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="53"/>
         <source>在这里输入原文，或粘贴 Base64</source>
-        <translation>Type the plain text here, or paste Base64</translation>
+        <translation type="vanished">Type the plain text here, or paste Base64</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="56"/>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="86"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="71"/>
+        <source>在这里输入原文，或粘贴 Base64 —— 也可以把文本文件拖进来</source>
+        <translation>Type here, or paste Base64 - you can also drop a text file in</translation>
+    </message>
+    <message>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="74"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="108"/>
         <source>结果</source>
         <translation>Result</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="60"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="78"/>
         <source>复制结果</source>
         <translation>Copy result</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="63"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="81"/>
         <source>编码 →</source>
         <translation>Encode →</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="64"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="82"/>
         <source>← 解码</source>
         <translation>← Decode</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="65"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="83"/>
         <source>结果转原文</source>
         <translation>Use result as input</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="66"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="84"/>
         <source>清空</source>
         <translation>Clear</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="76"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="87"/>
+        <source>编码（Ctrl+Enter）</source>
+        <translation>Encode (Ctrl+Enter)</translation>
+    </message>
+    <message>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="88"/>
+        <source>解码（Ctrl+Shift+Enter）</source>
+        <translation>Decode (Ctrl+Shift+Enter)</translation>
+    </message>
+    <message>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="98"/>
         <source>URL 安全字符集（用 - _ 代替 + /）</source>
         <translation>URL-safe alphabet (use - _ instead of + /)</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="81"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="103"/>
         <source>原文</source>
         <translation>Plain text</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="117"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="153"/>
         <source>已复制结果到剪贴板。</source>
         <translation>Result copied to the clipboard.</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="142"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="200"/>
+        <source>「%1」有 %2 KB，超过 1 MB —— 这工具是处理文本的，再大只会把界面卡住。</source>
+        <translation>&quot;%1&quot; is %2 KB, over the 1 MB limit - this is a text tool, and anything bigger would just freeze the window.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="209"/>
+        <source>读不到「%1」：%2</source>
+        <translation>Cannot read &quot;%1&quot;: %2</translation>
+    </message>
+    <message>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="216"/>
+        <source>「%1」不像文本文件（含二进制内容）。</source>
+        <translation>&quot;%1&quot; does not look like a text file (it contains binary data).</translation>
+    </message>
+    <message>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="221"/>
+        <source>已读入 %1（%2 字节）</source>
+        <translation>Loaded %1 (%2 bytes)</translation>
+    </message>
+    <message>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="229"/>
         <source>先在原文框里粘贴要解码的 Base64。</source>
         <translation>Paste the Base64 text to decode into the source box first.</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="145"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="232"/>
         <source>不像 Base64：去掉首尾空白后是 %1 个字符，必须能被 4 整除（多半是粘贴时被截断了）。</source>
         <translation>Not valid Base64: %1 characters after trimming whitespace, which must be a multiple of 4 (it was probably truncated while pasting).</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="153"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="240"/>
         <source>含标准字符集之外的字符（- 或 _）。这串像是 URL 安全 Base64，试试勾上「URL 安全字符集」。</source>
         <translation>Contains characters outside the standard alphabet (- or _). This looks like URL-safe Base64 - try enabling the URL-safe alphabet option.</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="156"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="243"/>
         <source>含当前字符集之外的字符，看起来不是有效的 Base64。</source>
         <translation>Contains characters outside the selected alphabet; this does not look like valid Base64.</translation>
     </message>
@@ -78,17 +112,17 @@
 <context>
     <name>Base64Plugin</name>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="179"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="266"/>
         <source>Base64 编解码</source>
         <translation>Base64 Encode / Decode</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="180"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="267"/>
         <source>文本编码</source>
         <translation>Text encoding</translation>
     </message>
     <message>
-        <location filename="../plugins/base64/Base64Plugin.cpp" line="182"/>
+        <location filename="../plugins/base64/Base64Plugin.cpp" line="269"/>
         <source>UTF-8 文本与 Base64 互转，支持 URL 安全字符集。</source>
         <translation>Converts between UTF-8 text and Base64, with URL-safe alphabet support.</translation>
     </message>
@@ -376,104 +410,104 @@
 <context>
     <name>ImgWatermarkPage</name>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="125"/>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="510"/>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="512"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="139"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="551"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="553"/>
         <source>尚未选择图片</source>
         <translation>No image selected</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="126"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="140"/>
         <source>选择图片…</source>
         <translation>Choose image…</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="144"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="158"/>
         <source>原图</source>
         <translation>Original</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="145"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="159"/>
         <source>处理后（肉眼看不出差别）</source>
         <translation>Processed (no visible difference)</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="152"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="166"/>
         <source>自定义文本</source>
         <translation>Custom text</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="153"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="167"/>
         <source>按文件信息自动生成</source>
         <translation>Generate from file info</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="156"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="170"/>
         <source>例如：© 2026某某科技 · 仅供内部使用</source>
         <translation>e.g. © 2026 Example Inc. · Internal use only</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="161"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="175"/>
         <source>水印内容</source>
         <translation>Watermark text</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="173"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="187"/>
         <source>嵌入强度</source>
         <translation>Embedding strength</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="181"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="195"/>
         <source>条冗余带，抗裁剪更强但单带容量更小</source>
         <translation>redundant strips — resists cropping but each strip holds less</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="182"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="196"/>
         <source>冗余</source>
         <translation>Redundancy</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="199"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="213"/>
         <source>输出格式与质量</source>
         <translation>Output format &amp; quality</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="204"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="218"/>
         <source>嵌入水印</source>
         <translation>Embed watermark</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="205"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="219"/>
         <source>提取水印</source>
         <translation>Extract watermark</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="206"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="220"/>
         <source>另存为…</source>
         <translation>Save as…</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="207"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="221"/>
         <source>清空</source>
         <translation>Clear</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="265"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="279"/>
         <source>选择图片</source>
         <translation>Choose image</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="266"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="280"/>
         <source>图片文件 (*.png *.jpg *.jpeg *.bmp *.webp);;所有文件 (*)</source>
         <translation>Images (*.png *.jpg *.jpeg *.bmp *.webp);;All files (*)</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="277"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="317"/>
         <source>不支持的格式</source>
         <translation>Unsupported format</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="278"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="318"/>
         <source>「%1」不是支持的图片格式。
 
 仅支持：PNG、JPEG、BMP、WebP。</source>
@@ -482,12 +516,12 @@
 Supported: PNG, JPEG, BMP, WebP.</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="284"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="324"/>
         <source>文件过大</source>
         <translation>File too large</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="285"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="325"/>
         <source>图片大小 %1 MB，超出本工具 %2 MB 的处理上限。
 
 水印嵌入需要逐像素运算，过大的图片处理时间过长。</source>
@@ -496,104 +530,104 @@ Supported: PNG, JPEG, BMP, WebP.</translation>
 Embedding works pixel by pixel, so very large images take too long.</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="295"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="335"/>
         <source>无法读取图片</source>
         <translation>Cannot read image</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="296"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="336"/>
         <source>读取「%1」失败。文件可能已损坏，或不是有效的图片。</source>
         <translation>Failed to read &quot;%1&quot;. The file may be corrupted or not a valid image.</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="303"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="343"/>
         <source>%1 · %2×%3 · %4 KB</source>
         <translation>%1 · %2×%3 · %4 KB</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="311"/>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="514"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="351"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="555"/>
         <source>尚未处理</source>
         <translation>Not processed yet</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="315"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="355"/>
         <source>已载入 %1×%2，可嵌入水印</source>
         <translation>Loaded %1×%2 — ready to embed</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="330"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="371"/>
         <source>⚠ 当前图片最多可嵌入 %1 字节，水印内容需 %2 字节 —— 请缩短内容或换更大的图</source>
         <translation>⚠ This image holds at most %1 bytes, but the watermark needs %2 — shorten the text or use a larger image.</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="356"/>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="405"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="397"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="446"/>
         <source>未选择图片</source>
         <translation>No image selected</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="356"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="397"/>
         <source>请先选择一张图片。</source>
         <translation>Please choose an image first.</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="361"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="402"/>
         <source>水印内容为空</source>
         <translation>Watermark text is empty</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="362"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="403"/>
         <source>请填写水印文本，或选择「按文件信息自动生成」。</source>
         <translation>Enter watermark text, or pick &quot;Generate from file info&quot;.</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="367"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="408"/>
         <source>正在嵌入水印…</source>
         <translation>Embedding watermark…</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="406"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="447"/>
         <source>请先选择一张图片 —— 提取水印需要读取原图或处理后的图。</source>
         <translation>Please choose an image first — extraction reads the original or processed image.</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="413"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="454"/>
         <source>正在提取水印…</source>
         <translation>Extracting watermark…</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="431"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="472"/>
         <source>嵌入失败</source>
         <translation>Embedding failed</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="432"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="473"/>
         <source>✗ 嵌入失败：%1</source>
         <translation>✗ Embedding failed: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="440"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="481"/>
         <source>✓ 已嵌入：%1 条冗余带 · %2 块 · 载荷 %3 字节（容量 %4 字节）</source>
         <translation>✓ Embedded: %1 redundant strips · %2 blocks · payload %3 bytes (capacity %4 bytes)</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="450"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="491"/>
         <source>未检测到水印</source>
         <translation>No watermark detected</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="451"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="492"/>
         <source>✗ %1</source>
         <translation>✗ %1</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="460"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="501"/>
         <source>✓ 提取成功（第 %1 条带校验通过）：%2 —— 已复制到剪贴板</source>
         <translation>✓ Extracted (strip %1 passed verification): %2 — copied to the clipboard</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="464"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="505"/>
         <source>水印内容：
 
 %1
@@ -614,7 +648,7 @@ Data invisible to the eye — this is what distinguishes a digital watermark fro
         <translation type="vanished">✓ Extracted (strip %1 passed verification): %2</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="463"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="504"/>
         <source>提取成功</source>
         <translation>Extraction succeeded</translation>
     </message>
@@ -631,37 +665,37 @@ Data invisible to the eye — this is what distinguishes a digital watermark fro
 Data invisible to the eye — this is what distinguishes a digital watermark from a visible one.</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="477"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="518"/>
         <source>另存为</source>
         <translation>Save as</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="490"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="531"/>
         <source>保存失败</source>
         <translation>Save failed</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="491"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="532"/>
         <source>写入「%1」失败。请检查目标目录是否有写入权限，以及磁盘空间是否充足。</source>
         <translation>Failed to write &quot;%1&quot;. Check the folder&apos;s write permission and free disk space.</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="493"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="534"/>
         <source>✗ 保存失败：%1</source>
         <translation>✗ Save failed: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="497"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="538"/>
         <source>✓ 已保存：%1</source>
         <translation>✓ Saved: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="499"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="540"/>
         <source>已保存</source>
         <translation>Saved</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="500"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="541"/>
         <source>水印已写入「%1」。
 
 提示：JPEG 是有损格式，水印强度不足时转存一次就可能提取不到；需要长期保真请用 PNG。</source>
@@ -670,7 +704,7 @@ Data invisible to the eye — this is what distinguishes a digital watermark fro
 Note: JPEG is lossy — if the strength is too low, one re-save may lose it. Use PNG when you need long-term fidelity.</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="516"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="557"/>
         <source>已清空</source>
         <translation>Cleared</translation>
     </message>
@@ -678,17 +712,17 @@ Note: JPEG is lossy — if the strength is too low, one re-save may lose it. Use
 <context>
     <name>ImgWatermarkPlugin</name>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="575"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="616"/>
         <source>图片数字水印</source>
         <translation>Image Watermark</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="576"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="617"/>
         <source>媒体工具</source>
         <translation>Media tools</translation>
     </message>
     <message>
-        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="579"/>
+        <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="620"/>
         <source>在图片像素中嵌入肉眼不可见的数字水印，用于版权溯源与内容验证（可再提取回来）。</source>
         <translation>Embed an invisible digital watermark in image pixels for copyright tracing and content verification (and extract it back).</translation>
     </message>
@@ -696,67 +730,101 @@ Note: JPEG is lossy — if the strength is too low, one re-save may lose it. Use
 <context>
     <name>JsonFormatPage</name>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="47"/>
         <source>在这里粘贴 JSON</source>
-        <translation>Paste JSON here</translation>
+        <translation type="vanished">Paste JSON here</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="50"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="65"/>
+        <source>在这里粘贴 JSON —— 也可以把 .json 文件拖进来</source>
+        <translation>Paste JSON here - you can also drop a .json file in</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="68"/>
         <source>结果</source>
         <translation>Result</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="56"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="74"/>
         <source>2 空格</source>
         <translation>2 spaces</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="57"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="75"/>
         <source>4 空格</source>
         <translation>4 spaces</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="58"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="76"/>
         <source>Tab</source>
         <translation>Tab</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="64"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="82"/>
         <source>复制结果</source>
         <translation>Copy result</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="67"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="85"/>
         <source>格式化</source>
         <translation>Format</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="68"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="86"/>
         <source>压缩</source>
         <translation>Minify</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="69"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="87"/>
         <source>清空</source>
         <translation>Clear</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="72"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="90"/>
+        <source>格式化（Ctrl+Enter）</source>
+        <translation>Format (Ctrl+Enter)</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="91"/>
+        <source>压缩（Ctrl+Shift+Enter）</source>
+        <translation>Minify (Ctrl+Shift+Enter)</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="94"/>
         <source>缩进</source>
         <translation>Indent</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="99"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="134"/>
         <source>已复制结果到剪贴板。</source>
         <translation>Result copied to the clipboard.</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="124"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="175"/>
+        <source>「%1」有 %2 KB，超过 1 MB —— 再大只会把界面卡住。</source>
+        <translation>&quot;%1&quot; is %2 KB, over the 1 MB limit - anything bigger would just freeze the window.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="181"/>
+        <source>读不到「%1」：%2</source>
+        <translation>Cannot read &quot;%1&quot;: %2</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="187"/>
+        <source>「%1」不像文本文件（含二进制内容）。</source>
+        <translation>&quot;%1&quot; does not look like a text file (it contains binary data).</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="192"/>
+        <source>已读入 %1（%2 字节）</source>
+        <translation>Loaded %1 (%2 bytes)</translation>
+    </message>
+    <message>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="206"/>
         <source>解析失败：第 %1 行第 %2 列 —— %3</source>
         <translation>Parse error: line %1, column %2 - %3</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="130"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="212"/>
         <source>解析失败：偏移 %1 —— %2</source>
         <translation>Parse failed: offset %1 — %2</translation>
     </message>
@@ -764,17 +832,17 @@ Note: JPEG is lossy — if the strength is too low, one re-save may lose it. Use
 <context>
     <name>JsonFormatPlugin</name>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="159"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="241"/>
         <source>JSON 格式化</source>
         <translation>JSON Formatter</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="160"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="242"/>
         <source>开发辅助</source>
         <translation>Developer tools</translation>
     </message>
     <message>
-        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="162"/>
+        <location filename="../plugins/jsonfmt/JsonFormatPlugin.cpp" line="244"/>
         <source>格式化、压缩 JSON，并提示语法错误位置。</source>
         <translation>Format and minify JSON, and point out where syntax errors are.</translation>
     </message>
