@@ -276,14 +276,20 @@ cmake --build build --config Release --target deploy
 按顺序做，每一步都有明确产出：
 
 1. 复制 `plugins/base64/` 为新目录，目录名全小写（如 `plugins/regextool/`）；
-2. 重命名 `Base64Plugin.*` 为新插件名，同步改类名与 `CMakeLists.txt` 里的目标名；
+2. 重命名 `Base64Plugin.*` 为新插件名，同步改类名与 `CMakeLists.txt` 里的目标名 ——
+   那份 `CMakeLists.txt` 现在只是一句 `toolbox_add_module()` 调用，骨架（元数据
+   生成 / core 静态库 / 插件库 / 图标 / 输出目录 / 测试注册）由它统一提供，
+   参数见 [cmake/ToolBoxModule.cmake](../cmake/ToolBoxModule.cmake)；
 3. 在 `meta()` 中填写：`id`（遵守 [architecture.md §4.1](./architecture.md#41-工具标识)
    的格式与不可变约定）、`name`、`category`、`version`、`description`；
    **同步 `metadata.json.in` 里同样的四个字段**（name/category/description/version）。
    这份静态元数据是宿主 `load()` 之前唯一的依据，`abi` 那一行由构建注入、
    不要手改（[architecture.md §4.2](./architecture.md#42-版本与-abi)）；
-4. 需要图标就放 `icons/*.svg` 并在 `CMakeLists.txt` 里加 `qt_add_resources`；
-   不需要图标则留空，外壳会自动生成首字占位图标；
+4. 需要图标就放 `icons/<插件名>.svg`，并在 `toolbox_add_module()` 调用里写
+   `ICON icons/<插件名>.svg`（资源路径一律是 `:/icons/<插件名>.svg`，前缀由宏
+   统一给，不要在插件里另写 `qt_add_resources` —— 有人把前缀写成 `/icons`
+   之后图标静默失效了小半年，因为外壳会兜底画一个占位图标，看着像正常）；
+   不需要图标则不给 `ICON`，外壳会自动生成首字占位图标；
 5. 在顶层 `CMakeLists.txt` 中 `add_subdirectory(plugins/<新目录>)`；
 6. 页面需要持久化则实现 `IToolPage`，键名只用裸名，由 `ToolSettings` 加前缀；
 7. 纯逻辑（解析、转换、过滤）必须放进独立的无 UI 依赖的类或自由函数，
