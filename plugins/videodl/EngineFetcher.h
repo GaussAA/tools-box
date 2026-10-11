@@ -1,12 +1,10 @@
 #pragma once
 
-#include "IChildProcess.h"
 #include "IEngineTransport.h"
+#include "core/ZipExtract.h"
 
 #include <QObject>
 #include <QString>
-
-class QDirIterator;
 
 /// 下载内核（yt-dlp / ffmpeg）的那部分：发起传输、断点续传、解压、取消。
 ///
@@ -15,10 +13,10 @@ class QDirIterator;
 /// 理由是职责：页面只该管界面，而「什么时候该续传、什么时候该重来、怎么算取消」
 /// 与界面毫无关系。
 ///
-/// 与页面之间只靠信号说话。网络经 IEngineTransport 注入、解压子进程经
-/// IChildProcess 注入：两条外部通道都可以换成假的，于是状态机（续传 / 重试 / 取消
-/// / 放弃）不必真下载也能验证 —— 剩下真正只属于真机的，只有「解压出来的是不是
-/// ffmpeg.exe」这一段。
+/// 与页面之间只靠信号说话。网络经 IEngineTransport 注入，可以换成假的，于是状态机
+/// （续传 / 重试 / 取消 / 放弃）不必真下载也能验证。解压（偏差 9.13 收束后）不再
+/// 起子进程：core/ZipExtract 在进程内用 miniz 完成，EngineFetcher 把它丢到
+/// QtConcurrent 的线程池里跑，主线程只等结果。
 class EngineFetcher : public QObject
 {
     Q_OBJECT
@@ -27,13 +25,11 @@ public:
     /// 正在进行的下载任务。同一时刻只允许一个，所以不是「几个 bool」。
     enum class Kind { None, YtDlp, Ffmpeg };
 
-    /// 生产用法：真实网络 + 真实解压子进程。
+    /// 生产用法：真实网络。
     explicit EngineFetcher(QObject *parent = nullptr);
 
-    /// 测试用法：注入网络与解压子进程。**所有权都不转移**，调用方须让它们活到
-    /// 本对象销毁之后。
-    explicit EngineFetcher(IEngineTransport *transport, IChildProcess *unzip,
-                           QObject *parent = nullptr);
+    /// 测试用法：注入网络通道。**所有权不转移**，调用方须让它活到本对象销毁之后。
+    explicit EngineFetcher(IEngineTransport *transport, QObject *parent = nullptr);
 
     ~EngineFetcher() override;
 
@@ -59,14 +55,15 @@ private:
     void onTransportFinished(EngineFetchOutcome outcome);
     void finish(bool ok);
     void extractFfmpeg(const QString &zipPath);
+    void onExtractFinished(int generation, videodl::ZipExtractStatus result, const QString &zipPath,
+                           const QString &targetPath);
     /// 收尾：清临时文件、复位状态；busy 归零后页面据此刷新按钮。
     void reset();
 
     QString kindLabel() const;
 
     IEngineTransport *m_transport = nullptr;
-    IChildProcess *m_unzip = nullptr; ///< 解压 ffmpeg 那个 zip 用的进程
-    bool m_ownsExternals = false;     ///< 真实实现才由本对象负责销毁
+    bool m_ownsTransport = false; ///< 真实实现才由本对象负责销毁
 
     Kind m_kind = Kind::None;
     QString m_url;
@@ -79,4 +76,8 @@ private:
     /// 取消会被随后的定时器悄悄重新拉起来。
     bool m_transferActive = false;
     bool m_cancelled = false;
+    /// 每次收尾都递增。解压在别的线程跑，回调回来时任务可能已被取消、甚至换成了
+    /// 新一轮 —— 对不上号的回调一律静默丢弃，否则取消之后会弹「已就绪」，
+    /// 新任务也会被旧回调的 finished 打断。见 onExtractFinished。
+    int m_generation = 0;
 };

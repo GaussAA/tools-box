@@ -108,6 +108,10 @@ $entries = @($parsed)
 Check ($entries.Count -gt 0) ("compile database has entries ({0})" -f $entries.Count)
 
 $files = @(& git -C $repo ls-files "*.cpp")
+# Vendored upstream sources (third_party/) keep upstream naming; only first-party
+# code is held to our naming rules. (miniz.c is not a *.cpp today, but keep the
+# exclusion so a future vendor drop cannot silently enter the scope.)
+$files = @($files | Where-Object { $_ -notmatch '^third_party/' })
 Write-Output ("scope      = " + $files.Count + " C++ file(s)")
 Check ($files.Count -gt 0) ("found C++ sources to check ({0})" -f $files.Count)
 

@@ -43,6 +43,9 @@ function Check($ok, $what) {
 $sources = @(& git -C $repo ls-files "*.cpp" "*.h" "*.hpp") `
            + @(& git -C $repo ls-files --others --exclude-standard "*.cpp" "*.h" "*.hpp")
 $sources = @($sources | Sort-Object -Unique)
+# Vendored upstream sources (third_party/, e.g. miniz) follow the upstream style;
+# our conventions (pragma once, tr(), moc placement) only govern first-party code.
+$sources = @($sources | Where-Object { $_ -notmatch '^third_party/' })
 $scan = @()
 foreach ($rel in $sources) {
   $path = Join-Path $repo $rel
@@ -106,7 +109,8 @@ Check ($bareKeys.Count -eq 0) ("QSettings keys go through ToolSettings/named con
 
 # ---------- 5. headers carry #pragma once ----------
 $noPragma = @()
-foreach ($rel in (@(& git -C $repo ls-files "*.h" "*.hpp"))) {
+foreach ($rel in (@(& git -C $repo ls-files "*.h" "*.hpp") |
+    Where-Object { $_ -notmatch '^third_party/' })) {
   $path = Join-Path $repo $rel
   if (-not (Test-Path $path -PathType Leaf)) { continue }
   $head = (Get-Content -LiteralPath $path -TotalCount 3 -Encoding UTF8) -join "`n"

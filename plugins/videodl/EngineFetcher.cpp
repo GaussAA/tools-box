@@ -4,15 +4,15 @@
 #include "core/EngineFetchPolicy.h"
 #include "core/EngineInstall.h"
 #include "core/EngineLocator.h"
-#include "core/OutputParsing.h"
+#include "core/ZipExtract.h"
 
 #include <QCoreApplication>
 #include <QDir>
-#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
-#include <QProcess>
+#include <QFutureWatcher>
 #include <QTimer>
+#include <QtConcurrent/QtConcurrent>
 
 namespace {
 
@@ -28,34 +28,21 @@ QString engineDir()
     return videodl::engineDir(QCoreApplication::applicationDirPath());
 }
 
-/// 把路径包成 PowerShell 的单引号字符串字面量。
-///
-/// 单引号串里的单引号靠**写两遍**来转义（不是反斜杠）。少了这一步，临时目录路径里
-/// 只要有一个 `'`（Windows 用户名允许这个字符），整条 -Command 就会被截断，
-/// 症状是「解压失败」而真因根本没显示在日志里。
-QString psSingleQuoted(const QString &value)
-{
-    return QStringLiteral("'%1'").arg(
-        QString(value).replace(QLatin1Char('\''), QStringLiteral("''")));
-}
-
 } // namespace
 
 EngineFetcher::EngineFetcher(QObject *parent)
     : QObject(parent)
     , m_transport(new NetworkEngineTransport(this))
-    , m_unzip(new RealChildProcess(this))
-    , m_ownsExternals(true)
+    , m_ownsTransport(true)
 {
     connect(m_transport, &IEngineTransport::progress, this, &EngineFetcher::onTransportProgress);
     connect(m_transport, &IEngineTransport::finished, this, &EngineFetcher::onTransportFinished);
 }
 
-EngineFetcher::EngineFetcher(IEngineTransport *transport, IChildProcess *unzip, QObject *parent)
+EngineFetcher::EngineFetcher(IEngineTransport *transport, QObject *parent)
     : QObject(parent)
     , m_transport(transport)
-    , m_unzip(unzip)
-    , m_ownsExternals(false)
+    , m_ownsTransport(false)
 {
     connect(m_transport, &IEngineTransport::progress, this, &EngineFetcher::onTransportProgress);
     connect(m_transport, &IEngineTransport::finished, this, &EngineFetcher::onTransportFinished);
@@ -63,11 +50,9 @@ EngineFetcher::EngineFetcher(IEngineTransport *transport, IChildProcess *unzip, 
 
 EngineFetcher::~EngineFetcher()
 {
-    if (m_ownsExternals) {
-        delete m_unzip;
+    if (m_ownsTransport) {
         delete m_transport;
     }
-    m_unzip = nullptr;
     m_transport = nullptr;
 }
 
@@ -270,8 +255,7 @@ void EngineFetcher::finish(bool ok)
         return;
     }
 
-    // ffmpeg 的 zip 已经改名好了（Expand-Archive 只认 .zip 后缀，
-    // 拿 .part 去解压会直接报「不是支持的存档文件格式」），交给解压收尾。
+    // ffmpeg 的 zip 已经改名就位，交给解压收尾。
     // 解压阶段没有百分比，切到不确定态。
     emit progress(-1);
     emit status(tr("正在解压 ffmpeg …"));
@@ -280,99 +264,68 @@ void EngineFetcher::finish(bool ok)
 
 void EngineFetcher::extractFfmpeg(const QString &zipPath)
 {
-    const QString tmpDir = QDir::tempPath() + QStringLiteral("/toolbox-ffmpeg-extract");
-    QDir(tmpDir).removeRecursively();
-    QDir().mkpath(tmpDir);
-
     emit logLine(tr("正在解压 ffmpeg …"));
 
-    if (!m_unzip) {
-        m_unzip = new RealChildProcess(this);
-    }
-    auto *ps = m_unzip;
-
-    const auto cleanup = [tmpDir, zipPath] {
-        QDir(tmpDir).removeRecursively();
-        QFile::remove(zipPath);
-    };
-
-    connect(ps, &IChildProcess::finished, this,
-            [this, ps, tmpDir, zipPath, cleanup](int exitCode, QProcess::ExitStatus) {
-                const QString err = videodl::decodeOutput(ps->readAllStandardError()).trimmed();
-
-                QString result;
-                bool ok = false;
-                if (exitCode != 0) {
-                    emit logLine(tr("解压失败：%1").arg(err.isEmpty() ? tr("未知错误") : err));
-                    result = tr("ffmpeg 安装失败：解压出错。");
-                } else {
-                    // 压缩包里有多个同名文件（bin/ 与 doc/），优先挑 bin/ 下的那个。
-                    QDirIterator it(tmpDir, QStringList{QStringLiteral("ffmpeg.exe")}, QDir::Files,
-                                    QDirIterator::Subdirectories);
-                    QString found;
-                    QString fallback;
-                    while (it.hasNext()) {
-                        const QString path = it.next();
-                        if (QFileInfo(path).dir().dirName().compare(QStringLiteral("bin"),
-                                                                    Qt::CaseInsensitive)
-                            == 0) {
-                            found = path;
-                            break;
-                        }
-                        if (fallback.isEmpty()) {
-                            fallback = path;
-                        }
-                    }
-                    if (found.isEmpty()) {
-                        found = fallback;
-                    }
-
-                    if (found.isEmpty()) {
-                        emit logLine(tr("解压后没找到 ffmpeg.exe。"));
-                        result = tr("ffmpeg 安装失败：压缩包里没有 ffmpeg.exe。");
-                    } else {
-                        const QString target = engineDir() + QStringLiteral("/ffmpeg.exe");
-                        QFile::remove(target);
-                        if (QFile::copy(found, target)) {
-                            emit logLine(
-                                tr("ffmpeg 已就绪：%1").arg(QDir::toNativeSeparators(target)));
-                            result = tr("ffmpeg 已就绪。");
-                            ok = true;
-                        } else {
-                            emit logLine(
-                                tr("复制 ffmpeg 失败：%1").arg(QDir::toNativeSeparators(target)));
-                            result = tr("ffmpeg 安装失败：无法写入目标目录。");
-                        }
-                    }
-                }
-
-                cleanup();
-                const Kind kind = m_kind;
-                m_kind = Kind::None;
-                reset();
-                emit progress(0);
-                emit status(result);
-                emit finished(ok, kind, m_targetPath);
+    // 内嵌 miniz 进程内解压（偏差 9.13 收束）：不再依赖 powershell.exe，
+    // 拦子进程的受限环境（企业安全策略 / 开发沙箱）照样能装 ffmpeg。
+    // 百 MB 级的 ffmpeg.exe 提取要一两秒，丢到全局线程池里跑，主线程只等结果。
+    const QString target = engineDir() + QStringLiteral("/ffmpeg.exe");
+    const int generation = m_generation;
+    auto *watcher = new QFutureWatcher<videodl::ZipExtractStatus>(this);
+    connect(watcher, &QFutureWatcher<videodl::ZipExtractStatus>::finished, this,
+            [this, watcher, generation, zipPath, target] {
+                const videodl::ZipExtractStatus result = watcher->result();
+                watcher->deleteLater();
+                onExtractFinished(generation, result, zipPath, target);
             });
-    connect(ps, &IChildProcess::errorOccurred, this, [this, cleanup](QProcess::ProcessError) {
-        emit logLine(tr("无法调用 PowerShell 解压，请手动指定 ffmpeg 路径。"));
-        cleanup();
-        const Kind kind = m_kind;
-        m_kind = Kind::None;
-        reset();
-        emit progress(0);
-        emit status(tr("ffmpeg 安装失败：无法解压。"));
-        emit finished(false, kind, m_targetPath);
-    });
+    watcher->setFuture(QtConcurrent::run(
+        [zipPath, target] { return videodl::extractFfmpegMainExecutable(zipPath, target); }));
+}
 
-    // 用系统自带的 Expand-Archive，省得为解压一个 zip 引入第三方库
-    // （偏差 9.13：受限环境会拦子进程，治本方案是内嵌 minizip，待排期）。
-    ps->start(QStringLiteral("powershell.exe"),
-              {QStringLiteral("-NoProfile"), QStringLiteral("-NonInteractive"),
-               QStringLiteral("-Command"),
-               QStringLiteral("Expand-Archive -LiteralPath %1 -DestinationPath %2 -Force")
-                   .arg(psSingleQuoted(QDir::toNativeSeparators(zipPath)),
-                        psSingleQuoted(QDir::toNativeSeparators(tmpDir)))});
+void EngineFetcher::onExtractFinished(int generation, videodl::ZipExtractStatus result,
+                                      const QString &zipPath, const QString &targetPath)
+{
+    // 提取在飞的时候用户仍可取消（cancel → reset 会把 generation 前移）。
+    // 对不上号的回调一律静默清理：取消之后还弹「ffmpeg 已就绪」是把取消当
+    // 成功了；而若新一轮任务已经 start，旧回调更不能把它的忙碌态打断。
+    if (generation != m_generation) {
+        QFile::remove(zipPath);
+        return;
+    }
+
+    // 「先复位、再发信号」：finished 一到，页面就会读 isBusy() 刷新按钮，
+    // 顺序反了按钮会卡在忙碌态。kindLabel 依赖 m_kind，复位前先取。
+    const Kind kind = m_kind;
+    m_kind = Kind::None;
+    reset();
+
+    QString message;
+    bool ok = false;
+    switch (result) {
+    case videodl::ZipExtractStatus::Ok:
+        emit logLine(tr("ffmpeg 已就绪：%1").arg(QDir::toNativeSeparators(targetPath)));
+        message = tr("ffmpeg 已就绪。");
+        ok = true;
+        break;
+    case videodl::ZipExtractStatus::CantOpenZip:
+        // 与旧子进程方案的差别就在这：失败原因终于说得出话。
+        emit logLine(tr("解压失败：下载的文件不是有效的 zip 压缩包。"));
+        message = tr("ffmpeg 安装失败：无法解压。");
+        break;
+    case videodl::ZipExtractStatus::NoExecutable:
+        emit logLine(tr("解压后没找到 ffmpeg.exe。"));
+        message = tr("ffmpeg 安装失败：压缩包里没有 ffmpeg.exe。");
+        break;
+    case videodl::ZipExtractStatus::WriteFailed:
+        emit logLine(tr("复制 ffmpeg 失败：%1").arg(QDir::toNativeSeparators(targetPath)));
+        message = tr("ffmpeg 安装失败：无法写入目标目录。");
+        break;
+    }
+
+    QFile::remove(zipPath);
+    emit progress(0);
+    emit status(message);
+    emit finished(ok, kind, targetPath);
 }
 
 void EngineFetcher::reset()
@@ -382,5 +335,6 @@ void EngineFetcher::reset()
     m_kind = Kind::None;
     m_attempt = 0;
     m_offset = 0;
+    ++m_generation; // 使仍在飞的解压回调失效（见 onExtractFinished）
     QFile::remove(m_partPath);
 }

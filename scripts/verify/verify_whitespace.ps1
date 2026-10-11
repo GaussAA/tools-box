@@ -44,6 +44,9 @@ $tabCheckedNames = @("CMakeLists.txt")
 # working tree rather than only the index.
 $tracked = @(& git -C $repo ls-files) + @(& git -C $repo ls-files --others --exclude-standard)
 $tracked = @($tracked | Sort-Object -Unique)
+# third_party/ holds vendored upstream sources (e.g. miniz). They follow the
+# upstream project's style, not ours, so the whitespace rules do not apply there.
+$tracked = @($tracked | Where-Object { $_ -notmatch '^third_party/' })
 Write-Output ("repo        = " + $repo)
 Write-Output ("tracked     = " + $tracked.Count + " files (including untracked)")
 

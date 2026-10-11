@@ -41,6 +41,9 @@ $exemptions = @{
 $sources = @(& git -C $repo ls-files "*.cpp" "*.h" "*.hpp") `
            + @(& git -C $repo ls-files --others --exclude-standard "*.cpp" "*.h" "*.hpp")
 $sources = @($sources | Sort-Object -Unique)
+# Vendored upstream sources (third_party/, e.g. miniz) are excluded: their size is
+# decided upstream, and the threshold exists to stop first-party files from growing.
+$sources = @($sources | Where-Object { $_ -notmatch '^third_party/' })
 
 Write-Output ("repo       = " + $repo)
 Write-Output ("threshold  = " + $threshold + " lines")

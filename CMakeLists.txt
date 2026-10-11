@@ -3,7 +3,10 @@ cmake_minimum_required(VERSION 3.25)
 project(ToolBox
     VERSION 0.2.0
     DESCRIPTION "插件式桌面工具箱"
-    LANGUAGES CXX)
+    # C：third_party/miniz 的 miniz.c 是 C 源。少了它 CMake 会把 miniz.c 当
+    # 「看不懂的文件」静默跳过，miniz.lib 编出来是个空壳，链接时以
+    # LNK2019 unresolved externals 收场（2026-10-11 实测）。
+    LANGUAGES C CXX)
 
 # 主程序与所有插件都必须是同一套 Qt、同一个编译器、同一个 C++ 标准。
 # 插件 DLL 与主程序之间共享 QWidget 对象，二进制不兼容会直接崩溃。

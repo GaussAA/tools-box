@@ -85,6 +85,9 @@ if ($verText -notmatch [regex]::Escape("version $expectedVersion")) {
 }
 
 $files = @(& git -C $repo ls-files "*.cpp" "*.h" "*.hpp")
+# Vendored upstream sources (third_party/, e.g. miniz) keep their own formatting;
+# running our .clang-format over them would both fail and invite churn on upgrade.
+$files = @($files | Where-Object { $_ -notmatch '^third_party/' })
 Write-Output ("scope        = " + $files.Count + " C++ file(s)")
 
 # ---------- dry run ----------

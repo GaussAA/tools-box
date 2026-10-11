@@ -84,7 +84,7 @@ void TestEngineFetcher::startIssuesOneTransfer()
     QVERIFY(dir.isValid());
 
     FakeTransport transport;
-    EngineFetcher fetcher(&transport, nullptr);
+    EngineFetcher fetcher(&transport);
 
     const QString target = dir.path() + QStringLiteral("/yt-dlp.exe");
     fetcher.start(EngineFetcher::Kind::YtDlp, QStringLiteral("https://example.invalid/x"), target);
@@ -103,7 +103,7 @@ void TestEngineFetcher::networkErrorSchedulesAnotherAttempt()
     QVERIFY(dir.isValid());
 
     FakeTransport transport;
-    EngineFetcher fetcher(&transport, nullptr);
+    EngineFetcher fetcher(&transport);
 
     QSignalSpy status(&fetcher, &EngineFetcher::status);
     QSignalSpy finished(&fetcher, &EngineFetcher::finished);
@@ -128,7 +128,7 @@ void TestEngineFetcher::exhaustingAttemptsReportsFailure()
     QVERIFY(dir.isValid());
 
     FakeTransport transport;
-    EngineFetcher fetcher(&transport, nullptr);
+    EngineFetcher fetcher(&transport);
 
     QSignalSpy finished(&fetcher, &EngineFetcher::finished);
 
@@ -154,7 +154,7 @@ void TestEngineFetcher::serverIgnoringRangeRestartsFromZero()
     QVERIFY(dir.isValid());
 
     FakeTransport transport;
-    EngineFetcher fetcher(&transport, nullptr);
+    EngineFetcher fetcher(&transport);
 
     const QString target = dir.path() + QStringLiteral("/yt-dlp.exe");
     const QString partPath = target + QStringLiteral(".part");
@@ -193,7 +193,7 @@ void TestEngineFetcher::cancelDuringTransferStopsAndStaysCancelled()
     QVERIFY(dir.isValid());
 
     FakeTransport transport;
-    EngineFetcher fetcher(&transport, nullptr);
+    EngineFetcher fetcher(&transport);
 
     QSignalSpy finished(&fetcher, &EngineFetcher::finished);
 
@@ -219,7 +219,7 @@ void TestEngineFetcher::cancelDuringRetryDelayDoesNotRestart()
     QVERIFY(dir.isValid());
 
     FakeTransport transport;
-    EngineFetcher fetcher(&transport, nullptr);
+    EngineFetcher fetcher(&transport);
 
     fetcher.start(EngineFetcher::Kind::YtDlp, QStringLiteral("https://example.invalid/x"),
                   dir.path() + QStringLiteral("/yt-dlp.exe"));
@@ -241,7 +241,7 @@ void TestEngineFetcher::resumeStartsFromExistingPartialFile()
     QVERIFY(dir.isValid());
 
     FakeTransport transport;
-    EngineFetcher fetcher(&transport, nullptr);
+    EngineFetcher fetcher(&transport);
 
     const QString target = dir.path() + QStringLiteral("/yt-dlp.exe");
     fetcher.start(EngineFetcher::Kind::YtDlp, QStringLiteral("https://example.invalid/x"), target);
