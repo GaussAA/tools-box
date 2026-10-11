@@ -408,6 +408,113 @@
     </message>
 </context>
 <context>
+    <name>HashSumPage</name>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="76"/>
+        <source>文本</source>
+        <translation>Text</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="77"/>
+        <source>文件</source>
+        <translation>File</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="86"/>
+        <source>在这里输入要计算摘要的文本</source>
+        <translation>Type the text to digest here</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="91"/>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="179"/>
+        <source>尚未选择文件 —— 也可以把文件拖进来</source>
+        <translation>No file selected - you can also drop one in</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="92"/>
+        <source>选择文件…</source>
+        <translation>Choose file…</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="106"/>
+        <source>计算</source>
+        <translation>Calculate</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="107"/>
+        <source>计算（Ctrl+Enter）</source>
+        <translation>Calculate (Ctrl+Enter)</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="108"/>
+        <source>复制结果</source>
+        <translation>Copy result</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="110"/>
+        <source>清空</source>
+        <translation>Clear</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="122"/>
+        <source>结果</source>
+        <translation>Result</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="145"/>
+        <source>选择文件</source>
+        <translation>Choose a file</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="168"/>
+        <source>已复制结果到剪贴板。</source>
+        <translation>Result copied to the clipboard.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="208"/>
+        <source>这个路径不是文件 —— 可能已被移动或删除。</source>
+        <translation>That path is not a file - it may have been moved or deleted.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="210"/>
+        <source>打不开这个文件，检查是否有读取权限。</source>
+        <translation>Cannot open this file - check whether you have read permission.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="212"/>
+        <source>文件超过 %1 MB 的上限。</source>
+        <translation>The file exceeds the %1 MB limit.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="224"/>
+        <source>至少勾一个算法。</source>
+        <translation>Select at least one algorithm.</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="232"/>
+        <source>先选一个文件，或把文件拖进来。</source>
+        <translation>Choose a file first, or drop one in.</translation>
+    </message>
+</context>
+<context>
+    <name>HashSumPlugin</name>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="330"/>
+        <source>哈希与校验和</source>
+        <translation>Hash and checksum</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="331"/>
+        <source>开发辅助</source>
+        <translation>Developer tools</translation>
+    </message>
+    <message>
+        <location filename="../plugins/hashsum/HashSumPlugin.cpp" line="333"/>
+        <source>对文本或文件计算 MD5 / SHA-1 / SHA-256 / SHA-512。</source>
+        <translation>Compute MD5 / SHA-1 / SHA-256 / SHA-512 for text or files.</translation>
+    </message>
+</context>
+<context>
     <name>ImgWatermarkPage</name>
     <message>
         <location filename="../plugins/imgwatermark/ImgWatermarkPlugin.cpp" line="139"/>
@@ -882,165 +989,165 @@ Note: JPEG is lossy — if the strength is too low, one re-save may lose it. Use
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../app/MainWindow.cpp" line="93"/>
-        <location filename="../app/MainWindow.cpp" line="576"/>
+        <location filename="../app/MainWindow.cpp" line="65"/>
+        <location filename="../app/MainWindow.cpp" line="548"/>
         <source>工具箱</source>
         <translation>Toolbox</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="119"/>
+        <location filename="../app/MainWindow.cpp" line="91"/>
         <source>搜索工具…</source>
         <translation>Search tools…</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="159"/>
+        <location filename="../app/MainWindow.cpp" line="131"/>
         <source>文件</source>
         <translation>File</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="160"/>
+        <location filename="../app/MainWindow.cpp" line="132"/>
         <source>重载插件</source>
         <translation>Reload plugins</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="161"/>
+        <location filename="../app/MainWindow.cpp" line="133"/>
         <source>打开插件目录</source>
         <translation>Open plugin folder</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="167"/>
+        <location filename="../app/MainWindow.cpp" line="139"/>
         <source>清空收藏</source>
         <translation>Clear favorites</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="168"/>
+        <location filename="../app/MainWindow.cpp" line="140"/>
         <source>清空最近使用</source>
         <translation>Clear recent</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="170"/>
+        <location filename="../app/MainWindow.cpp" line="142"/>
         <source>退出</source>
         <translation>Quit</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="172"/>
+        <location filename="../app/MainWindow.cpp" line="144"/>
         <source>帮助</source>
         <translation>Help</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="177"/>
-        <location filename="../app/MainWindow.cpp" line="202"/>
+        <location filename="../app/MainWindow.cpp" line="149"/>
+        <location filename="../app/MainWindow.cpp" line="174"/>
         <source>界面语言</source>
         <translation>Interface language</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="192"/>
+        <location filename="../app/MainWindow.cpp" line="164"/>
         <source>跟随系统</source>
         <translation>Follow system</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="193"/>
+        <location filename="../app/MainWindow.cpp" line="165"/>
         <source>中文</source>
         <translation>中文</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="194"/>
+        <location filename="../app/MainWindow.cpp" line="166"/>
         <source>English</source>
         <translation>English</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="202"/>
+        <location filename="../app/MainWindow.cpp" line="174"/>
         <source>语言设置已保存，重启程序后生效。</source>
         <translation>Language preference saved. Restart the app to apply it.</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="206"/>
+        <location filename="../app/MainWindow.cpp" line="178"/>
         <source>关于</source>
         <translation>About</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="241"/>
+        <location filename="../app/MainWindow.cpp" line="213"/>
         <source>其他</source>
         <translation>Other</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="276"/>
+        <location filename="../app/MainWindow.cpp" line="248"/>
         <source>已加载 %1 个工具 · 插件目录 %2</source>
         <translation>%1 tools loaded · plugin folder %2</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="327"/>
-        <location filename="../app/MainWindow.cpp" line="329"/>
+        <location filename="../app/MainWindow.cpp" line="299"/>
+        <location filename="../app/MainWindow.cpp" line="301"/>
         <source>首页</source>
         <translation>Home</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="334"/>
+        <location filename="../app/MainWindow.cpp" line="306"/>
         <source>收藏</source>
         <translation>Favorites</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="343"/>
+        <location filename="../app/MainWindow.cpp" line="315"/>
         <source>最近使用</source>
         <translation>Recent</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="452"/>
+        <location filename="../app/MainWindow.cpp" line="424"/>
         <source>没有匹配「%1」的工具</source>
         <translation>No tools match “%1”</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="454"/>
+        <location filename="../app/MainWindow.cpp" line="426"/>
         <source>匹配到 %1 个工具</source>
         <translation>%1 tool(s) matched</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="521"/>
+        <location filename="../app/MainWindow.cpp" line="493"/>
         <source>已清空收藏。</source>
         <translation>Favorites cleared.</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="534"/>
+        <location filename="../app/MainWindow.cpp" line="506"/>
         <source>已清空最近使用。</source>
         <translation>Recent list cleared.</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="555"/>
+        <location filename="../app/MainWindow.cpp" line="527"/>
         <source>取消收藏</source>
         <translation>Remove from favorites</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="555"/>
+        <location filename="../app/MainWindow.cpp" line="527"/>
         <source>加入收藏</source>
         <translation>Add to favorites</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="577"/>
+        <location filename="../app/MainWindow.cpp" line="549"/>
         <source>已加载 &lt;b&gt;%1&lt;/b&gt; 个工具。</source>
         <translation>&lt;b&gt;%1&lt;/b&gt; tools loaded.</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="578"/>
+        <location filename="../app/MainWindow.cpp" line="550"/>
         <source>在左侧右键任意工具，可以把它加进「收藏」。</source>
         <translation>Right-click any tool on the left to add it to Favorites.</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="580"/>
+        <location filename="../app/MainWindow.cpp" line="552"/>
         <source>要收录新工具，把插件 DLL 放进下面的目录，再按 F5 重新加载：&lt;br&gt;&lt;code&gt;%1&lt;/code&gt;</source>
         <translation>To add a tool, drop its plugin DLL into the folder below and press F5:&lt;br&gt;&lt;code&gt;%1&lt;/code&gt;</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="591"/>
+        <location filename="../app/MainWindow.cpp" line="563"/>
         <source>以下插件加载失败：</source>
         <translation>These plugins failed to load:</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="600"/>
+        <location filename="../app/MainWindow.cpp" line="572"/>
         <source>关于工具箱</source>
         <translation>About Toolbox</translation>
     </message>
     <message>
-        <location filename="../app/MainWindow.cpp" line="601"/>
+        <location filename="../app/MainWindow.cpp" line="573"/>
         <source>&lt;b&gt;工具箱&lt;/b&gt; %1&lt;br&gt;&lt;br&gt;基于 Qt %2 构建的插件式桌面工具箱。&lt;br&gt;每个工具都是一个独立 DLL 插件，放进 tools 目录即可生效。</source>
         <translation>&lt;b&gt;Toolbox&lt;/b&gt; %1&lt;br&gt;&lt;br&gt;A plugin-based desktop toolbox built with Qt %2.&lt;br&gt;Every tool is a separate DLL plugin; drop one into the tools folder and it appears.</translation>
     </message>

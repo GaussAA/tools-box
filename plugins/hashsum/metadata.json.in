@@ -1,0 +1,10 @@
+{
+  "toolbox": {
+    "id": "dev.hash-sum",
+    "name": "哈希与校验和",
+    "category": "开发辅助",
+    "version": "0.1.0",
+    "description": "对文本或文件计算 MD5 / SHA-1 / SHA-256 / SHA-512。",
+    "abi": "@TOOLBOX_PLUGIN_ABI@"
+  }
+}

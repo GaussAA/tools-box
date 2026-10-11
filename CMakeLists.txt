@@ -106,6 +106,7 @@ add_subdirectory(plugins/base64)
 add_subdirectory(plugins/jsonfmt)
 add_subdirectory(plugins/imgwatermark)
 add_subdirectory(plugins/videodl)
+add_subdirectory(plugins/hashsum)
 
 # ── 界面翻译 ────────────────────────────────────────────────────────────────
 # 源语言是中文（tr() 里写的就是中文），这里编的是英文译文。lupdate 从下面这些
@@ -130,6 +131,8 @@ qt_add_translations(ToolBox
         videodl_tool
         videodl_orch
         videodl_core
+        hashsum_tool
+        hashsum_core
     RESOURCE_PREFIX "/i18n"
     NO_GENERATE_PLURALS_TS_FILE)
 
