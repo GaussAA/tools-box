@@ -119,11 +119,30 @@ $cmakeFiles = @(& git -C $repo ls-files "*CMakeLists.txt")
 $regs = @{}
 foreach ($cm in $cmakeFiles) {
   $text = [System.IO.File]::ReadAllText((Join-Path $repo $cm))
+  # 注释里提到关键字不算注册（CMake 注释以 # 开头），先剥掉。
+  $text = ($text -split "`r?`n" | Where-Object { $_ -notmatch '^\s*#' }) -join "`n"
   $cmDir = ($cm -replace '/[^/]*$', '')
+
+  # 形态一：直接调用 —— app / sdk 这么写。
   foreach ($m in [regex]::Matches($text, 'toolbox_add_test\(\s*(tst_[A-Za-z0-9_]+)')) {
     $n = $m.Groups[1].Value
     if (-not $regs.ContainsKey($n)) { $regs[$n] = @() }
     $regs[$n] += $cmDir
+  }
+
+  # 形态二：经 toolbox_add_module() 的 TESTS / ORCH_TESTS 参数 —— 插件骨架收进
+  # cmake/ToolBoxModule.cmake 之后就只剩这种写法。只认形态一的话，全部插件用例
+  # 都会被当成「孤儿测试」假红，所以两种形态必须都认。
+  #
+  # 取关键字之后、下一个关键字或右括号之前的所有用例名。参数名与宏是配套的，
+  # 改 cmake/ToolBoxModule.cmake 的参数名时要同步改这里。
+  $macroPattern = '(?s)\b(?:TESTS|ORCH_TESTS)\b([^)]*?)(?=\b(?:CORE_SOURCES|CORE_LIBS|ORCH_SOURCES|ORCH_LIBS|PLUGIN_SOURCES|PLUGIN_LIBS|ICON|TESTS|ORCH_TESTS)\b|\))'
+  foreach ($m in [regex]::Matches($text, $macroPattern)) {
+    foreach ($one in [regex]::Matches($m.Groups[1].Value, 'tst_[A-Za-z0-9_]+')) {
+      $n = $one.Value
+      if (-not $regs.ContainsKey($n)) { $regs[$n] = @() }
+      $regs[$n] += $cmDir
+    }
   }
 }
 

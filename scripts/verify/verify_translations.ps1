@@ -116,6 +116,42 @@ foreach ($rel in $cmakeFiles) {
     if ($hasTr) { $translatable[$name] = $rel }
     elseif ($listed -contains $name) { $listedNoTr += $name }
   }
+
+  # 插件骨架收进 toolbox_add_module() 之后，add_library 出现在宏定义
+  # (cmake/ToolBoxModule.cmake) 里，各插件的 CMakeLists 里只剩一句调用 ——
+  # 只认 add_library 会让**全部插件 target 从视野里消失**，而这条检查的规则是
+  # 「没看见就不算缺失」，于是静默变成假绿（这正是 9.15 那条铁律说的情形）。
+  # 这里按宏的参数把三个 target 及其源文件还原出来。参数名与宏配套，
+  # 改 cmake/ToolBoxModule.cmake 的参数名时要同步改这里。
+  $moduleRegex = [regex] '(?s)toolbox_add_module\s*\(\s*([A-Za-z0-9_-]+)([^)]*)\)'
+  $suffixByKey = @{
+    'CORE_SOURCES'   = '_core'
+    'ORCH_SOURCES'   = '_orch'
+    'PLUGIN_SOURCES' = '_tool'
+  }
+  foreach ($mm in $moduleRegex.Matches($text)) {
+    $module = $mm.Groups[1].Value
+    $body   = $mm.Groups[2].Value
+
+    foreach ($key in $suffixByKey.Keys) {
+      $km = [regex]::Match($body, "(?s)\b$key\b(.*?)(?=\b(?:CORE_SOURCES|CORE_LIBS|ORCH_SOURCES|ORCH_LIBS|PLUGIN_SOURCES|PLUGIN_LIBS|ICON|TESTS|ORCH_TESTS)\b|\z)")
+      if (-not $km.Success) { continue }
+
+      $target = "${module}$($suffixByKey[$key])"
+      $targetHasTr = $false
+      foreach ($tok in ($km.Groups[1].Value -split "\s+")) {
+        $tok = $tok.Trim()
+        if ($tok -notmatch "\.(cpp|h)$") { continue }
+        if ($tok -like "*`$*") { continue }
+        $srcPath = Join-Path $cmakeDir $tok
+        if (-not (Test-Path $srcPath -PathType Leaf)) { continue }
+        if ((Read-Utf8 $srcPath) -match "\btr\s*\(") { $targetHasTr = $true; break }
+      }
+
+      if ($targetHasTr) { $translatable[$target] = $rel }
+      elseif ($listed -contains $target) { $listedNoTr += $target }
+    }
+  }
 }
 
 Write-Output ("repo            = " + $repo)
