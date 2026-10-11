@@ -29,8 +29,8 @@ namespace {
 
 struct ZipSpec
 {
-    QString entry;
-    QByteArray content;
+    QString m_entry;
+    QByteArray m_content;
 };
 
 /// 用 miniz writer 造一个真 zip。路径经 _wfopen_s 打开，与生产代码同一套
@@ -49,8 +49,9 @@ bool writeZip(const QString &path, const QList<ZipSpec> &entries)
     }
     bool ok = true;
     for (const ZipSpec &one : entries) {
-        if (!mz_zip_writer_add_mem(&zip, one.entry.toUtf8().constData(), one.content.constData(),
-                                   static_cast<size_t>(one.content.size()), MZ_DEFAULT_LEVEL)) {
+        if (!mz_zip_writer_add_mem(&zip, one.m_entry.toUtf8().constData(),
+                                   one.m_content.constData(),
+                                   static_cast<size_t>(one.m_content.size()), MZ_DEFAULT_LEVEL)) {
             ok = false;
             break;
         }
