@@ -4,48 +4,24 @@
 #   * imgwatermark_core —— 纯逻辑（载荷编解码 + DCT 嵌入/提取），可单测；
 #   * imgwatermark_tool —— 界面，只有它链 Qt6::Widgets。
 #
-# 与 base64/jsonfmt 的一处**有意的不同**：core 链 Qt6::Gui 而非 Qt6::Core，
-# 因为算法要直接操作 QImage 的像素。这仍然满足「core 不含界面代码」这条约束
-# ——QtGui 里没有任何 QWidget，误 include 界面头文件照样编译不过。
-# WatermarkText.* 也是纯逻辑（输出格式表 + 自动水印文本生成），放在这里才能被
-# tst_stego 链接 —— MODULE 库无法被测试 exe 链接，那样这两段逻辑将永远无法单测
-# （见 docs/architecture.md 偏差 9.17）。它不碰任何 QWidget，只用 QtCore。
-add_library(imgwatermark_core STATIC
-    WatermarkText.cpp
-    WatermarkText.h
-    core/Stego.cpp
-    core/Stego.h
-    core/StegoPayload.cpp
-    core/StegoPayload.h)
-
-target_link_libraries(imgwatermark_core PUBLIC Qt6::Gui)
-
-# PRIVATE, not PUBLIC (plan B): see plugins/base64/CMakeLists.txt. Own tests
-# get the module root from toolbox_add_test().
-target_include_directories(imgwatermark_core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-
-configure_file(metadata.json.in "${CMAKE_CURRENT_BINARY_DIR}/metadata.json" @ONLY)
-
-add_library(imgwatermark_tool MODULE
-    ImgWatermarkPlugin.cpp
-    ImgWatermarkPlugin.h)
-
-target_link_libraries(imgwatermark_tool PRIVATE ToolBox::Sdk Qt6::Concurrent imgwatermark_core)
-
-# Q_PLUGIN_METADATA 的 FILE 是按 include 路径找的，生成物在构建目录里。
-target_include_directories(imgwatermark_tool PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
-
-# 导航图标随 DLL 编进资源，路径是 :/icons/imgwatermark.svg。
-qt_add_resources(imgwatermark_tool "imgwatermark_icons"
-    PREFIX "/icons"
-    BASE "${CMAKE_CURRENT_SOURCE_DIR}"
-    FILES "icons/imgwatermark.svg")
-
-set_target_properties(imgwatermark_tool PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${TOOLBOX_BIN_DIR}/tools"
-    RUNTIME_OUTPUT_DIRECTORY "${TOOLBOX_BIN_DIR}/tools"
-    PREFIX "")
-
-# ── 本模块的测试 ──────────────────────────────────────────────────────────────
-# D3 收官：用例在 imgwatermark/tests/ 下，与 videodl 同一形态。
-toolbox_add_test(tst_stego imgwatermark_core)
+# 与其余插件的两处**有意的不同**，都通过 toolbox_add_module() 的参数表达：
+#   1. core 链 Qt6::Gui 而非 Qt6::Core —— 算法要直接操作 QImage 的像素。这仍然
+#      满足「core 不含界面代码」：QtGui 里没有任何 QWidget。
+#   2. 插件库额外链 Qt6::Concurrent —— 嵌入/提取在后台线程跑，界面不卡住。
+# WatermarkText.* 也是纯逻辑（输出格式表 + 自动水印文本生成），放进 core 才能被
+# tst_stego 链接 —— MODULE 库无法被测试 exe 链接（见偏差 9.17）。
+toolbox_add_module(imgwatermark
+    CORE_SOURCES
+        WatermarkText.cpp
+        WatermarkText.h
+        core/Stego.cpp
+        core/Stego.h
+        core/StegoPayload.cpp
+        core/StegoPayload.h
+    CORE_LIBS Qt6::Gui
+    PLUGIN_SOURCES
+        ImgWatermarkPlugin.cpp
+        ImgWatermarkPlugin.h
+    PLUGIN_LIBS ToolBox::Sdk Qt6::Concurrent imgwatermark_core
+    ICON icons/imgwatermark.svg
+    TESTS tst_stego)
